@@ -14,6 +14,8 @@ import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
 public final class VertxUtil {
 
@@ -196,23 +198,11 @@ public final class VertxUtil {
    * @param path path
    * @return json对象
    */
-  public static JsonObject readYamlConfig (Vertx vertx, String path) throws ExecutionException, InterruptedException {
-    ConfigStoreOptions fileStore = new ConfigStoreOptions()
-            .setType("file")
-            .setFormat("yaml")
-            .setConfig(new JsonObject().put("path", path));
-    ConfigRetrieverOptions options = new ConfigRetrieverOptions()
-            .addStore(fileStore);
+  public static void readYamlConfig (Vertx vertx, String path,Handler<AsyncResult<JsonObject>> handler) throws ExecutionException, InterruptedException{
+    ConfigStoreOptions fileStore = new ConfigStoreOptions() .setType("file") .setFormat("yaml") .setConfig(new JsonObject().put("path", path));
+    ConfigRetrieverOptions options = new ConfigRetrieverOptions() .addStore(fileStore);
     ConfigRetriever retriever = ConfigRetriever.create(vertx, options);
-    CompletableFuture<JsonObject> cf = new CompletableFuture<>();
-    retriever.getConfig(ar -> {
-      if (ar.succeeded()) {
-        cf.complete(ar.result());
-      }else {
-        cf.completeExceptionally(ar.cause());
-      }
-    });
-    return cf.get();
+    retriever.getConfig(handler);
   }
 }
 

@@ -1,6 +1,6 @@
 package com.tqxd.jys.messagebus;
 
-import com.tqxd.jys.messagebus.impl.KafkaMessageBusImpl;
+import com.tqxd.jys.messagebus.impl.kafka.KafkaMessageBusImpl;
 import io.vertx.core.Vertx;
 import java.util.Map;
 

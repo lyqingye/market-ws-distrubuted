@@ -1,4 +1,4 @@
-package com.tqxd.jys.messagebus.impl;
+package com.tqxd.jys.messagebus.impl.kafka;
 
 
 import com.tqxd.jys.messagebus.MessageBus;
@@ -8,6 +8,7 @@ import io.vertx.core.AsyncResult;
 import io.vertx.core.Future;
 import io.vertx.core.Handler;
 import io.vertx.core.Vertx;
+import io.vertx.core.shareddata.Counter;
 import io.vertx.kafka.client.consumer.KafkaConsumer;
 import io.vertx.kafka.client.producer.KafkaProducer;
 import io.vertx.kafka.client.producer.KafkaProducerRecord;
@@ -21,22 +22,44 @@ import java.util.function.Consumer;
  * kafka 事件总线实现
  */
 public class KafkaMessageBusImpl implements MessageBus {
-
+    public static final String MESSAGE_INDEX_COUNTER_NAME = "kafka_message_index_counter";
     private Map<String, KafkaConsumer<String, Object>> consumerMap = new ConcurrentHashMap<>();
     private KafkaProducer<String, Object> producer;
     private Vertx vertx;
+    private Counter messageIndexCounter;
     private Map<String,String> kafkaConfig;
 
     public KafkaMessageBusImpl (Vertx vertx,Map<String, String> kafkaConfig) {
         this.vertx = vertx;
         this.kafkaConfig = kafkaConfig;
         producer = KafkaProducer.create(vertx, kafkaConfig);
+        vertx.sharedData()
+                .getCounter(MESSAGE_INDEX_COUNTER_NAME)
+                .onSuccess(h -> messageIndexCounter = h)
+                .onFailure(Throwable::printStackTrace);
     }
 
     @Override
     public void publish(Topic topic, Message<?> message, Handler<AsyncResult<Void>> handler) {
-        KafkaProducerRecord<String, Object> record = KafkaProducerRecord.create(topic.name(), message);
-        producer.write(record,handler);
+        while (messageIndexCounter == null) {
+            try {
+                Thread.sleep(0);
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+        }
+        messageIndexCounter.addAndGet(1)
+                .compose(idx -> {
+                    message.setIndex(idx);
+                    KafkaProducerRecord<String, Object> record = KafkaProducerRecord.create(topic.name(), message);
+                    return producer.write(record);
+                })
+                .onSuccess(h -> {
+                    handler.handle(Future.succeededFuture());
+                })
+                .onFailure(throwable -> {
+                    handler.handle(Future.failedFuture(throwable));
+                });
     }
 
     @Override

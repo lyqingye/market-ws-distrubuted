@@ -10,8 +10,10 @@ import com.tqxd.jys.utils.VertxUtil;
 import io.vertx.core.*;
 import io.vertx.core.eventbus.MessageConsumer;
 import io.vertx.core.json.JsonObject;
+import io.vertx.core.spi.cluster.ClusterManager;
 import io.vertx.serviceproxy.ServiceBinder;
 import io.vertx.spi.cluster.hazelcast.HazelcastClusterManager;
+import io.vertx.spi.cluster.zookeeper.ZookeeperClusterManager;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -19,6 +21,8 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeoutException;
 
 /**
  * @author yjt
@@ -99,23 +103,44 @@ public class CollectorsApplication extends AbstractVerticle {
     public static void main(String[] args) {
         Map<String, String> kafkaConfig = new HashMap<>();
         kafkaConfig.put("bootstrap.servers", "localhost:9092");
-        kafkaConfig.put("key.serializer","org.apache.kafka.common.serialization.StringSerializer");
-        kafkaConfig.put("value.serializer","org.apache.kafka.common.serialization.StringSerializer");
-        kafkaConfig.put("key.deserializer", "org.apache.kafka.common.serialization.StringDeserializer");
-        kafkaConfig.put("value.deserializer", "org.apache.kafka.common.serialization.StringDeserializer");
+        kafkaConfig.put("key.serializer","com.tqxd.jys.messagebus.impl.kafka.KafkaJsonSerializer");
+        kafkaConfig.put("value.serializer","com.tqxd.jys.messagebus.impl.kafka.KafkaJsonSerializer");
+        kafkaConfig.put("key.deserializer", "com.tqxd.jys.messagebus.impl.kafka.KafkaJsonDeSerializer");
+        kafkaConfig.put("value.deserializer", "com.tqxd.jys.messagebus.impl.kafka.KafkaJsonDeSerializer");
         kafkaConfig.put("group.id", "collector");
         kafkaConfig.put("auto.offset.reset", "earliest");
         kafkaConfig.put("enable.auto.commit", "true");
 
         Config hazelcastConfig = new Config();
-        HazelcastClusterManager mgr = new HazelcastClusterManager(hazelcastConfig);
+//        HazelcastClusterManager mgr = new HazelcastClusterManager(hazelcastConfig);
+
+        JsonObject zkConfig = new JsonObject();
+        zkConfig.put("zookeeperHosts", "127.0.0.1");
+        zkConfig.put("rootPath", "io.vertx");
+        zkConfig.put("retry", new JsonObject()
+                .put("initialSleepTime", 3000)
+                .put("maxTimes", 3));
+        ClusterManager mgr = new ZookeeperClusterManager(zkConfig);
         VertxOptions options = new VertxOptions().setClusterManager(mgr);
         options.setClusterManager(mgr);
         Vertx.clusteredVertx(options, ar -> {
             if (ar.succeeded()) {
-                MessageBusFactory.init(MessageBusFactory.KAFKA_MESSAGE_BUS,ar.result(), kafkaConfig);
-                ar.result().deployVerticle(new CollectorsApplication())
-                        .onFailure(Throwable::printStackTrace);
+                Vertx vertx = ar.result();
+
+                try {
+                    VertxUtil.readYamlConfig(vertx,"config.yaml", h -> {
+                        if (h.succeeded()) {
+                            MessageBusFactory.init(MessageBusFactory.KAFKA_MESSAGE_BUS,vertx, kafkaConfig);
+                            VertxUtil.deploy(vertx,new CollectorsApplication(),h.result())
+                                    .onFailure(Throwable::printStackTrace);
+
+                        }else {
+                            h.cause().printStackTrace();
+                        }
+                    });
+                } catch (ExecutionException | InterruptedException e) {
+                    e.printStackTrace();
+                }
             }else {
                 ar.cause().printStackTrace();
             }
