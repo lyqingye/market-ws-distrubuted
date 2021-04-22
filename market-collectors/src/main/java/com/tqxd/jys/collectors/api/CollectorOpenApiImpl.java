@@ -1,6 +1,7 @@
 package com.tqxd.jys.collectors.api;
 
 import com.tqxd.jys.collectors.Collector;
+import com.tqxd.jys.collectors.CollectorsApplication;
 import com.tqxd.jys.collectors.impl.HuoBiKlineCollector;
 import com.tqxd.jys.messagebus.MessageBus;
 import com.tqxd.jys.messagebus.payload.Message;
@@ -12,6 +13,9 @@ import io.vertx.core.*;
 import io.vertx.core.json.DecodeException;
 import io.vertx.core.json.Json;
 import io.vertx.core.json.JsonObject;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -23,6 +27,7 @@ import java.util.stream.Collectors;
  * 收集器服务
  */
 public class CollectorOpenApiImpl implements CollectorOpenApi {
+    private static final Logger log = LoggerFactory.getLogger(CollectorOpenApiImpl.class);
 
     /**
      * vertx 实例
@@ -46,16 +51,16 @@ public class CollectorOpenApiImpl implements CollectorOpenApi {
         vertx.setPeriodic(TimeUnit.MINUTES.toMillis(10), timeId -> {
             deployMap.values().forEach(collector -> {
                 if (collector.stop()) {
-                    System.out.println("[KlineCollector]: stop collector: " + collector.name() + " success!");
+                    log.info("[KlineCollector]: stop collector: {} success!" ,collector.name());
                     collector.start(ar -> {
                         if (ar.succeeded()) {
-                            System.out.println("[KlineCollector]: start collector: " + collector.name() + " success!");
+                            log.info("[KlineCollector]: start collector: {} success!" ,collector.name());
                         } else {
                             ar.cause().printStackTrace();
                         }
                     });
                 } else {
-                    System.err.println("[KlineCollector]: stop collector: " + collector.name() + " fail!");
+                    log.error("[KlineCollector]: stop collector: {}  fail!" , collector.name());
                 }
             });
         });
