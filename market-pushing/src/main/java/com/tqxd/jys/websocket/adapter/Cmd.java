@@ -11,15 +11,15 @@ import io.vertx.core.json.JsonObject;
  */
 public interface Cmd {
 
-    boolean canExecute(JsonObject json);
+  boolean canExecute(JsonObject json);
 
-    default boolean canExecute(JsonArray jsonArray) {
-        return false;
-    }
+  default boolean canExecute(JsonArray jsonArray) {
+    return false;
+  }
 
-    default void execute(JsonArray jsonArray, PushingContext ctx, WsSession curSession) {
-        throw new UnsupportedOperationException();
-    }
+  default void execute(JsonArray jsonArray, PushingContext ctx, WsSession curSession) {
+    throw new UnsupportedOperationException();
+  }
 
-    void execute(JsonObject json, PushingContext ctx, WsSession curSession);
+  void execute(JsonObject json, PushingContext ctx, WsSession curSession);
 }

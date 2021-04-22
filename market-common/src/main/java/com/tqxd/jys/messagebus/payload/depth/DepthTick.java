@@ -7,39 +7,39 @@ package com.tqxd.jys.messagebus.payload.depth;
  */
 public class DepthTick {
 
-    private static final String[][] EMPTY = new String[0][0];
+  private static final String[][] EMPTY = new String[0][0];
 
-    private String[][] bids = EMPTY;
+  private String[][] bids = EMPTY;
 
-    private String[][] asks = EMPTY;
+  private String[][] asks = EMPTY;
 
-    private Long ts;
+  private Long ts;
 
-    public static String[][] getEMPTY() {
-        return EMPTY;
-    }
+  public static String[][] getEMPTY() {
+    return EMPTY;
+  }
 
-    public String[][] getBids() {
-        return bids;
-    }
+  public String[][] getBids() {
+    return bids;
+  }
 
-    public void setBids(String[][] bids) {
-        this.bids = bids;
-    }
+  public void setBids(String[][] bids) {
+    this.bids = bids;
+  }
 
-    public String[][] getAsks() {
-        return asks;
-    }
+  public String[][] getAsks() {
+    return asks;
+  }
 
-    public void setAsks(String[][] asks) {
-        this.asks = asks;
-    }
+  public void setAsks(String[][] asks) {
+    this.asks = asks;
+  }
 
-    public Long getTs() {
-        return ts;
-    }
+  public Long getTs() {
+    return ts;
+  }
 
-    public void setTs(Long ts) {
-        this.ts = ts;
-    }
+  public void setTs(Long ts) {
+    this.ts = ts;
+  }
 }

@@ -9,31 +9,31 @@ import io.vertx.core.json.JsonObject;
 
 
 public class TradeDetailProcessCmd implements Cmd {
-    @Override
-    public boolean canExecute(JsonObject json) {
-        String ch = json.getString("ch");
-        if (ch == null) {
-            return false;
-        }
-        return ch.contains(".trade.detail");
+  @Override
+  public boolean canExecute(JsonObject json) {
+    String ch = json.getString("ch");
+    if (ch == null) {
+      return false;
     }
+    return ch.contains(".trade.detail");
+  }
 
-    @Override
-    public void execute(JsonObject json, PushingContext ctx, WsSession curSession) {
-        String ch = json.getString("ch");
-        TradeDetailResp detail = json.mapTo(TradeDetailResp.class);
-        // 更新交易缓存并且推送
-        this.broadcastTradeDetail(ctx, ch, this.updateCache(detail, ctx));
-    }
+  @Override
+  public void execute(JsonObject json, PushingContext ctx, WsSession curSession) {
+    String ch = json.getString("ch");
+    TradeDetailResp detail = json.mapTo(TradeDetailResp.class);
+    // 更新交易缓存并且推送
+    this.broadcastTradeDetail(ctx, ch, this.updateCache(detail, ctx));
+  }
 
-    /**
-     * 更新交易缓存
-     *
-     * @param detail 交易详情
-     * @param ctx    上下文
-     * @return 更新后的缓存
-     */
-    private Buffer updateCache(TradeDetailResp detail, PushingContext ctx) {
+  /**
+   * 更新交易缓存
+   *
+   * @param detail 交易详情
+   * @param ctx    上下文
+   * @return 更新后的缓存
+   */
+  private Buffer updateCache(TradeDetailResp detail, PushingContext ctx) {
 //        // 获取该订阅历史成交数据列表
 //        List<TradeDetailTickData> cache = ctx.getLatestTradeCache()
 //                .computeIfAbsent(detail.getCh(), k -> new ArrayList<>());
@@ -60,25 +60,25 @@ public class TradeDetailProcessCmd implements Cmd {
 //            ctx.getLatestTradeBufferCache().put(detail.getCh(), buffer);
 //        }
 //        return buffer;
-        return null;
-    }
+    return null;
+  }
 
-    /**
-     * 广播交易详情
-     *
-     * @param ctx    上下文
-     * @param sub    订阅
-     * @param buffer 数据
-     */
-    private void broadcastTradeDetail(PushingContext ctx, String sub, Buffer buffer) {
-        if (buffer == null) {
-            return;
-        }
-        ctx.getKlineSM().values()
-                .forEach((wrapper -> {
-                    if (wrapper.isSubTradeDetail(sub)) {
-                        wrapper.getSocket().write(buffer);
-                    }
-                }));
+  /**
+   * 广播交易详情
+   *
+   * @param ctx    上下文
+   * @param sub    订阅
+   * @param buffer 数据
+   */
+  private void broadcastTradeDetail(PushingContext ctx, String sub, Buffer buffer) {
+    if (buffer == null) {
+      return;
     }
+    ctx.getKlineSM().values()
+        .forEach((wrapper -> {
+          if (wrapper.isSubTradeDetail(sub)) {
+            wrapper.getSocket().write(buffer);
+          }
+        }));
+  }
 }

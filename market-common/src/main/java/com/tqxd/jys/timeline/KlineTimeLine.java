@@ -15,228 +15,228 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 import static com.tqxd.jys.utils.TimeUtils.alignWithPeriod;
 
 public class KlineTimeLine {
-    /**
-     * 名称
-     */
-    private final String name;
+  /**
+   * 名称
+   */
+  private final String name;
 
-    /**
-     * 周期大小
-     */
-    private final long period;
-    /**
-     * 周期数
-     */
-    private final int numOfPeriod;
-    /**
-     * 总周期
-     */
-    private final long totalPeriodSize;
-    /**
-     * 时间轮创建的时间
-     */
-    private long tt;
-    /**
-     * 时间轮创建时头部对应的时间
-     */
-    private long ht;
-    /**
-     * 时间轮存放的具体数据
-     */
-    private Object[] data;
-    /**
-     * 统计项
-     */
-    private boolean autoAggregate = false;
-    private BigDecimal high = BigDecimal.ZERO, low = BigDecimal.ZERO, vol = BigDecimal.ZERO, open = BigDecimal.ZERO, close = BigDecimal.ZERO, amount = BigDecimal.ZERO;
-    private int count = 0;
+  /**
+   * 周期大小
+   */
+  private final long period;
+  /**
+   * 周期数
+   */
+  private final int numOfPeriod;
+  /**
+   * 总周期
+   */
+  private final long totalPeriodSize;
+  /**
+   * 时间轮创建的时间
+   */
+  private long tt;
+  /**
+   * 时间轮创建时头部对应的时间
+   */
+  private long ht;
+  /**
+   * 时间轮存放的具体数据
+   */
+  private Object[] data;
+  /**
+   * 统计项
+   */
+  private boolean autoAggregate = false;
+  private BigDecimal high = BigDecimal.ZERO, low = BigDecimal.ZERO, vol = BigDecimal.ZERO, open = BigDecimal.ZERO, close = BigDecimal.ZERO, amount = BigDecimal.ZERO;
+  private int count = 0;
 
-    /**
-     * 命令队列
-     */
-    private ConcurrentLinkedQueue<Object> cmdBuffer = new ConcurrentLinkedQueue<Object>();
+  /**
+   * 命令队列
+   */
+  private ConcurrentLinkedQueue<Object> cmdBuffer = new ConcurrentLinkedQueue<Object>();
 
-    public KlineTimeLine(String name, long period, int numOfPeriod, boolean autoAggregate) {
-        this.name = name;
-        this.period = period;
-        this.numOfPeriod = numOfPeriod;
-        this.totalPeriodSize = period * numOfPeriod;
-        long now = System.currentTimeMillis();
-        this.tt = alignWithPeriod(now, period);
-        this.data = new Object[numOfPeriod];
-        this.ht = tt - totalPeriodSize + period;
-        this.autoAggregate = autoAggregate;
+  public KlineTimeLine(String name, long period, int numOfPeriod, boolean autoAggregate) {
+    this.name = name;
+    this.period = period;
+    this.numOfPeriod = numOfPeriod;
+    this.totalPeriodSize = period * numOfPeriod;
+    long now = System.currentTimeMillis();
+    this.tt = alignWithPeriod(now, period);
+    this.data = new Object[numOfPeriod];
+    this.ht = tt - totalPeriodSize + period;
+    this.autoAggregate = autoAggregate;
+  }
+
+  public String name() {
+    return this.name;
+  }
+
+  public CmdResult<KlineTick> update(KlineTick tick) {
+    UpdateTickCmd cmd = new UpdateTickCmd();
+    cmd.setTick(tick);
+    cmdBuffer.offer(cmd);
+    return cmd.getResult();
+  }
+
+  public CmdResult<List<KlineTick>> poll(long start, long end, int partIdx) {
+    PollTicksCmd cmd = new PollTicksCmd();
+    cmd.setEndTime(end);
+    cmd.setStartTime(start);
+    cmd.setPartIdx(partIdx);
+    cmdBuffer.offer(cmd);
+    return cmd.getResult();
+  }
+
+  public CmdResult<MarketDetailTick> tick() {
+    CmdResult<MarketDetailTick> result = new CmdResult<>();
+    if (execUpdateWindow()) {
+      result.setSuccess(true);
+      if (autoAggregate) {
+        result.complete(snapAggregate());
+      } else {
+        result.complete(null);
+      }
+    } else {
+      result.complete(null);
     }
-
-    public String name() {
-        return this.name;
+    Object cmd;
+    while ((cmd = cmdBuffer.poll()) != null) {
+      if (cmd instanceof UpdateTickCmd) {
+        execUpdateTick((UpdateTickCmd) cmd);
+      } else if (cmd instanceof PollTicksCmd) {
+        execPollTicks((PollTicksCmd) cmd);
+      }
     }
+    return result;
+  }
 
-    public CmdResult<KlineTick> update(KlineTick tick) {
-        UpdateTickCmd cmd = new UpdateTickCmd();
-        cmd.setTick(tick);
-        cmdBuffer.offer(cmd);
-        return cmd.getResult();
+  private void execUpdateTick(UpdateTickCmd cmd) {
+    KlineTick newObj = cmd.getTick();
+    int idx = calculateIdx(newObj.getTime());
+    if (idx < 0 || idx >= numOfPeriod) {
+      cmd.getResult().setSuccess(false);
+      cmd.getResult().complete(null);
+      return;
     }
-
-    public CmdResult<List<KlineTick>> poll(long start, long end, int partIdx) {
-        PollTicksCmd cmd = new PollTicksCmd();
-        cmd.setEndTime(end);
-        cmd.setStartTime(start);
-        cmd.setPartIdx(partIdx);
-        cmdBuffer.offer(cmd);
-        return cmd.getResult();
+    KlineTick oldObj = (KlineTick) data[idx];
+    if (oldObj != null) {
+      if (alignWithPeriod(newObj.getTime(), period) != alignWithPeriod(oldObj.getTime(), period)) {
+        data[idx] = newObj;
+      } else {
+        data[idx] = oldObj.merge(newObj);
+      }
+    } else {
+      data[idx] = newObj;
     }
+    // aggregate the window
+    doAggregate(newObj);
+    // complete
+    cmd.getResult().setSuccess(true);
+    cmd.getResult().complete((KlineTick) data[idx]);
+  }
 
-    public CmdResult<MarketDetailTick> tick() {
-        CmdResult<MarketDetailTick> result = new CmdResult<>();
-        if (execUpdateWindow()) {
-            result.setSuccess(true);
-            if (autoAggregate) {
-                result.complete(snapAggregate());
-            } else {
-                result.complete(null);
-            }
-        } else {
-            result.complete(null);
+  private void execPollTicks(PollTicksCmd cmd) {
+    int partIdx = cmd.getPartIdx();
+    long startTime = cmd.getStartTime();
+    long endTime = cmd.getEndTime();
+    final int partSize = 300;
+    int startIdx = partSize * partIdx;
+    int endIdx = Math.min(startIdx + partSize, numOfPeriod);
+    List<KlineTick> result = new ArrayList<>(partSize);
+    while (startIdx < endIdx) {
+      KlineTick obj = (KlineTick) this.data[startIdx];
+      if (obj != null) {
+        if (obj.getTime() >= startTime && obj.getTime() <= endTime) {
+          result.add(obj);
         }
-        Object cmd;
-        while ((cmd = cmdBuffer.poll()) != null) {
-            if (cmd instanceof UpdateTickCmd) {
-                execUpdateTick((UpdateTickCmd) cmd);
-            } else if (cmd instanceof PollTicksCmd) {
-                execPollTicks((PollTicksCmd) cmd);
-            }
+      }
+      startIdx++;
+    }
+    cmd.getResult().setSuccess(true);
+    cmd.getResult().complete(result);
+  }
+
+  private boolean execUpdateWindow() {
+    long now = alignWithPeriod(System.currentTimeMillis(), period);
+    int roteCount = Math.toIntExact((now - tt) / period);
+    if (roteCount != 0) {
+      clearAggregate();
+      if (roteCount < numOfPeriod) {
+        int sPos = roteCount;
+        int dPos = 0;
+        int length = numOfPeriod - roteCount;
+        for (int i = 0; i < length; i++) {
+          this.data[dPos] = this.data[sPos];
+          // clear src data
+          this.data[sPos] = null;
+          doAggregate((KlineTick) this.data[dPos]);
+          dPos++;
+          sPos++;
         }
-        return result;
+      } else {
+        Arrays.fill(this.data, null);
+      }
+      ht += period * roteCount;
+      tt += period * roteCount;
+      return true;
+    } else {
+      // the window already updated
+      return false;
     }
+  }
 
-    private void execUpdateTick(UpdateTickCmd cmd) {
-        KlineTick newObj = cmd.getTick();
-        int idx = calculateIdx(newObj.getTime());
-        if (idx < 0 || idx >= numOfPeriod) {
-            cmd.getResult().setSuccess(false);
-            cmd.getResult().complete(null);
-            return;
-        }
-        KlineTick oldObj = (KlineTick) data[idx];
-        if (oldObj != null) {
-            if (alignWithPeriod(newObj.getTime(), period) != alignWithPeriod(oldObj.getTime(), period)) {
-                data[idx] = newObj;
-            } else {
-                data[idx] = oldObj.merge(newObj);
-            }
-        } else {
-            data[idx] = newObj;
-        }
-        // aggregate the window
-        doAggregate(newObj);
-        // complete
-        cmd.getResult().setSuccess(true);
-        cmd.getResult().complete((KlineTick) data[idx]);
-    }
+  private void clearAggregate() {
+    if (!autoAggregate)
+      return;
+    low = high = vol = open = close = amount = BigDecimal.ZERO;
+    count = 0;
+  }
 
-    private void execPollTicks(PollTicksCmd cmd) {
-        int partIdx = cmd.getPartIdx();
-        long startTime = cmd.getStartTime();
-        long endTime = cmd.getEndTime();
-        final int partSize = 300;
-        int startIdx = partSize * partIdx;
-        int endIdx = Math.min(startIdx + partSize, numOfPeriod);
-        List<KlineTick> result = new ArrayList<>(partSize);
-        while (startIdx < endIdx) {
-            KlineTick obj = (KlineTick) this.data[startIdx];
-            if (obj != null) {
-                if (obj.getTime() >= startTime && obj.getTime() <= endTime) {
-                    result.add(obj);
-                }
-            }
-            startIdx++;
-        }
-        cmd.getResult().setSuccess(true);
-        cmd.getResult().complete(result);
-    }
+  private void doAggregate(KlineTick tick) {
+    if (!autoAggregate || tick == null)
+      return;
+    count += tick.getCount();
+    amount = amount.add(tick.getAmount());
+    vol = vol.add(tick.getVol());
+    close = tick.getClose();
+    if (open.compareTo(BigDecimal.ZERO) == 0)
+      open = tick.getOpen();
+    close = tick.getClose();
+    if (tick.getHigh().compareTo(high) > 0)
+      high = tick.getHigh();
+    if (tick.getLow().compareTo(low) > 0)
+      low = tick.getLow();
+  }
 
-    private boolean execUpdateWindow() {
-        long now = alignWithPeriod(System.currentTimeMillis(), period);
-        int roteCount = Math.toIntExact((now - tt) / period);
-        if (roteCount != 0) {
-            clearAggregate();
-            if (roteCount < numOfPeriod) {
-                int sPos = roteCount;
-                int dPos = 0;
-                int length = numOfPeriod - roteCount;
-                for (int i = 0; i < length; i++) {
-                    this.data[dPos] = this.data[sPos];
-                    // clear src data
-                    this.data[sPos] = null;
-                    doAggregate((KlineTick) this.data[dPos]);
-                    dPos++;
-                    sPos++;
-                }
-            } else {
-                Arrays.fill(this.data, null);
-            }
-            ht += period * roteCount;
-            tt += period * roteCount;
-            return true;
-        } else {
-            // the window already updated
-            return false;
-        }
-    }
+  private MarketDetailTick snapAggregate() {
+    MarketDetailTick detail = new MarketDetailTick();
+    detail.setVol(vol);
+    detail.setAmount(amount);
+    detail.setClose(close);
+    detail.setOpen(open);
+    detail.setCount(count);
+    detail.setHigh(high);
+    detail.setLow(low);
+    return detail;
+  }
 
-    private void clearAggregate() {
-        if (!autoAggregate)
-            return;
-        low = high = vol = open = close = amount = BigDecimal.ZERO;
-        count = 0;
-    }
+  private int calculateIdx(long t) {
+    long at = alignWithPeriod(t, period);
+    return Math.toIntExact(((at - ht) % totalPeriodSize) / period);
+  }
 
-    private void doAggregate(KlineTick tick) {
-        if (!autoAggregate || tick == null)
-            return;
-        count += tick.getCount();
-        amount = amount.add(tick.getAmount());
-        vol = vol.add(tick.getVol());
-        close = tick.getClose();
-        if (open.compareTo(BigDecimal.ZERO) == 0)
-            open = tick.getOpen();
-        close = tick.getClose();
-        if (tick.getHigh().compareTo(high) > 0)
-            high = tick.getHigh();
-        if (tick.getLow().compareTo(low) > 0)
-            low = tick.getLow();
+  private String dumpData() {
+    StringBuilder sb = new StringBuilder();
+    for (Object obj : data) {
+      KlineTick tick = KlineTick.class.cast(obj);
+      if (tick != null) {
+        sb.append(tick.getTime());
+      } else {
+        sb.append("null");
+      }
+      sb.append(" | ");
     }
-
-    private MarketDetailTick snapAggregate() {
-        MarketDetailTick detail = new MarketDetailTick();
-        detail.setVol(vol);
-        detail.setAmount(amount);
-        detail.setClose(close);
-        detail.setOpen(open);
-        detail.setCount(count);
-        detail.setHigh(high);
-        detail.setLow(low);
-        return detail;
-    }
-
-    private int calculateIdx(long t) {
-        long at = alignWithPeriod(t, period);
-        return Math.toIntExact(((at - ht) % totalPeriodSize) / period);
-    }
-
-    private String dumpData() {
-        StringBuilder sb = new StringBuilder();
-        for (Object obj : data) {
-            KlineTick tick = KlineTick.class.cast(obj);
-            if (tick != null) {
-                sb.append(tick.getTime());
-            } else {
-                sb.append("null");
-            }
-            sb.append(" | ");
-        }
-        return sb.toString();
-    }
+    return sb.toString();
+  }
 }

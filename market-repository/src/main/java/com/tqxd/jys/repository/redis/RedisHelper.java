@@ -36,24 +36,24 @@ public class RedisHelper {
     Promise<RedisHelper> promise = Promise.promise();
     RedisHelper self = new RedisHelper();
     NetClientOptions netOptions = new NetClientOptions()
-            .setConnectTimeout(5000)
-            .setReconnectAttempts(2)
-            .setReconnectInterval(1000);
+        .setConnectTimeout(5000)
+        .setReconnectAttempts(2)
+        .setReconnectInterval(1000);
     RedisOptions redisOptions = new RedisOptions()
-            .setConnectionString(connectionString)
-            .setNetClientOptions(netOptions);
+        .setConnectionString(connectionString)
+        .setNetClientOptions(netOptions);
     Redis.createClient(vertx, redisOptions)
-            .connect(onConnect -> {
-              if (onConnect.succeeded()) {
-                self.redisConn = onConnect.result();
-                self.redisApi = RedisAPI.api(self.redisConn);
-                promise.complete(self);
-                // 打印异常堆栈
-                self.redisConn.exceptionHandler(Throwable::printStackTrace);
-              } else {
-                promise.fail(onConnect.cause());
-              }
-            });
+        .connect(onConnect -> {
+          if (onConnect.succeeded()) {
+            self.redisConn = onConnect.result();
+            self.redisApi = RedisAPI.api(self.redisConn);
+            promise.complete(self);
+            // 打印异常堆栈
+            self.redisConn.exceptionHandler(Throwable::printStackTrace);
+          } else {
+            promise.fail(onConnect.cause());
+          }
+        });
     return promise.future();
   }
 
@@ -140,8 +140,8 @@ public class RedisHelper {
       if (ar.succeeded()) {
         final Response response = ar.result();
         final List<String> objects = response.stream()
-                .map(obj -> (String) this.responseToObj(obj))
-                .collect(Collectors.toList());
+            .map(obj -> (String) this.responseToObj(obj))
+            .collect(Collectors.toList());
         handler.handle(Future.succeededFuture(objects));
       } else {
         handler.handle(Future.failedFuture(ar.cause()));
@@ -161,8 +161,8 @@ public class RedisHelper {
       if (ar.succeeded()) {
         final Response response = ar.result();
         final Set<String> objects = response.stream()
-                .map(obj -> (String) this.responseToObj(obj))
-                .collect(Collectors.toSet());
+            .map(obj -> (String) this.responseToObj(obj))
+            .collect(Collectors.toSet());
         promise.complete(objects);
       } else {
         promise.fail(ar.cause());

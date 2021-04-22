@@ -21,109 +21,109 @@ import java.util.function.BiConsumer;
  * @author ex
  */
 public interface Collector {
-    /**
-     * 返回当前收集器的名称
-     *
-     * @return 收集器名称
-     */
-    String name();
+  /**
+   * 返回当前收集器的名称
+   *
+   * @return 收集器名称
+   */
+  String name();
 
-    /**
-     * 描述一个收集器
-     *
-     * @return 收集器描述
-     */
-    default String desc() {
-        return name();
-    }
+  /**
+   * 描述一个收集器
+   *
+   * @return 收集器描述
+   */
+  default String desc() {
+    return name();
+  }
 
-    /**
-     * 部署一个收集器
-     *
-     * @param vertx    vertx 实例
-     * @param consumer 数据消费器
-     * @param args     附加参数 (可以为空)
-     * @return 是否部署成功
-     * @throws Exception 如果部署失败
-     */
-    boolean deploy(Vertx vertx,
-                   BiConsumer<DataType, JsonObject> consumer,
-                   JsonObject args);
+  /**
+   * 部署一个收集器
+   *
+   * @param vertx    vertx 实例
+   * @param consumer 数据消费器
+   * @param args     附加参数 (可以为空)
+   * @return 是否部署成功
+   * @throws Exception 如果部署失败
+   */
+  boolean deploy(Vertx vertx,
+                 BiConsumer<DataType, JsonObject> consumer,
+                 JsonObject args);
 
-    /**
-     * 取消部署收集器
-     *
-     * @param args 附加参数可以为空
-     * @return 如果取消部署失败
-     * @throws Exception 如果取消部署失败
-     */
-    boolean unDeploy(JsonObject args);
+  /**
+   * 取消部署收集器
+   *
+   * @param args 附加参数可以为空
+   * @return 如果取消部署失败
+   * @throws Exception 如果取消部署失败
+   */
+  boolean unDeploy(JsonObject args);
 
-    /**
-     * 订阅一个交易对
-     *
-     * @param dataType 数据收集类型
-     * @param symbol   交易对
-     * @return 是否订阅成功
-     */
-    boolean subscribe(DataType dataType, String symbol);
+  /**
+   * 订阅一个交易对
+   *
+   * @param dataType 数据收集类型
+   * @param symbol   交易对
+   * @return 是否订阅成功
+   */
+  boolean subscribe(DataType dataType, String symbol);
 
-    /**
-     * 取消订阅一个交易对
-     *
-     * @param dataType 数据收集类型
-     * @param symbol          交易对
-     * @return 是否取消订阅成功
-     */
-    boolean unSubscribe(DataType dataType, String symbol);
+  /**
+   * 取消订阅一个交易对
+   *
+   * @param dataType 数据收集类型
+   * @param symbol   交易对
+   * @return 是否取消订阅成功
+   */
+  boolean unSubscribe(DataType dataType, String symbol);
 
-    /**
-     * 获取当前正在订阅的信息
-     *
-     * @return 当前正在订阅的信息, key为数据收集类型, value为交易对列表
-     */
-    Map<DataType, List<String>> listSubscribedInfo();
+  /**
+   * 获取当前正在订阅的信息
+   *
+   * @return 当前正在订阅的信息, key为数据收集类型, value为交易对列表
+   */
+  Map<DataType, List<String>> listSubscribedInfo();
 
-    /**
-     * 开启收集数据
-     *
-     * @param handler 回调
-     */
-    void start(Handler<AsyncResult<Boolean>> handler);
+  /**
+   * 开启收集数据
+   *
+   * @param handler 回调
+   */
+  void start(Handler<AsyncResult<Boolean>> handler);
 
-    /**
-     * 停止数据收集
-     *
-     * @return 是否停止成功
-     */
-    boolean stop();
+  /**
+   * 停止数据收集
+   *
+   * @return 是否停止成功
+   */
+  boolean stop();
 
-    /**
-     * 是否正在收集
-     *
-     * @return 是否正在收集
-     */
-    boolean isRunning();
+  /**
+   * 是否正在收集
+   *
+   * @return 是否正在收集
+   */
+  boolean isRunning();
 
-    /**
-     * 是否已经部署
-     *
-     * @return 是否已经部署
-     */
-    boolean isDeployed();
+  /**
+   * 是否已经部署
+   *
+   * @return 是否已经部署
+   */
+  boolean isDeployed();
 
-    /**
-     * 快照状态
-     *
-     * @return 状态快照
-     */
-    default CollectorStatusDto snapStatus() {
-        CollectorStatusDto status = new CollectorStatusDto();
-        status.setName(name());
-        status.setDesc(desc());
-        status.setRunning(isRunning());
+  /**
+   * 快照状态
+   *
+   * @return 状态快照
+   */
+  default CollectorStatusDto snapStatus() {
+    CollectorStatusDto status = new CollectorStatusDto();
+    status.setName(name());
+    status.setDesc(desc());
+    status.setRunning(isRunning());
 //        status.setSubscribedSymbols(listSubscribedInfo());
-        status.setDeployed(isDeployed());
-        return status;
-    }
+    status.setDeployed(isDeployed());
+    return status;
+  }
 }

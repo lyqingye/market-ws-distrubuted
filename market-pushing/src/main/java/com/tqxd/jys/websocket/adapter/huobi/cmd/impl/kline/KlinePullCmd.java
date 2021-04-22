@@ -14,13 +14,13 @@ import io.vertx.core.json.JsonObject;
  */
 public class KlinePullCmd implements Cmd {
 
-    @Override
-    public boolean canExecute(JsonObject json) {
-        return HuoBiUtils.isPullHistoryReq(json);
-    }
+  @Override
+  public boolean canExecute(JsonObject json) {
+    return HuoBiUtils.isPullHistoryReq(json);
+  }
 
-    @Override
-    public void execute(JsonObject json, PushingContext ctx, WsSession curSession) {
+  @Override
+  public void execute(JsonObject json, PushingContext ctx, WsSession curSession) {
 //        HBPullKineReq req = json.mapTo(HBPullKineReq.class);
 //        // 拉取历史消息也算是订阅 ps: 前端组件问题
 //        curSession.subKline(req.getReq());
@@ -38,5 +38,5 @@ public class KlinePullCmd implements Cmd {
 //        GZIPUtils.compressAsync(ctx.getVertx(),jsonBuffer)
 //            .onSuccess(compressed -> curSession.getSocket().write(compressed))
 //            .onFailure(Throwable::printStackTrace);
-    }
+  }
 }

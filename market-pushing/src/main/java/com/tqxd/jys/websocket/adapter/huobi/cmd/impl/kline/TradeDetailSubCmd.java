@@ -12,18 +12,18 @@ import io.vertx.core.json.JsonObject;
  * @since 2020/11/14 18:28
  */
 public class TradeDetailSubCmd implements Cmd {
-    @Override
-    public boolean canExecute(JsonObject json) {
-        return HuoBiUtils.isTradeDetailSubscribeReq(json);
-    }
+  @Override
+  public boolean canExecute(JsonObject json) {
+    return HuoBiUtils.isTradeDetailSubscribeReq(json);
+  }
 
-    @Override
-    public void execute(JsonObject json, PushingContext ctx, WsSession curSession) {
-        String sub = json.getString("sub");
-        Buffer buffer = ctx.getLatestTradeBufferCache().get(sub);
-        curSession.subTradeDetail(sub);
-        if (buffer != null) {
-            curSession.getSocket().write(buffer);
-        }
+  @Override
+  public void execute(JsonObject json, PushingContext ctx, WsSession curSession) {
+    String sub = json.getString("sub");
+    Buffer buffer = ctx.getLatestTradeBufferCache().get(sub);
+    curSession.subTradeDetail(sub);
+    if (buffer != null) {
+      curSession.getSocket().write(buffer);
     }
+  }
 }

@@ -70,28 +70,28 @@ public class KlineRepository {
     self.klineTimeManager = KlineTimeManager.create(vertx, self::updateMarketDetail);
     Promise<KlineRepository> promise = Promise.promise();
     redis.sMembers(SYMBOL_SET_KEY)
-            .onSuccess(keys -> {
-              if (keys.isEmpty()) {
-                log.info("[Kline-Repository]: symbols not found!");
-                promise.complete(self);
-                return;
-              }
-              log.info("[Kline-Repository]: found symbols: {}", keys);
-              Future<Void> batchFuture = null;
-              for (String key : keys) {
-                if (batchFuture == null) {
-                  batchFuture = self.initKlineData(key);
-                }
-                batchFuture.compose(ar -> self.initKlineData(key));
-              }
-              if (batchFuture == null) {
-                promise.complete(self);
-              } else {
-                batchFuture.onSuccess(suc -> promise.complete(self))
-                        .onFailure(promise::fail);
-              }
-            })
-            .onFailure(promise::fail);
+        .onSuccess(keys -> {
+          if (keys.isEmpty()) {
+            log.info("[Kline-Repository]: symbols not found!");
+            promise.complete(self);
+            return;
+          }
+          log.info("[Kline-Repository]: found symbols: {}", keys);
+          Future<Void> batchFuture = null;
+          for (String key : keys) {
+            if (batchFuture == null) {
+              batchFuture = self.initKlineData(key);
+            }
+            batchFuture.compose(ar -> self.initKlineData(key));
+          }
+          if (batchFuture == null) {
+            promise.complete(self);
+          } else {
+            batchFuture.onSuccess(suc -> promise.complete(self))
+                .onFailure(promise::fail);
+          }
+        })
+        .onFailure(promise::fail);
     return promise.future();
   }
 
@@ -217,29 +217,29 @@ public class KlineRepository {
   private Future<Void> initKlineData(String key) {
     long startTime = System.currentTimeMillis();
     return sizeOfKlineTicks(key)
-            .compose(size -> {
-              if (size != null && size > 0) {
-                // 只截取最新的部分
-                int start = 0;
-                if (size >= Period._1_MIN.getNumOfPeriod()) {
-                  start = size - Period._1_MIN.getNumOfPeriod();
-                }
-                return listKlineTicksLimit(key, start, -1)
-                        .compose(ticks -> {
-                          KlineTimeLine timeLine = klineTimeManager.getOrCreate(key, Period._1_MIN);
-                          try {
-                            for (String tickJson : ticks) {
-                              timeLine.update(Json.decodeValue(tickJson, KlineTick.class)).get();
-                            }
-                          } catch (Exception ex) {
-                            ex.printStackTrace();
-                          }
-                          log.info("[Kline-Repository]: init kline: {} size: {} using: {}ms", key, size, System.currentTimeMillis() - startTime);
-                          return Future.succeededFuture();
-                        });
-              } else {
-                return Future.succeededFuture();
-              }
-            });
+        .compose(size -> {
+          if (size != null && size > 0) {
+            // 只截取最新的部分
+            int start = 0;
+            if (size >= Period._1_MIN.getNumOfPeriod()) {
+              start = size - Period._1_MIN.getNumOfPeriod();
+            }
+            return listKlineTicksLimit(key, start, -1)
+                .compose(ticks -> {
+                  KlineTimeLine timeLine = klineTimeManager.getOrCreate(key, Period._1_MIN);
+                  try {
+                    for (String tickJson : ticks) {
+                      timeLine.update(Json.decodeValue(tickJson, KlineTick.class)).get();
+                    }
+                  } catch (Exception ex) {
+                    ex.printStackTrace();
+                  }
+                  log.info("[Kline-Repository]: init kline: {} size: {} using: {}ms", key, size, System.currentTimeMillis() - startTime);
+                  return Future.succeededFuture();
+                });
+          } else {
+            return Future.succeededFuture();
+          }
+        });
   }
 }

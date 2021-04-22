@@ -12,10 +12,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
 
 public final class VertxUtil {
 
@@ -85,7 +82,7 @@ public final class VertxUtil {
         cmd.run();
       } catch (Exception e) {
         e.printStackTrace();
-      }finally {
+      } finally {
         promise.complete();
       }
     }, rs -> {
@@ -98,10 +95,10 @@ public final class VertxUtil {
   /**
    * 递归获取json中的值
    *
-   * @param obj json
-   * @param key key 支持 key1.key2.key3 递归
+   * @param obj   json
+   * @param key   key 支持 key1.key2.key3 递归
    * @param clazz 值类型
-   * @param <T> 值类型
+   * @param <T>   值类型
    * @return 目标值
    */
   @SuppressWarnings("Duplicates")
@@ -112,11 +109,11 @@ public final class VertxUtil {
   /**
    * 递归获取json中的值
    *
-   * @param obj json
-   * @param key key 支持 key1.key2.key3 递归
-   * @param clazz 值类型
+   * @param obj          json
+   * @param key          key 支持 key1.key2.key3 递归
+   * @param clazz        值类型
    * @param defaultValue 默认值
-   * @param <T> 值类型
+   * @param <T>          值类型
    * @return 目标值
    */
   @SuppressWarnings("Duplicates")
@@ -152,10 +149,10 @@ public final class VertxUtil {
   /**
    * 递归获取json中的值
    *
-   * @param obj json
-   * @param key key 支持 key1.key2.key3 递归
+   * @param obj   json
+   * @param key   key 支持 key1.key2.key3 递归
    * @param clazz 值类型
-   * @param <T> 值类型
+   * @param <T>   值类型
    * @return 目标值
    */
   @SuppressWarnings("Duplicates")
@@ -195,12 +192,12 @@ public final class VertxUtil {
    * 读入YAML配置文件
    *
    * @param vertx vertx
-   * @param path path
+   * @param path  path
    * @return json对象
    */
-  public static void readYamlConfig (Vertx vertx, String path,Handler<AsyncResult<JsonObject>> handler) throws ExecutionException, InterruptedException{
-    ConfigStoreOptions fileStore = new ConfigStoreOptions() .setType("file") .setFormat("yaml") .setConfig(new JsonObject().put("path", path));
-    ConfigRetrieverOptions options = new ConfigRetrieverOptions() .addStore(fileStore);
+  public static void readYamlConfig(Vertx vertx, String path, Handler<AsyncResult<JsonObject>> handler) throws ExecutionException, InterruptedException {
+    ConfigStoreOptions fileStore = new ConfigStoreOptions().setType("file").setFormat("yaml").setConfig(new JsonObject().put("path", path));
+    ConfigRetrieverOptions options = new ConfigRetrieverOptions().addStore(fileStore);
     ConfigRetriever retriever = ConfigRetriever.create(vertx, options);
     retriever.getConfig(handler);
   }

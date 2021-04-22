@@ -13,17 +13,17 @@ import io.vertx.core.json.JsonObject;
  */
 public class KlineSubCmd implements Cmd {
 
-    private HBSubReq req;
+  private HBSubReq req;
 
-    @Override
-    public boolean canExecute(JsonObject json) {
-        return HuoBiUtils.isKlineSubscribeReq(json);
-    }
+  @Override
+  public boolean canExecute(JsonObject json) {
+    return HuoBiUtils.isKlineSubscribeReq(json);
+  }
 
-    @Override
-    public void execute(JsonObject json, PushingContext ctx, WsSession curSession) {
-        curSession.subKline(json.getString("sub"));
-        // k线会话分区
-        ctx.getKlineSM().put(curSession.getSocket().textHandlerID(), curSession);
-    }
+  @Override
+  public void execute(JsonObject json, PushingContext ctx, WsSession curSession) {
+    curSession.subKline(json.getString("sub"));
+    // k线会话分区
+    ctx.getKlineSM().put(curSession.getSocket().textHandlerID(), curSession);
+  }
 }
