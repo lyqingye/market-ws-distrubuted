@@ -34,6 +34,7 @@ import io.vertx.serviceproxy.ProxyUtils;
 
 import java.util.List;
 import com.tqxd.jys.servicebus.service.collectors.CollectorOpenApi;
+import com.tqxd.jys.constance.DataType;
 import com.tqxd.jys.servicebus.payload.CollectorStatusDto;
 import io.vertx.core.Vertx;
 import io.vertx.core.AsyncResult;
@@ -181,13 +182,14 @@ public class CollectorOpenApiVertxEBProxy implements CollectorOpenApi {
     });
   }
   @Override
-  public void subscribe(String collectorName, String symbol, Handler<AsyncResult<Boolean>> handler){
+  public void subscribe(String collectorName, DataType dataType, String symbol, Handler<AsyncResult<Boolean>> handler){
     if (closed) {
       handler.handle(Future.failedFuture(new IllegalStateException("Proxy is closed")));
       return;
     }
     JsonObject _json = new JsonObject();
     _json.put("collectorName", collectorName);
+    _json.put("dataType", dataType == null ? null : dataType.name());
     _json.put("symbol", symbol);
 
     DeliveryOptions _deliveryOptions = (_options != null) ? new DeliveryOptions(_options) : new DeliveryOptions();
@@ -201,13 +203,14 @@ public class CollectorOpenApiVertxEBProxy implements CollectorOpenApi {
     });
   }
   @Override
-  public void unsubscribe(String collectorName, String symbol, Handler<AsyncResult<Boolean>> handler){
+  public void unsubscribe(String collectorName, DataType dataType, String symbol, Handler<AsyncResult<Boolean>> handler){
     if (closed) {
       handler.handle(Future.failedFuture(new IllegalStateException("Proxy is closed")));
       return;
     }
     JsonObject _json = new JsonObject();
     _json.put("collectorName", collectorName);
+    _json.put("dataType", dataType == null ? null : dataType.name());
     _json.put("symbol", symbol);
 
     DeliveryOptions _deliveryOptions = (_options != null) ? new DeliveryOptions(_options) : new DeliveryOptions();

@@ -43,6 +43,7 @@ import io.vertx.serviceproxy.ServiceBinder;
 
 import java.util.List;
 import com.tqxd.jys.servicebus.service.collectors.CollectorOpenApi;
+import com.tqxd.jys.constance.DataType;
 import com.tqxd.jys.servicebus.payload.CollectorStatusDto;
 import io.vertx.core.Vertx;
 import io.vertx.core.AsyncResult;
@@ -161,12 +162,14 @@ public class CollectorOpenApiVertxProxyHandler extends ProxyHandler {
         }
         case "subscribe": {
           service.subscribe((java.lang.String)json.getValue("collectorName"),
+                        json.getString("dataType") == null ? null : com.tqxd.jys.constance.DataType.valueOf(json.getString("dataType")),
                         (java.lang.String)json.getValue("symbol"),
                         HelperUtils.createHandler(msg, includeDebugInfo));
           break;
         }
         case "unsubscribe": {
           service.unsubscribe((java.lang.String)json.getValue("collectorName"),
+                        json.getString("dataType") == null ? null : com.tqxd.jys.constance.DataType.valueOf(json.getString("dataType")),
                         (java.lang.String)json.getValue("symbol"),
                         HelperUtils.createHandler(msg, includeDebugInfo));
           break;

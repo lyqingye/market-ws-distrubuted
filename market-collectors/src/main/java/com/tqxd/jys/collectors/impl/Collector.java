@@ -1,6 +1,6 @@
 package com.tqxd.jys.collectors.impl;
 
-import com.tqxd.jys.constance.CollectDataType;
+import com.tqxd.jys.constance.DataType;
 import com.tqxd.jys.servicebus.payload.CollectorStatusDto;
 import io.vertx.core.AsyncResult;
 import io.vertx.core.Handler;
@@ -47,7 +47,7 @@ public interface Collector {
      * @throws Exception 如果部署失败
      */
     boolean deploy(Vertx vertx,
-                   BiConsumer<CollectDataType, JsonObject> consumer,
+                   BiConsumer<DataType, JsonObject> consumer,
                    JsonObject args);
 
     /**
@@ -62,27 +62,27 @@ public interface Collector {
     /**
      * 订阅一个交易对
      *
-     * @param collectDataType 数据收集类型
-     * @param symbol          交易对
+     * @param dataType 数据收集类型
+     * @param symbol   交易对
      * @return 是否订阅成功
      */
-    boolean subscribe(CollectDataType collectDataType, String symbol);
+    boolean subscribe(DataType dataType, String symbol);
 
     /**
      * 取消订阅一个交易对
      *
-     * @param collectDataType 数据收集类型
+     * @param dataType 数据收集类型
      * @param symbol          交易对
      * @return 是否取消订阅成功
      */
-    boolean unSubscribe(CollectDataType collectDataType, String symbol);
+    boolean unSubscribe(DataType dataType, String symbol);
 
     /**
      * 获取当前正在订阅的信息
      *
      * @return 当前正在订阅的信息, key为数据收集类型, value为交易对列表
      */
-    Map<CollectDataType, List<String>> listSubscribedInfo();
+    Map<DataType, List<String>> listSubscribedInfo();
 
     /**
      * 开启收集数据

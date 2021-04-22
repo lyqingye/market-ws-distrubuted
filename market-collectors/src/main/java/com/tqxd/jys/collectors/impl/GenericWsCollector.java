@@ -1,6 +1,6 @@
 package com.tqxd.jys.collectors.impl;
 
-import com.tqxd.jys.constance.CollectDataType;
+import com.tqxd.jys.constance.DataType;
 import io.vertx.core.AsyncResult;
 import io.vertx.core.Future;
 import io.vertx.core.Handler;
@@ -19,7 +19,7 @@ public abstract class GenericWsCollector implements Collector {
     /**
      * 已经订阅的信息
      */
-    private Map<CollectDataType, List<String>> subscribed = new HashMap<>(16);
+    private Map<DataType, List<String>> subscribed = new HashMap<>(16);
 
     /**
      * 是否正在运行
@@ -47,7 +47,7 @@ public abstract class GenericWsCollector implements Collector {
      */
     @Override
     public boolean deploy(Vertx vertx,
-                          BiConsumer<CollectDataType, JsonObject> consumer,
+                          BiConsumer<DataType, JsonObject> consumer,
                           JsonObject args) {
         if (vertx == null) {
             return false;
@@ -90,36 +90,36 @@ public abstract class GenericWsCollector implements Collector {
     /**
      * 订阅一个交易对
      *
-     * @param collectDataType 数据收集类型
-     * @param symbol          交易对
+     * @param dataType 数据收集类型
+     * @param symbol   交易对
      * @return 是否订阅成功
      */
     @Override
-    public boolean subscribe(CollectDataType collectDataType, String symbol) {
+    public boolean subscribe(DataType dataType, String symbol) {
         if (!this.isRunning)
             return false;
         List<String> symbols;
-        if ((symbols = subscribed.get(collectDataType)) != null) {
+        if ((symbols = subscribed.get(dataType)) != null) {
             for (String exist : symbols) {
                 if (exist.equals(symbol)) {
                     return true;
                 }
             }
         }
-        subscribed.computeIfAbsent(collectDataType, k -> new ArrayList<>()).add(symbol);
+        subscribed.computeIfAbsent(dataType, k -> new ArrayList<>()).add(symbol);
         return true;
     }
 
     /**
      * 取消订阅一个交易对
      *
-     * @param collectDataType 数据收集类型
+     * @param dataType 数据收集类型
      * @param symbol          交易对
      * @return 是否取消订阅成功
      */
     @Override
-    public boolean unSubscribe(CollectDataType collectDataType, String symbol) {
-        List<String> symbols = subscribed.get(collectDataType);
+    public boolean unSubscribe(DataType dataType, String symbol) {
+        List<String> symbols = subscribed.get(dataType);
         if (symbols == null) {
             return true;
         }
@@ -140,7 +140,7 @@ public abstract class GenericWsCollector implements Collector {
      * @return 当前正在订阅的信息, key为数据收集类型, value为交易对列表
      */
     @Override
-    public Map<CollectDataType, List<String>> listSubscribedInfo() {
+    public Map<DataType, List<String>> listSubscribedInfo() {
         return subscribed;
     }
 

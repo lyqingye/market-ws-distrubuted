@@ -1,6 +1,6 @@
 package com.tqxd.jys.constance;
 
-public enum CollectDataType {
+public enum DataType {
     /**
      * K线数据
      */

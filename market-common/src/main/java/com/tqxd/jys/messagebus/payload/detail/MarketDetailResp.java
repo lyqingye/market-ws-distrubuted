@@ -1,4 +1,4 @@
-package com.tqxd.jys.messagebus.payload.depth;
+package com.tqxd.jys.messagebus.payload.detail;
 
 /**
  * @author yjt

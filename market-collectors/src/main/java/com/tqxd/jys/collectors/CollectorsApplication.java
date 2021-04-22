@@ -1,7 +1,7 @@
 package com.tqxd.jys.collectors;
 
 import com.tqxd.jys.collectors.api.CollectorOpenApiImpl;
-import com.tqxd.jys.constance.CollectDataType;
+import com.tqxd.jys.constance.DataType;
 import com.tqxd.jys.messagebus.MessageBusFactory;
 import com.tqxd.jys.servicebus.payload.CollectorStatusDto;
 import com.tqxd.jys.servicebus.service.ServiceAddress;
@@ -126,7 +126,7 @@ public class CollectorsApplication extends AbstractVerticle {
             Future<Boolean> future = openService.deployCollector(collectorName)
                     .compose(ignored -> openService.startCollector(collectorName));
             for (String subscribeSymbol : subscribe) {
-                future = future.compose(ignored -> openService.subscribe(collectorName, CollectDataType.KLINE, subscribeSymbol));
+                future = future.compose(ignored -> openService.subscribe(collectorName, DataType.KLINE, subscribeSymbol));
             }
             future.onFailure(promise::fail);
             future.onSuccess(ignored -> {

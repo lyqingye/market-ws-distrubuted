@@ -132,4 +132,8 @@ public class WsSession extends DefaultAttributeMap {
     public boolean isSubTradeDetail(String sub) {
         return sub.equalsIgnoreCase(this.attr(TRADE_DETAIL_SUBSCRIBE_KEY).get());
     }
+
+    public ServerWebSocket getSocket() {
+        return socket;
+    }
 }

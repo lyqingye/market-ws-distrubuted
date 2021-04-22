@@ -1,7 +1,7 @@
 package com.tqxd.jys.collectors.impl;
 
 
-import com.tqxd.jys.constance.CollectDataType;
+import com.tqxd.jys.constance.DataType;
 import com.tqxd.jys.constance.Period;
 import com.tqxd.jys.utils.GZIPUtils;
 import com.tqxd.jys.utils.HuoBiUtils;
@@ -40,7 +40,7 @@ public class HuoBiKlineCollector extends GenericWsCollector {
     /**
      * 数据消费者
      */
-    private BiConsumer<CollectDataType, JsonObject> consumer;
+    private BiConsumer<DataType, JsonObject> consumer;
 
     /**
      * 额外参数
@@ -73,7 +73,7 @@ public class HuoBiKlineCollector extends GenericWsCollector {
      */
     @Override
     public boolean deploy(Vertx vertx,
-                          BiConsumer<CollectDataType, JsonObject> consumer,
+                          BiConsumer<DataType, JsonObject> consumer,
                           JsonObject args) {
         boolean result = super.deploy(vertx, consumer, args);
 
@@ -188,13 +188,13 @@ public class HuoBiKlineCollector extends GenericWsCollector {
     /**
      * 订阅一个交易对
      *
-     * @param collectDataType 数据收集类型
-     * @param symbol          交易对
+     * @param dataType 数据收集类型
+     * @param symbol   交易对
      * @return 是否订阅成功
      */
     @Override
-    public boolean subscribe(CollectDataType collectDataType, String symbol) {
-        boolean result = super.subscribe(collectDataType, symbol);
+    public boolean subscribe(DataType dataType, String symbol) {
+        boolean result = super.subscribe(dataType, symbol);
         if (!result) {
             return false;
         }
@@ -224,13 +224,13 @@ public class HuoBiKlineCollector extends GenericWsCollector {
     /**
      * 取消订阅一个交易对
      *
-     * @param collectDataType 数据收集类型
+     * @param dataType 数据收集类型
      * @param symbol          交易对
      * @return 是否取消订阅成功
      */
     @Override
-    public boolean unSubscribe(CollectDataType collectDataType, String symbol) {
-        boolean result = super.unSubscribe(collectDataType, symbol);
+    public boolean unSubscribe(DataType dataType, String symbol) {
+        boolean result = super.unSubscribe(dataType, symbol);
 
         if (!result) {
             return false;
@@ -288,7 +288,7 @@ public class HuoBiKlineCollector extends GenericWsCollector {
                              } else if (isTickMsg(obj)) {
                                  obj.put("ch", symbolDeMapping.get(obj.getString("ch")));
                                  // 如果是交易 tick 则进行消费
-                                 consumer.accept(CollectDataType.KLINE, obj);
+                                 consumer.accept(DataType.KLINE, obj);
                              }
                              // TODO 其它类型的数据
                          })

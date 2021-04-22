@@ -1,9 +1,7 @@
 package com.tqxd.jys.websocket.context;
 
-import com.tqxd.jys.constance.Period;
 import com.tqxd.jys.messagebus.payload.trade.TradeDetailTickData;
 import com.tqxd.jys.timeline.KlineTimeLine;
-import com.tqxd.jys.utils.HuoBiUtils;
 import com.tqxd.jys.websocket.session.SessionManager;
 import com.tqxd.jys.websocket.session.WsSession;
 import io.vertx.core.Vertx;
@@ -77,23 +75,9 @@ public class PushingContext {
     private PushingContext() {
     }
 
-    public PushingContext(Vertx vertx) {
+    public void init(Vertx vertx) {
         this.vertx = Objects.requireNonNull(vertx);
     }
-
-    /**
-     * 获取或者创建时间轮
-     *
-     * @param symbol 交易对
-     * @param period 区间
-     * @return 时间轮
-     */
-    public KlineTimeLine getOrCreateTimeWheel(String symbol,
-                                              Period period) {
-        return getKlineTimeLineMap()
-                .computeIfAbsent(HuoBiUtils.toKlineSub(symbol, period), k -> new KlineTimeLine(period.getMill(), period.getNumOfPeriod(), period.equals(Period._1_MIN)));
-    }
-
 //    /**
 //     * 更新市场缓存
 //     *

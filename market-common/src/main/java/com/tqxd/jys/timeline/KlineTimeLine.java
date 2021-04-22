@@ -1,7 +1,7 @@
 package com.tqxd.jys.timeline;
 
 import com.tqxd.jys.common.payload.KlineTick;
-import com.tqxd.jys.messagebus.payload.depth.MarketDetailTick;
+import com.tqxd.jys.messagebus.payload.detail.MarketDetailTick;
 import com.tqxd.jys.timeline.cmd.CmdResult;
 import com.tqxd.jys.timeline.cmd.PollTicksCmd;
 import com.tqxd.jys.timeline.cmd.UpdateTickCmd;
@@ -15,6 +15,10 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 import static com.tqxd.jys.utils.TimeUtils.alignWithPeriod;
 
 public class KlineTimeLine {
+    /**
+     * 名称
+     */
+    private final String name;
 
     /**
      * 周期大小
@@ -52,7 +56,8 @@ public class KlineTimeLine {
      */
     private ConcurrentLinkedQueue<Object> cmdBuffer = new ConcurrentLinkedQueue<Object>();
 
-    public KlineTimeLine(long period, int numOfPeriod, boolean autoAggregate) {
+    public KlineTimeLine(String name, long period, int numOfPeriod, boolean autoAggregate) {
+        this.name = name;
         this.period = period;
         this.numOfPeriod = numOfPeriod;
         this.totalPeriodSize = period * numOfPeriod;
@@ -61,6 +66,10 @@ public class KlineTimeLine {
         this.data = new Object[numOfPeriod];
         this.ht = tt - totalPeriodSize + period;
         this.autoAggregate = autoAggregate;
+    }
+
+    public String name() {
+        return this.name;
     }
 
     public CmdResult<KlineTick> update(KlineTick tick) {
@@ -83,7 +92,11 @@ public class KlineTimeLine {
         CmdResult<MarketDetailTick> result = new CmdResult<>();
         if (execUpdateWindow()) {
             result.setSuccess(true);
-            result.complete(snapAggregate());
+            if (autoAggregate) {
+                result.complete(snapAggregate());
+            } else {
+                result.complete(null);
+            }
         } else {
             result.complete(null);
         }

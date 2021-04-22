@@ -1,5 +1,7 @@
 package com.tqxd.jys.messagebus.payload;
 
+import com.tqxd.jys.constance.DataType;
+
 /**
  * 封装消息
  */
@@ -15,6 +17,11 @@ public class Message<T> {
     private String from;
 
     /**
+     * 消息类型
+     */
+    private DataType type;
+
+    /**
      * 消息发送时间戳
      */
     private long ts;
@@ -24,8 +31,9 @@ public class Message<T> {
      */
     private T payload;
 
-    public static <E> Message<E> withData (String from,E payload) {
+    public static <E> Message<E> withData(DataType type, String from, E payload) {
         Message<E> msg = new Message<>();
+        msg.setType(type);
         msg.setFrom(from);
         msg.setPayload(payload);
         msg.setTs(System.currentTimeMillis());
@@ -63,5 +71,13 @@ public class Message<T> {
 
     public void setPayload(T payload) {
         this.payload = payload;
+    }
+
+    public DataType getType() {
+        return type;
+    }
+
+    public void setType(DataType type) {
+        this.type = type;
     }
 }

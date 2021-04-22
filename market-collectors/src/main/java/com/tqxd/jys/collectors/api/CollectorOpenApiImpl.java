@@ -2,7 +2,7 @@ package com.tqxd.jys.collectors.api;
 
 import com.tqxd.jys.collectors.impl.Collector;
 import com.tqxd.jys.collectors.impl.HuoBiKlineCollector;
-import com.tqxd.jys.constance.CollectDataType;
+import com.tqxd.jys.constance.DataType;
 import com.tqxd.jys.messagebus.MessageBus;
 import com.tqxd.jys.messagebus.payload.Message;
 import com.tqxd.jys.messagebus.topic.Topic;
@@ -136,7 +136,7 @@ public class CollectorOpenApiImpl implements CollectorOpenApi {
                     // 异步数据处理
                     VertxUtil.asyncFastCallIgnoreRs(vertx, () -> {
                         // 推送k线数据
-                        msgBus.publishIgnoreRs(topic, Message.withData(collectorName, data.encode()));
+                        msgBus.publishIgnoreRs(topic, Message.withData(type, collectorName, data.encode()));
                     });
                 }, config)) {
             deployMap.put(collectorName, collector);
@@ -222,20 +222,20 @@ public class CollectorOpenApiImpl implements CollectorOpenApi {
     /**
      * 订阅交易对
      *
-     * @param collectDataType 收集的数据类型
-     * @param collectorName   收集器名称
-     * @param symbol          交易对
+     * @param dataType      收集的数据类型
+     * @param collectorName 收集器名称
+     * @param symbol        交易对
      * @return 是否订阅成功
      */
     @Override
-    public void subscribe(String collectorName, CollectDataType collectDataType, String symbol,
+    public void subscribe(String collectorName, DataType dataType, String symbol,
                           Handler<AsyncResult<Boolean>> handler) {
         Collector collector = deployMap.get(collectorName);
         if (collector == null) {
             handler.handle(Future.failedFuture("collector not found"));
             return;
         }
-        if (collector.subscribe(collectDataType, symbol)) {
+        if (collector.subscribe(dataType, symbol)) {
             handler.handle(Future.succeededFuture(true));
         } else {
             handler.handle(Future.failedFuture("subscribe fail"));
@@ -245,20 +245,20 @@ public class CollectorOpenApiImpl implements CollectorOpenApi {
     /**
      * 取消订阅交易对
      *
-     * @param collectDataType 收集的数据类型
-     * @param collectorName   收集器名称
-     * @param symbol          交易对
+     * @param dataType      收集的数据类型
+     * @param collectorName 收集器名称
+     * @param symbol        交易对
      * @return 是否取消成功
      */
     @Override
-    public void unsubscribe(String collectorName, CollectDataType collectDataType, String symbol,
+    public void unsubscribe(String collectorName, DataType dataType, String symbol,
                             Handler<AsyncResult<Boolean>> handler) {
         Collector collector = deployMap.get(collectorName);
         if (collector == null) {
             handler.handle(Future.failedFuture("collector not found"));
             return;
         }
-        if (collector.unSubscribe(collectDataType, symbol)) {
+        if (collector.unSubscribe(dataType, symbol)) {
             handler.handle(Future.succeededFuture(true));
         } else {
             handler.handle(Future.failedFuture("unSubscribe fail"));
@@ -297,14 +297,14 @@ public class CollectorOpenApiImpl implements CollectorOpenApi {
     /**
      * 订阅交易对
      *
-     * @param collectDataType 收集的数据类型
-     * @param collectorName   收集器名称
-     * @param symbol          交易对
+     * @param dataType      收集的数据类型
+     * @param collectorName 收集器名称
+     * @param symbol        交易对
      * @return future
      */
-    public Future<Boolean> subscribe(String collectorName, CollectDataType collectDataType, String symbol) {
+    public Future<Boolean> subscribe(String collectorName, DataType dataType, String symbol) {
         Promise<Boolean> promise = Promise.promise();
-        subscribe(collectorName, collectDataType, symbol, promise);
+        subscribe(collectorName, dataType, symbol, promise);
         return promise.future();
     }
 }
