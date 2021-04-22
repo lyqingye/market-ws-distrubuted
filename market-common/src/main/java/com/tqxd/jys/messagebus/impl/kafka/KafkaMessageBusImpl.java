@@ -14,6 +14,7 @@ import io.vertx.kafka.client.producer.KafkaProducer;
 import io.vertx.kafka.client.producer.KafkaProducerRecord;
 
 import java.util.Map;
+import java.util.Objects;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Consumer;
@@ -27,12 +28,13 @@ public class KafkaMessageBusImpl implements MessageBus {
     private KafkaProducer<String, Object> producer;
     private Vertx vertx;
     private Counter messageIndexCounter;
-    private Map<String,String> kafkaConfig;
+    private Map<String, String> consumerConfig, producerConfig;
 
-    public KafkaMessageBusImpl (Vertx vertx,Map<String, String> kafkaConfig) {
-        this.vertx = vertx;
-        this.kafkaConfig = kafkaConfig;
-        producer = KafkaProducer.create(vertx, kafkaConfig);
+    public KafkaMessageBusImpl(Vertx vertx, Map<String, String> consumerConfig, Map<String, String> producerConfig) {
+        this.vertx = Objects.requireNonNull(vertx);
+        this.consumerConfig = Objects.requireNonNull(consumerConfig);
+        this.producerConfig = Objects.requireNonNull(producerConfig);
+        producer = KafkaProducer.create(vertx, producerConfig);
         vertx.sharedData()
                 .getCounter(MESSAGE_INDEX_COUNTER_NAME)
                 .onSuccess(h -> messageIndexCounter = h)
@@ -64,7 +66,7 @@ public class KafkaMessageBusImpl implements MessageBus {
 
     @Override
     public void subscribe(Topic topic, Consumer<Message<?>> consumer, Handler<AsyncResult<String>> handler) {
-        KafkaConsumer<String, Object> c = KafkaConsumer.create(vertx, kafkaConfig);
+        KafkaConsumer<String, Object> c = KafkaConsumer.create(vertx, consumerConfig);
         String id = UUID.randomUUID().toString();
         c.subscribe(topic.name(),rs -> {
             if (rs.succeeded()) {
