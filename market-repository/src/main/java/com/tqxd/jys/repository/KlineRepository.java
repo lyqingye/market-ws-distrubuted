@@ -8,6 +8,7 @@ import com.tqxd.jys.repository.redis.RedisHelper;
 import com.tqxd.jys.timeline.KlineTimeLine;
 import com.tqxd.jys.timeline.KlineTimeManager;
 import com.tqxd.jys.timeline.cmd.CmdResult;
+import com.tqxd.jys.utils.HuoBiUtils;
 import com.tqxd.jys.utils.TimeUtils;
 import io.vertx.core.*;
 import io.vertx.core.json.Json;
@@ -46,6 +47,7 @@ public class KlineRepository {
   public static final String METADATA_PREFIX = "market:kline:metadata:";
   public static final String METADATA_COMMIT_INDEX = "commitIndex";
   public static final String METADATA_UPDATE_TS = "updateTs";
+  public static final String KLINE_DETAIL_KEY = "market:kline:detail";
   private static final Logger log = LoggerFactory.getLogger(KlineRepository.class);
   /**
    * redis repo
@@ -177,7 +179,12 @@ public class KlineRepository {
   }
 
   private void updateMarketDetail(String timeLineName, MarketDetailTick tick) {
-    System.out.println(tick);
+    String ch = HuoBiUtils.toDetailSub(HuoBiUtils.getSymbolFromKlineSub(timeLineName));
+    redis.hSet(KLINE_DETAIL_KEY, ch, Json.encode(TemplatePayload.of(ch, tick)), ar -> {
+      if (ar.failed()) {
+        ar.cause().printStackTrace();
+      }
+    });
   }
 
   /**

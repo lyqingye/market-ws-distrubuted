@@ -16,6 +16,13 @@ public class TemplatePayload<T> {
   private long ts = System.currentTimeMillis() / 1000;
   private T tick;
 
+  public static <E> TemplatePayload<E> of(String ch, E tick) {
+    TemplatePayload<E> rs = new TemplatePayload<>();
+    rs.setCh(ch);
+    rs.setTick(tick);
+    return rs;
+  }
+
   public String getCh() {
     return ch;
   }
