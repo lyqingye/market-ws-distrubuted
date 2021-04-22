@@ -8,10 +8,13 @@ import io.vertx.core.AsyncResult;
 import io.vertx.core.Future;
 import io.vertx.core.Handler;
 import io.vertx.core.Vertx;
+import io.vertx.core.json.Json;
 import io.vertx.core.shareddata.Counter;
 import io.vertx.kafka.client.consumer.KafkaConsumer;
 import io.vertx.kafka.client.producer.KafkaProducer;
 import io.vertx.kafka.client.producer.KafkaProducerRecord;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.Map;
 import java.util.Objects;
@@ -23,6 +26,7 @@ import java.util.function.Consumer;
  * kafka 事件总线实现
  */
 public class KafkaMessageBusImpl implements MessageBus {
+    private static final Logger log = LoggerFactory.getLogger(KafkaMessageBusImpl.class);
     public static final String MESSAGE_INDEX_COUNTER_NAME = "kafka_message_index_counter";
     private Map<String, KafkaConsumer<String, Object>> consumerMap = new ConcurrentHashMap<>();
     private KafkaProducer<String, Object> producer;
@@ -77,7 +81,16 @@ public class KafkaMessageBusImpl implements MessageBus {
             }
         }).handler(record -> {
             if (consumer != null) {
-                record.value();
+                Object value = record.value();
+                if (value instanceof String) {
+                    try {
+                        consumer.accept(Json.decodeValue((String) value, Message.class));
+                    } catch (Exception ex) {
+                        ex.printStackTrace();
+                    }
+                } else {
+                    log.error("[KafkaMessageBus]: value must be instance of java.lang.String! msg: {}", value);
+                }
             }
         }).exceptionHandler(Throwable::printStackTrace);
     }

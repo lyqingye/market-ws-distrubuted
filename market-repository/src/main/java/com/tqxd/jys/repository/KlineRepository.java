@@ -3,7 +3,6 @@ package com.tqxd.jys.repository;
 import com.tqxd.jys.common.payload.KlineTick;
 import com.tqxd.jys.common.payload.TemplatePayload;
 import com.tqxd.jys.constance.Period;
-import com.tqxd.jys.messagebus.payload.Message;
 import com.tqxd.jys.messagebus.payload.detail.MarketDetailTick;
 import com.tqxd.jys.repository.redis.RedisHelper;
 import com.tqxd.jys.timeline.KlineTimeLine;
@@ -74,7 +73,7 @@ public class KlineRepository {
             .onSuccess(keys -> {
               if (keys.isEmpty()) {
                 log.info("[Kline-Repository]: symbols not found!");
-                promise.complete();
+                promise.complete(self);
                 return;
               }
               log.info("[Kline-Repository]: found symbols: {}", keys);
@@ -154,7 +153,7 @@ public class KlineRepository {
     List<Request> batchCmd = new ArrayList<>(5);
 
     // 更新key集合信息
-    batchCmd.add(Request.cmd(Command.ZADD).arg(SYMBOL_SET_KEY, sub));
+    batchCmd.add(Request.cmd(Command.SADD).arg(SYMBOL_SET_KEY).arg(sub));
     long time = TimeUtils.alignWithPeriod(tick.getTime(), Period._1_MIN.getMill());
 
     // 移除原来的tick
@@ -183,11 +182,8 @@ public class KlineRepository {
 
   /**
    * 需要自己更新数据
-   *
-   * @param msg data
    */
-  public void forUpdateKline(Message<TemplatePayload<KlineTick>> msg) {
-    TemplatePayload<KlineTick> payload = msg.getPayload();
+  public void forUpdateKline(long commitIndex, long ts, TemplatePayload<KlineTick> payload) {
     if (payload != null) {
       String sub = payload.getCh();
       KlineTick tick = payload.getTick();
@@ -201,14 +197,14 @@ public class KlineRepository {
           return;
         }
         // 异步更新到redis
-        this.updateKlineTickAsync(sub, msg.getIndex(), msg.getTs(), updatedTick, ar -> {
+        this.updateKlineTickAsync(sub, commitIndex, ts, updatedTick, ar -> {
           if (ar.failed()) {
             ar.cause().printStackTrace();
           }
         });
       }
     } else {
-      log.info("[Kline-Repository]: payload is null! msg from: {} index: {}", msg.getFrom(), msg.getIndex());
+      log.info("[Kline-Repository]: payload is null! message index: {}", commitIndex);
     }
   }
 

@@ -61,25 +61,32 @@ public class KlineTimeManager {
      */
     private Runnable tickJob() {
         return () -> {
-            // tick 所有k线
-            for (KlineTimeLine timeLine : timeLineMap.values()) {
-                if (timeLine != null) {
-                    // tick当前k线
-                    CmdResult<MarketDetailTick> result = timeLine.tick();
-                    if (result.isSuccess()) {
-                        try {
-                            // k线窗口滑动，触发了数据聚合
-                            MarketDetailTick aggregate = result.get();
-                            if (aggregate != null) {
-                                // 异步消费聚合数据
-                                VertxUtil.asyncFastCallIgnoreRs(vertx, () -> {
-                                    aggregateConsumer.accept(timeLine.name(), aggregate);
-                                });
+            while (true) {
+                // tick 所有k线
+                for (KlineTimeLine timeLine : timeLineMap.values()) {
+                    if (timeLine != null) {
+                        // tick当前k线
+                        CmdResult<MarketDetailTick> result = timeLine.tick();
+                        if (result.isSuccess()) {
+                            try {
+                                // k线窗口滑动，触发了数据聚合
+                                MarketDetailTick aggregate = result.get();
+                                if (aggregate != null) {
+                                    // 异步消费聚合数据
+                                    VertxUtil.asyncFastCallIgnoreRs(vertx, () -> {
+                                        aggregateConsumer.accept(timeLine.name(), aggregate);
+                                    });
+                                }
+                            } catch (InterruptedException | ExecutionException e) {
+                                e.printStackTrace();
                             }
-                        } catch (InterruptedException | ExecutionException e) {
-                            e.printStackTrace();
                         }
                     }
+                }
+                try {
+                    Thread.sleep(0);
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
                 }
             }
         };
