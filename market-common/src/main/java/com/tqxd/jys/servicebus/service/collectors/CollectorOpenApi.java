@@ -1,5 +1,6 @@
 package com.tqxd.jys.servicebus.service.collectors;
 
+import com.tqxd.jys.constance.CollectDataType;
 import com.tqxd.jys.servicebus.payload.CollectorStatusDto;
 import com.tqxd.jys.servicebus.service.ServiceAddress;
 import io.vertx.codegen.annotations.ProxyGen;
@@ -73,21 +74,23 @@ public interface CollectorOpenApi {
     /**
      * 订阅交易对
      *
-     * @param collectorName 收集器名称
-     * @param symbol        交易对
-     * @param handler       结果处理器
+     * @param collectDataType 收集的数据类型
+     * @param collectorName   收集器名称
+     * @param symbol          交易对
+     * @param handler         结果处理器
      */
-    void subscribe(String collectorName, String symbol,
+    void subscribe(String collectorName, CollectDataType collectDataType, String symbol,
                    Handler<AsyncResult<Boolean>> handler);
 
     /**
      * 取消订阅交易对
      *
-     * @param collectorName 收集器名称
-     * @param symbol        交易对
-     * @param handler       结果处理器
+     * @param collectDataType 收集的数据类型
+     * @param collectorName   收集器名称
+     * @param symbol          交易对
+     * @param handler         结果处理器
      */
-    void unsubscribe(String collectorName, String symbol,
+    void unsubscribe(String collectorName, CollectDataType collectDataType, String symbol,
                      Handler<AsyncResult<Boolean>> handler);
 }
 

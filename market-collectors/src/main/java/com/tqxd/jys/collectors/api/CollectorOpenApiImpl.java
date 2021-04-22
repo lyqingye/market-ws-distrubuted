@@ -1,8 +1,8 @@
 package com.tqxd.jys.collectors.api;
 
-import com.tqxd.jys.collectors.Collector;
-import com.tqxd.jys.collectors.CollectorsApplication;
+import com.tqxd.jys.collectors.impl.Collector;
 import com.tqxd.jys.collectors.impl.HuoBiKlineCollector;
+import com.tqxd.jys.constance.CollectDataType;
 import com.tqxd.jys.messagebus.MessageBus;
 import com.tqxd.jys.messagebus.payload.Message;
 import com.tqxd.jys.messagebus.topic.Topic;
@@ -123,11 +123,20 @@ public class CollectorOpenApiImpl implements CollectorOpenApi {
             }
         }
         if (collector.deploy(vertx,
-                data -> {
+                (type, data) -> {
+                    Topic topic;
+                    switch (type) {
+                        case KLINE: {
+                            topic = Topic.KLINE_TICK_TOPIC;
+                            break;
+                        }
+                        default:
+                            throw new IllegalStateException("Unexpected value: " + type);
+                    }
                     // 异步数据处理
                     VertxUtil.asyncFastCallIgnoreRs(vertx, () -> {
                         // 推送k线数据
-                        msgBus.publishIgnoreRs(Topic.KLINE_TICK_TOPIC, Message.withData(collectorName, data.encode()));
+                        msgBus.publishIgnoreRs(topic, Message.withData(collectorName, data.encode()));
                     });
                 }, config)) {
             deployMap.put(collectorName, collector);
@@ -213,19 +222,20 @@ public class CollectorOpenApiImpl implements CollectorOpenApi {
     /**
      * 订阅交易对
      *
-     * @param collectorName 收集器名称
-     * @param symbol        交易对
+     * @param collectDataType 收集的数据类型
+     * @param collectorName   收集器名称
+     * @param symbol          交易对
      * @return 是否订阅成功
      */
     @Override
-    public void subscribe(String collectorName, String symbol,
+    public void subscribe(String collectorName, CollectDataType collectDataType, String symbol,
                           Handler<AsyncResult<Boolean>> handler) {
         Collector collector = deployMap.get(collectorName);
         if (collector == null) {
             handler.handle(Future.failedFuture("collector not found"));
             return;
         }
-        if (collector.subscribe(symbol)) {
+        if (collector.subscribe(collectDataType, symbol)) {
             handler.handle(Future.succeededFuture(true));
         } else {
             handler.handle(Future.failedFuture("subscribe fail"));
@@ -235,19 +245,20 @@ public class CollectorOpenApiImpl implements CollectorOpenApi {
     /**
      * 取消订阅交易对
      *
-     * @param collectorName 收集器名称
-     * @param symbol        交易对
+     * @param collectDataType 收集的数据类型
+     * @param collectorName   收集器名称
+     * @param symbol          交易对
      * @return 是否取消成功
      */
     @Override
-    public void unsubscribe(String collectorName, String symbol,
+    public void unsubscribe(String collectorName, CollectDataType collectDataType, String symbol,
                             Handler<AsyncResult<Boolean>> handler) {
         Collector collector = deployMap.get(collectorName);
         if (collector == null) {
             handler.handle(Future.failedFuture("collector not found"));
             return;
         }
-        if (collector.unSubscribe(symbol)) {
+        if (collector.unSubscribe(collectDataType, symbol)) {
             handler.handle(Future.succeededFuture(true));
         } else {
             handler.handle(Future.failedFuture("unSubscribe fail"));
@@ -286,13 +297,14 @@ public class CollectorOpenApiImpl implements CollectorOpenApi {
     /**
      * 订阅交易对
      *
-     * @param collectorName 收集器名称
-     * @param symbol        交易对
+     * @param collectDataType 收集的数据类型
+     * @param collectorName   收集器名称
+     * @param symbol          交易对
      * @return future
      */
-    public Future<Boolean> subscribe(String collectorName, String symbol) {
+    public Future<Boolean> subscribe(String collectorName, CollectDataType collectDataType, String symbol) {
         Promise<Boolean> promise = Promise.promise();
-        subscribe(collectorName,symbol,promise);
+        subscribe(collectorName, collectDataType, symbol, promise);
         return promise.future();
     }
 }

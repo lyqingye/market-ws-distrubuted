@@ -1,6 +1,6 @@
 package com.tqxd.jys.collectors.impl;
 
-import com.tqxd.jys.collectors.Collector;
+import com.tqxd.jys.constance.CollectDataType;
 import io.vertx.core.AsyncResult;
 import io.vertx.core.Future;
 import io.vertx.core.Handler;
@@ -8,10 +8,8 @@ import io.vertx.core.Vertx;
 import io.vertx.core.http.WebSocket;
 import io.vertx.core.json.JsonObject;
 
-import java.util.ArrayList;
-import java.util.Iterator;
-import java.util.List;
-import java.util.function.Consumer;
+import java.util.*;
+import java.util.function.BiConsumer;
 
 /**
  * @author yjt
@@ -19,9 +17,9 @@ import java.util.function.Consumer;
  */
 public abstract class GenericWsCollector implements Collector {
     /**
-     * 已经订阅的交易对列表
+     * 已经订阅的信息
      */
-    private List<String> subscribedSymbol = new ArrayList<>(16);
+    private Map<CollectDataType, List<String>> subscribed = new HashMap<>(16);
 
     /**
      * 是否正在运行
@@ -49,7 +47,7 @@ public abstract class GenericWsCollector implements Collector {
      */
     @Override
     public boolean deploy(Vertx vertx,
-                          Consumer<JsonObject> consumer,
+                          BiConsumer<CollectDataType, JsonObject> consumer,
                           JsonObject args) {
         if (vertx == null) {
             return false;
@@ -92,30 +90,40 @@ public abstract class GenericWsCollector implements Collector {
     /**
      * 订阅一个交易对
      *
-     * @param symbol 交易对
+     * @param collectDataType 数据收集类型
+     * @param symbol          交易对
      * @return 是否订阅成功
      */
     @Override
-    public boolean subscribe(String symbol) {
+    public boolean subscribe(CollectDataType collectDataType, String symbol) {
         if (!this.isRunning)
             return false;
-        for (String exist : this.subscribedSymbol) {
-            if (exist.equals(symbol)) {
-                return true;
+        List<String> symbols;
+        if ((symbols = subscribed.get(collectDataType)) != null) {
+            for (String exist : symbols) {
+                if (exist.equals(symbol)) {
+                    return true;
+                }
             }
         }
-        return this.subscribedSymbol.add(symbol);
+        subscribed.computeIfAbsent(collectDataType, k -> new ArrayList<>()).add(symbol);
+        return true;
     }
 
     /**
      * 取消订阅一个交易对
      *
-     * @param symbol 交易对
+     * @param collectDataType 数据收集类型
+     * @param symbol          交易对
      * @return 是否取消订阅成功
      */
     @Override
-    public boolean unSubscribe(String symbol) {
-        Iterator<String> it = subscribedSymbol.iterator();
+    public boolean unSubscribe(CollectDataType collectDataType, String symbol) {
+        List<String> symbols = subscribed.get(collectDataType);
+        if (symbols == null) {
+            return true;
+        }
+        Iterator<String> it = symbols.iterator();
         while (it.hasNext()) {
             String obj = it.next();
             if (obj.equals(symbol)) {
@@ -129,11 +137,11 @@ public abstract class GenericWsCollector implements Collector {
     /**
      * 获取当前正在订阅的交易对
      *
-     * @return 当前正在订阅的交易对列表
+     * @return 当前正在订阅的信息, key为数据收集类型, value为交易对列表
      */
     @Override
-    public List<String> listSubscribedSymbol() {
-        return subscribedSymbol;
+    public Map<CollectDataType, List<String>> listSubscribedInfo() {
+        return subscribed;
     }
 
     /**

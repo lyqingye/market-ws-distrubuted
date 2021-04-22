@@ -1,6 +1,7 @@
 package com.tqxd.jys.collectors.impl;
 
 
+import com.tqxd.jys.constance.CollectDataType;
 import com.tqxd.jys.constance.Period;
 import com.tqxd.jys.utils.GZIPUtils;
 import com.tqxd.jys.utils.HuoBiUtils;
@@ -14,9 +15,11 @@ import io.vertx.core.json.Json;
 import io.vertx.core.json.JsonObject;
 
 import java.nio.charset.StandardCharsets;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
-import java.util.function.Consumer;
+import java.util.function.BiConsumer;
 
 /**
  * @author ex
@@ -29,9 +32,15 @@ public class HuoBiKlineCollector extends GenericWsCollector {
     private Vertx vertx;
 
     /**
+     * 用于存储交易对的映射
+     * 火币交易对映射 -> 用户自定义交易对映射
+     */
+    private Map<String, String> symbolDeMapping = new HashMap<>();
+
+    /**
      * 数据消费者
      */
-    private Consumer<JsonObject> consumer;
+    private BiConsumer<CollectDataType, JsonObject> consumer;
 
     /**
      * 额外参数
@@ -64,7 +73,7 @@ public class HuoBiKlineCollector extends GenericWsCollector {
      */
     @Override
     public boolean deploy(Vertx vertx,
-                          Consumer<JsonObject> consumer,
+                          BiConsumer<CollectDataType, JsonObject> consumer,
                           JsonObject args) {
         boolean result = super.deploy(vertx, consumer, args);
 
@@ -105,9 +114,13 @@ public class HuoBiKlineCollector extends GenericWsCollector {
                         that.ws = wsAr.result();
                         this.registerMsgHandler(that.ws);
                         // 重新订阅
-                        for (String symbol : super.listSubscribedSymbol()) {
-                            this.subscribe(symbol);
-                        }
+                        super.listSubscribedInfo().forEach(((collectDataType, symbols) -> {
+                            if (symbols != null) {
+                                for (String symbol : symbols) {
+                                    this.subscribe(collectDataType, symbol);
+                                }
+                            }
+                        }));
                         handler.handle(Future.succeededFuture(true));
                     } else {
                         handler.handle(Future.failedFuture(wsAr.cause()));
@@ -175,12 +188,13 @@ public class HuoBiKlineCollector extends GenericWsCollector {
     /**
      * 订阅一个交易对
      *
-     * @param symbol 交易对
+     * @param collectDataType 数据收集类型
+     * @param symbol          交易对
      * @return 是否订阅成功
      */
     @Override
-    public boolean subscribe(String symbol) {
-        boolean result = super.subscribe(symbol);
+    public boolean subscribe(CollectDataType collectDataType, String symbol) {
+        boolean result = super.subscribe(collectDataType, symbol);
         if (!result) {
             return false;
         }
@@ -191,8 +205,10 @@ public class HuoBiKlineCollector extends GenericWsCollector {
             //
             // 这里只订阅 1min的交易, 其它的都由 1min 来进行计算得到
             //
-            obj.put("sub", HuoBiUtils.toKlineSub(toGenericSymbol(symbol), Period._1_MIN));
+            String sub = HuoBiUtils.toKlineSub(toGenericSymbol(symbol), Period._1_MIN);
+            obj.put("sub", sub);
             obj.put("id", subIdPrefix + symbol);
+            symbolDeMapping.put(sub, HuoBiUtils.toKlineSub(symbol, Period._1_MIN));
             try {
                 this.ws.writeTextMessage(obj.toString());
                 result = true;
@@ -208,12 +224,13 @@ public class HuoBiKlineCollector extends GenericWsCollector {
     /**
      * 取消订阅一个交易对
      *
-     * @param symbol 交易对
+     * @param collectDataType 数据收集类型
+     * @param symbol          交易对
      * @return 是否取消订阅成功
      */
     @Override
-    public boolean unSubscribe(String symbol) {
-        boolean result = super.unSubscribe(symbol);
+    public boolean unSubscribe(CollectDataType collectDataType, String symbol) {
+        boolean result = super.unSubscribe(collectDataType, symbol);
 
         if (!result) {
             return false;
@@ -260,7 +277,6 @@ public class HuoBiKlineCollector extends GenericWsCollector {
      */
     private void registerMsgHandler(WebSocket ws) {
         ws.frameHandler(frame -> {
-
             // 处理二进制帧并且确保是最终帧
             if (frame.isBinary() && frame.isFinal()) {
                 GZIPUtils.decompressAsync(vertx,frame.binaryData().getBytes())
@@ -270,11 +286,11 @@ public class HuoBiKlineCollector extends GenericWsCollector {
                              if (isPingMsg(obj)) {
                                  this.writePong(ws);
                              } else if (isTickMsg(obj)) {
+                                 obj.put("ch", symbolDeMapping.get(obj.getString("ch")));
                                  // 如果是交易 tick 则进行消费
-                                 if (consumer != null) {
-                                     consumer.accept(obj);
-                                 }
+                                 consumer.accept(CollectDataType.KLINE, obj);
                              }
+                             // TODO 其它类型的数据
                          })
                          .onFailure(Throwable::printStackTrace);
             }

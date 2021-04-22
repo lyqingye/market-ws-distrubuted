@@ -11,5 +11,11 @@
 
     <artifactId>market-pushing</artifactId>
 
-
+    <dependencies>
+        <dependency>
+            <groupId>com.tqxd.jys</groupId>
+            <artifactId>market-common</artifactId>
+            <version>1.0-SNAPSHOT</version>
+        </dependency>
+    </dependencies>
 </project>

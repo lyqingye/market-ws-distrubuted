@@ -1,5 +1,6 @@
-package com.tqxd.jys.collectors;
+package com.tqxd.jys.collectors.impl;
 
+import com.tqxd.jys.constance.CollectDataType;
 import com.tqxd.jys.servicebus.payload.CollectorStatusDto;
 import io.vertx.core.AsyncResult;
 import io.vertx.core.Handler;
@@ -7,7 +8,8 @@ import io.vertx.core.Vertx;
 import io.vertx.core.json.JsonObject;
 
 import java.util.List;
-import java.util.function.Consumer;
+import java.util.Map;
+import java.util.function.BiConsumer;
 
 /**
  * 三方数据收集器接口定义, 支持的功能如下：
@@ -45,7 +47,7 @@ public interface Collector {
      * @throws Exception 如果部署失败
      */
     boolean deploy(Vertx vertx,
-                   Consumer<JsonObject> consumer,
+                   BiConsumer<CollectDataType, JsonObject> consumer,
                    JsonObject args);
 
     /**
@@ -60,25 +62,27 @@ public interface Collector {
     /**
      * 订阅一个交易对
      *
-     * @param symbol 交易对
+     * @param collectDataType 数据收集类型
+     * @param symbol          交易对
      * @return 是否订阅成功
      */
-    boolean subscribe(String symbol);
+    boolean subscribe(CollectDataType collectDataType, String symbol);
 
     /**
      * 取消订阅一个交易对
      *
-     * @param symbol 交易对
+     * @param collectDataType 数据收集类型
+     * @param symbol          交易对
      * @return 是否取消订阅成功
      */
-    boolean unSubscribe(String symbol);
+    boolean unSubscribe(CollectDataType collectDataType, String symbol);
 
     /**
-     * 获取当前正在订阅的交易对
+     * 获取当前正在订阅的信息
      *
-     * @return 当前正在订阅的交易对列表
+     * @return 当前正在订阅的信息, key为数据收集类型, value为交易对列表
      */
-    List<String> listSubscribedSymbol();
+    Map<CollectDataType, List<String>> listSubscribedInfo();
 
     /**
      * 开启收集数据
@@ -118,7 +122,7 @@ public interface Collector {
         status.setName(name());
         status.setDesc(desc());
         status.setRunning(isRunning());
-        status.setSubscribedSymbols(listSubscribedSymbol());
+//        status.setSubscribedSymbols(listSubscribedInfo());
         status.setDeployed(isDeployed());
         return status;
     }
