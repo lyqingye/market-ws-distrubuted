@@ -2,10 +2,7 @@ package com.tqxd.jys.timeline;
 
 import com.tqxd.jys.common.payload.KlineTick;
 import com.tqxd.jys.messagebus.payload.detail.MarketDetailTick;
-import com.tqxd.jys.timeline.cmd.ApplySnapshotCmd;
-import com.tqxd.jys.timeline.cmd.CmdResult;
-import com.tqxd.jys.timeline.cmd.PollTicksCmd;
-import com.tqxd.jys.timeline.cmd.UpdateTickCmd;
+import com.tqxd.jys.timeline.cmd.*;
 
 import java.math.BigDecimal;
 import java.util.ArrayList;
@@ -16,8 +13,6 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 import static com.tqxd.jys.utils.TimeUtils.alignWithPeriod;
 
 public class KlineTimeLine {
-  CmdResult<MarketDetailTick> CACHED_CMD_RESULT = new CmdResult<>();
-
   /**
    * 周期大小
    */
@@ -83,7 +78,7 @@ public class KlineTimeLine {
     return cmd.getResult();
   }
 
-  public CmdResult<KlineTick> update(long commitIndex, KlineTick tick) {
+  public CmdResult<UpdateTickResult> update(long commitIndex, KlineTick tick) {
     UpdateTickCmd cmd = new UpdateTickCmd();
     cmd.setTick(tick);
     cmd.setCommitIndex(commitIndex);
@@ -99,16 +94,12 @@ public class KlineTimeLine {
     return cmd.getResult();
   }
 
-  public CmdResult<MarketDetailTick> tick() {
+  public MarketDetailTick tick() {
+    MarketDetailTick result = null;
     if (execUpdateWindow()) {
-      CACHED_CMD_RESULT.setSuccess(true);
       if (autoAggregate) {
-        CACHED_CMD_RESULT.complete(snapAggregate());
-      } else {
-        CACHED_CMD_RESULT.complete(null);
+        result = snapAggregate();
       }
-    } else {
-      CACHED_CMD_RESULT.complete(null);
     }
     Object cmd;
     while ((cmd = cmdBuffer.poll()) != null) {
@@ -120,7 +111,7 @@ public class KlineTimeLine {
         execApplySnapshot((ApplySnapshotCmd) cmd);
       }
     }
-    return CACHED_CMD_RESULT;
+    return result;
   }
 
   private void execUpdateTick(UpdateTickCmd cmd) {
@@ -132,8 +123,8 @@ public class KlineTimeLine {
       return;
     }
     KlineTick newObj = cmd.getTick();
-    KlineTick result = applyTick(newObj);
-    if (result == null) {
+    KlineTick updateTick = applyTick(newObj);
+    if (updateTick == null) {
       cmd.getResult().setSuccess(false);
       cmd.getResult().setReason("apply tick fail! index outbound: " + calculateIdx(newObj.getTime()));
       cmd.getResult().complete(null);
@@ -143,7 +134,7 @@ public class KlineTimeLine {
     doAggregate(newObj);
     // complete
     cmd.getResult().setSuccess(true);
-    cmd.getResult().complete(result);
+    cmd.getResult().complete(new UpdateTickResult(this.meta, updateTick, snapAggregate()));
     meta.applyCommitIndex(cmd.getCommitIndex());
   }
 

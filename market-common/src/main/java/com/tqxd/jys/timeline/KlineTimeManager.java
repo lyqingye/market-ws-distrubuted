@@ -4,13 +4,13 @@ import com.tqxd.jys.common.payload.KlineTick;
 import com.tqxd.jys.constance.Period;
 import com.tqxd.jys.messagebus.payload.detail.MarketDetailTick;
 import com.tqxd.jys.timeline.cmd.CmdResult;
+import com.tqxd.jys.timeline.cmd.UpdateTickResult;
 import com.tqxd.jys.utils.VertxUtil;
 import io.vertx.core.Vertx;
 
 import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.BiConsumer;
 
@@ -51,7 +51,7 @@ public class KlineTimeManager {
     return mgr;
   }
 
-  public CmdResult<KlineTick> updateKline(String name, Period period, long commitIndex, KlineTick tick) {
+  public CmdResult<UpdateTickResult> updateKline(String name, Period period, long commitIndex, KlineTick tick) {
     KlineTimeLine timeLine = getOrCreate(name, period);
     return timeLine.update(commitIndex, tick);
   }
@@ -94,20 +94,13 @@ public class KlineTimeManager {
           KlineTimeLine timeLine = timeLines[i];
           if (timeLine != null) {
             // tick当前k线
-            CmdResult<MarketDetailTick> result = timeLine.tick();
-            if (result.isSuccess()) {
-              try {
-                // k线窗口滑动，触发了数据聚合
-                MarketDetailTick aggregate = result.get();
-                if (aggregate != null) {
-                  // 异步消费聚合数据
-                  VertxUtil.asyncFastCallIgnoreRs(vertx, () -> {
-                    aggregateConsumer.accept(timeLine.meta(), aggregate);
-                  });
-                }
-              } catch (InterruptedException | ExecutionException e) {
-                e.printStackTrace();
-              }
+            MarketDetailTick aggregate = timeLine.tick();
+            // k线窗口滑动，触发了数据聚合
+            if (aggregate != null) {
+              // 异步消费聚合数据
+              VertxUtil.asyncFastCallIgnoreRs(vertx, () -> {
+                aggregateConsumer.accept(timeLine.meta(), aggregate);
+              });
             }
           }
         }

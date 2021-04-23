@@ -9,6 +9,7 @@ import com.tqxd.jys.timeline.KlineTimeLine;
 import com.tqxd.jys.timeline.KlineTimeLineMeta;
 import com.tqxd.jys.timeline.KlineTimeManager;
 import com.tqxd.jys.timeline.cmd.CmdResult;
+import com.tqxd.jys.timeline.cmd.UpdateTickResult;
 import com.tqxd.jys.utils.TimeUtils;
 import io.vertx.core.*;
 import io.vertx.core.json.Json;
@@ -163,27 +164,29 @@ public class KlineRepository {
 
   /**
    * 更新k线
-   *
-   * @param sub 交易对
    */
-  private void updateKlineTickAsync(String sub, long commitIndex, long ts, KlineTick tick, Handler<AsyncResult<Void>> handler) {
+  private void updateAsync(UpdateTickResult data, long commitIndex, long ts, Handler<AsyncResult<Void>> handler) {
+    KlineTick tick = data.getTick();
+    KlineTimeLineMeta meta = data.getMeta();
+    String klineKey = meta.getKlineKey();
+    String detailKey = meta.getDetailKey();
     // 构造redis命令
-    List<Request> batchCmd = new ArrayList<>(5);
+    List<Request> batchCmd = new ArrayList<>(6);
 
     // 更新key集合信息
-    batchCmd.add(Request.cmd(Command.SADD).arg(SYMBOL_SET_KEY).arg(sub));
+    batchCmd.add(Request.cmd(Command.SADD).arg(SYMBOL_SET_KEY).arg(klineKey));
     long time = TimeUtils.alignWithPeriod(tick.getTime(), Period._1_MIN.getMill());
 
     // 移除原来的tick
-    batchCmd.add(Request.cmd(Command.ZREMRANGEBYSCORE).arg(sub).arg(time).arg(time));
+    batchCmd.add(Request.cmd(Command.ZREMRANGEBYSCORE).arg(klineKey).arg(time).arg(time));
 
     // 替换现在的tick
-    batchCmd.add(Request.cmd(Command.ZADD).arg(sub).arg(time).arg(Json.encode(tick)));
+    batchCmd.add(Request.cmd(Command.ZADD).arg(klineKey).arg(time).arg(Json.encode(tick)));
 
     // 更新快照元数据
-    batchCmd.add(Request.cmd(Command.HSET).arg(METADATA_PREFIX + sub).arg(METADATA_COMMIT_INDEX).arg(commitIndex));
-    batchCmd.add(Request.cmd(Command.HSET).arg(METADATA_PREFIX + sub).arg(METADATA_UPDATE_TS).arg(ts));
-
+    batchCmd.add(Request.cmd(Command.HSET).arg(METADATA_PREFIX + klineKey).arg(METADATA_COMMIT_INDEX).arg(commitIndex));
+    batchCmd.add(Request.cmd(Command.HSET).arg(METADATA_PREFIX + klineKey).arg(METADATA_UPDATE_TS).arg(ts));
+    batchCmd.add(Request.cmd(Command.HSET).arg(KLINE_DETAIL_KEY).arg(detailKey).arg(Json.encode(TemplatePayload.of(detailKey, tick))));
     // 批量执行
     redis.batch(batchCmd, ar -> {
       if (ar.succeeded()) {
@@ -210,21 +213,22 @@ public class KlineRepository {
       String sub = payload.getCh();
       KlineTick tick = payload.getTick();
       if (tick != null) {
-        CmdResult<KlineTick> updateResult = klineTimeManager.updateKline(sub, Period._1_MIN, commitIndex, tick);
-        KlineTick updatedTick = null;
+        CmdResult<UpdateTickResult> updateResult = klineTimeManager.updateKline(sub, Period._1_MIN, commitIndex, tick);
+        UpdateTickResult updatedResult = null;
         try {
-          updatedTick = updateResult.get();
+          updatedResult = updateResult.get();
         } catch (InterruptedException | ExecutionException e) {
           e.printStackTrace();
           return;
         }
         if (updateResult.isSuccess()) {
           // 异步更新到redis
-          this.updateKlineTickAsync(sub, commitIndex, ts, updatedTick, ar -> {
+          this.updateAsync(updatedResult, commitIndex, ts, ar -> {
             if (ar.failed()) {
               ar.cause().printStackTrace();
             }
           });
+
         } else {
           log.warn("[Kline-Repository]: update kline tick fail! reason: {}, commitIndex: {} payload: {}", updateResult.getReason(), commitIndex, Json.encode(payload));
         }

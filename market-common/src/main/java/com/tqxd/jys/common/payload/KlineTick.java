@@ -76,9 +76,9 @@ public class KlineTick implements TimeLineShotData {
   public TimeLineShotData merge(TimeLineShotData target) {
     KlineTick tick = (KlineTick) target;
 
-    this.count += tick.getCount();
-    this.amount = this.amount.add(tick.getAmount());
-    this.vol = this.vol.add(tick.getVol());
+    this.count = tick.getCount();
+    this.amount = tick.getAmount();
+    this.vol = tick.getVol();
     this.close = tick.close;
 
     if (tick.high.compareTo(this.high) > 0) {
