@@ -163,22 +163,32 @@ public class RedisHelper {
   /**
    * Set sMembers
    *
-   * @param key key
-   * @return future
+   * @param key     key
+   * @param handler handler
    */
-  public Future<Set<String>> sMembers(String key) {
-    Promise<Set<String>> promise = Promise.promise();
+  public void sMembers(String key, Handler<AsyncResult<Set<String>>> handler) {
     redisApi.smembers(key, ar -> {
       if (ar.succeeded()) {
         final Response response = ar.result();
         final Set<String> objects = response.stream()
             .map(obj -> (String) this.responseToObj(obj))
             .collect(Collectors.toSet());
-        promise.complete(objects);
+        handler.handle(Future.succeededFuture(objects));
       } else {
-        promise.fail(ar.cause());
+        handler.handle(Future.failedFuture(ar.cause()));
       }
     });
+  }
+
+  /**
+   * Set sMembers
+   *
+   * @param key key
+   * @return future
+   */
+  public Future<Set<String>> sMembers(String key) {
+    Promise<Set<String>> promise = Promise.promise();
+    this.sMembers(key, promise);
     return promise.future();
   }
 

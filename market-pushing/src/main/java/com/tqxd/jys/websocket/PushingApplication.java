@@ -1,20 +1,15 @@
-package com.tqxd.jys.repository;
+package com.tqxd.jys.websocket;
 
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.tqxd.jys.common.payload.KlineTick;
-import com.tqxd.jys.common.payload.TemplatePayload;
 import com.tqxd.jys.messagebus.MessageBusFactory;
-import com.tqxd.jys.messagebus.payload.Message;
-import com.tqxd.jys.messagebus.topic.Topic;
-import com.tqxd.jys.repository.openapi.RepositoryOpenApiImpl;
-import com.tqxd.jys.repository.redis.RedisHelper;
+import com.tqxd.jys.openapi.RepositoryOpenApi;
+import com.tqxd.jys.openapi.payload.KlineSnapshot;
 import com.tqxd.jys.utils.VertxUtil;
 import io.vertx.core.AbstractVerticle;
 import io.vertx.core.Promise;
 import io.vertx.core.Vertx;
 import io.vertx.core.VertxOptions;
+import io.vertx.core.json.Json;
 import io.vertx.core.json.JsonObject;
-import io.vertx.core.json.jackson.JacksonCodec;
 import io.vertx.core.spi.cluster.ClusterManager;
 import io.vertx.spi.cluster.zookeeper.ZookeeperClusterManager;
 import org.slf4j.Logger;
@@ -24,11 +19,10 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.ExecutionException;
 
-/**
- * @author lyqingye
- */
-public class RepositoryApplication extends AbstractVerticle {
-  private static final Logger log = LoggerFactory.getLogger(RepositoryApplication.class);
+public class PushingApplication extends AbstractVerticle {
+
+
+  private static final Logger log = LoggerFactory.getLogger(PushingApplication.class);
 
   public static void main(String[] args) {
     Map<String, String> kafkaConfig = new HashMap<>();
@@ -37,7 +31,7 @@ public class RepositoryApplication extends AbstractVerticle {
     kafkaConfig.put("value.serializer", "com.tqxd.jys.messagebus.impl.kafka.KafkaJsonSerializer");
     kafkaConfig.put("key.deserializer", "com.tqxd.jys.messagebus.impl.kafka.KafkaJsonDeSerializer");
     kafkaConfig.put("value.deserializer", "com.tqxd.jys.messagebus.impl.kafka.KafkaJsonDeSerializer");
-    kafkaConfig.put("group.id", "repository");
+    kafkaConfig.put("group.id", "pushing");
     kafkaConfig.put("auto.offset.reset", "earliest");
     kafkaConfig.put("enable.auto.commit", "true");
 
@@ -57,7 +51,7 @@ public class RepositoryApplication extends AbstractVerticle {
           VertxUtil.readYamlConfig(vertx, "config.yaml", h -> {
             if (h.succeeded()) {
               MessageBusFactory.init(MessageBusFactory.KAFKA_MESSAGE_BUS, vertx, kafkaConfig, kafkaConfig);
-              VertxUtil.deploy(vertx, new RepositoryApplication(), h.result())
+              VertxUtil.deploy(vertx, new PushingApplication(), h.result())
                   .onFailure(Throwable::printStackTrace);
 
             } else {
@@ -73,36 +67,29 @@ public class RepositoryApplication extends AbstractVerticle {
     });
   }
 
-
   @Override
   public void start(Promise<Void> startPromise) throws Exception {
-    JsonObject config = config();
-    String redisConnString = "redis://localhost:6379/6";
-    if (config != null) {
-      redisConnString = VertxUtil.jsonGetValue(config, "market.repository.redis.connectionString", String.class, redisConnString);
-    }
-    RedisHelper.create(vertx, redisConnString)
-        .compose(redis -> KlineRepository.create(vertx, redis))
-        .compose(repository -> {
-          // 开放Open API
-          RepositoryOpenApiImpl.init(vertx, repository);
-          // 订阅k线数据
-          return MessageBusFactory.bus().subscribe(Topic.KLINE_TICK_TOPIC, data -> processKlineMessage(repository, data));
-        })
-        .onFailure(startPromise::fail);
+    RepositoryOpenApi openAPI = RepositoryOpenApi.createProxy(vertx);
+    openAPI.listKlineKeys(ar -> {
+      if (ar.succeeded()) {
+        System.out.println(ar.result());
+        for (String klineKey : ar.result()) {
+          openAPI.getKlineSnapshot(klineKey, ar2 -> {
+            if (ar2.succeeded()) {
+              KlineSnapshot snapshot = Json.decodeValue(ar2.result(), KlineSnapshot.class);
+              System.out.println(ar2.result());
+            } else {
+              ar2.cause().printStackTrace();
+            }
+          });
+        }
+      } else {
+        ar.cause().printStackTrace();
+      }
+    });
   }
 
-  private void processKlineMessage(KlineRepository repository, Message<?> msg) {
-    switch (msg.getType()) {
-      case KLINE: {
-        TemplatePayload<KlineTick> payload = JacksonCodec.decodeValue((String) msg.getPayload(), new TypeReference<TemplatePayload<KlineTick>>() {
-        });
-        repository.forUpdateKline(msg.getIndex(), msg.getTs(), payload);
-        log.info("[Market-Repository]: for update kline msgIndex: {}, payload: {}", msg.getIndex(), msg.getPayload());
-        break;
-      }
-      default:
-        log.error("[Market-Repository]: invalid message type from Kline topic! message: {}", msg);
-    }
+  @Override
+  public void stop(Promise<Void> stopPromise) throws Exception {
   }
 }

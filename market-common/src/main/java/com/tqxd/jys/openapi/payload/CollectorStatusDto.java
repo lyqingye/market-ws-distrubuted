@@ -1,4 +1,4 @@
-package com.tqxd.jys.servicebus.payload;
+package com.tqxd.jys.openapi.payload;
 
 import io.vertx.codegen.annotations.DataObject;
 import io.vertx.core.json.JsonObject;

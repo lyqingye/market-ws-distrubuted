@@ -1,7 +1,7 @@
 package com.tqxd.jys.collectors.impl;
 
 import com.tqxd.jys.constance.DataType;
-import com.tqxd.jys.servicebus.payload.CollectorStatusDto;
+import com.tqxd.jys.openapi.payload.CollectorStatusDto;
 import io.vertx.core.AsyncResult;
 import io.vertx.core.Handler;
 import io.vertx.core.Vertx;

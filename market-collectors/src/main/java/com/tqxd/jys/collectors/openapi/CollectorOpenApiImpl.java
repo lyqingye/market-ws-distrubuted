@@ -1,4 +1,4 @@
-package com.tqxd.jys.collectors.api;
+package com.tqxd.jys.collectors.openapi;
 
 import com.tqxd.jys.collectors.impl.Collector;
 import com.tqxd.jys.collectors.impl.HuoBiKlineCollector;
@@ -6,8 +6,8 @@ import com.tqxd.jys.constance.DataType;
 import com.tqxd.jys.messagebus.MessageBus;
 import com.tqxd.jys.messagebus.payload.Message;
 import com.tqxd.jys.messagebus.topic.Topic;
-import com.tqxd.jys.servicebus.payload.CollectorStatusDto;
-import com.tqxd.jys.servicebus.service.collectors.CollectorOpenApi;
+import com.tqxd.jys.openapi.CollectorOpenApi;
+import com.tqxd.jys.openapi.payload.CollectorStatusDto;
 import com.tqxd.jys.utils.VertxUtil;
 import io.vertx.core.*;
 import io.vertx.core.json.DecodeException;

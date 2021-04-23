@@ -4,6 +4,7 @@ import com.tqxd.jys.common.payload.KlineTick;
 import com.tqxd.jys.common.payload.TemplatePayload;
 import com.tqxd.jys.constance.Period;
 import com.tqxd.jys.messagebus.payload.detail.MarketDetailTick;
+import com.tqxd.jys.openapi.payload.KlineSnapshot;
 import com.tqxd.jys.repository.redis.RedisHelper;
 import com.tqxd.jys.timeline.KlineTimeLine;
 import com.tqxd.jys.timeline.KlineTimeLineMeta;
@@ -21,6 +22,7 @@ import org.slf4j.LoggerFactory;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
+import java.util.Set;
 import java.util.concurrent.ExecutionException;
 
 /**
@@ -72,7 +74,7 @@ public class KlineRepository {
     // 创建k线管理器
     self.klineTimeManager = KlineTimeManager.create(vertx, self::updateMarketDetail);
     Promise<KlineRepository> promise = Promise.promise();
-    redis.sMembers(SYMBOL_SET_KEY)
+    self.listKlineKeys()
         .onSuccess(keys -> {
           if (keys.isEmpty()) {
             log.info("[Kline-Repository]: symbols not found!");
@@ -84,8 +86,9 @@ public class KlineRepository {
           for (String key : keys) {
             if (batchFuture == null) {
               batchFuture = self.initKlineData(key);
+            } else {
+              batchFuture.compose(ar -> self.initKlineData(key));
             }
-            batchFuture.compose(ar -> self.initKlineData(key));
           }
           if (batchFuture == null) {
             promise.complete(self);
@@ -96,6 +99,14 @@ public class KlineRepository {
         })
         .onFailure(promise::fail);
     return promise.future();
+  }
+
+  public Future<Set<String>> listKlineKeys() {
+    return redis.sMembers(SYMBOL_SET_KEY);
+  }
+
+  public void listKlineKeys(Handler<AsyncResult<Set<String>>> handler) {
+    redis.sMembers(SYMBOL_SET_KEY, handler);
   }
 
   /**
@@ -161,6 +172,53 @@ public class KlineRepository {
     getCommittedIndex(key, promise);
     return promise.future();
   }
+
+  public void getKlineSnapshot(String klineKey, Handler<AsyncResult<KlineSnapshot>> handler) {
+    getCommittedIndex(METADATA_PREFIX + klineKey)
+        .compose(committedIndex -> {
+          return sizeOfKlineTicks(klineKey)
+              .compose(size -> {
+                KlineSnapshot snapshot = new KlineSnapshot();
+                snapshot.setCommittedIndex(committedIndex);
+                snapshot.setKlineKey(klineKey);
+                snapshot.setPeriod(Period._1_MIN);
+                if (size != null && size > 0) {
+                  // 只截取最新的部分
+                  long start = 0;
+                  if (size >= Period._1_MIN.getNumOfPeriod()) {
+                    start = size - Period._1_MIN.getNumOfPeriod();
+                  }
+                  return listKlineTicksLimit(klineKey, start, -1)
+                      .compose(ticks -> {
+                        if (!ticks.isEmpty()) {
+                          try {
+                            List<KlineTick> tickList = new ArrayList<>(ticks.size());
+                            for (String tickJson : ticks) {
+                              tickList.add(Json.decodeValue(tickJson, KlineTick.class));
+                            }
+                            snapshot.setTickList(tickList);
+                          } catch (Exception ex) {
+                            ex.printStackTrace();
+                          }
+                        }
+                        return Future.succeededFuture(snapshot);
+                      });
+                } else {
+                  return Future.succeededFuture(snapshot);
+                }
+              });
+        })
+        .onSuccess(snapshot -> handler.handle(Future.succeededFuture(snapshot)))
+        .onFailure(throwable -> handler.handle(Future.failedFuture(throwable)));
+  }
+
+  public Future<KlineSnapshot> getKlineSnapshot(String klineKey) {
+    Promise<KlineSnapshot> promise = Promise.promise();
+    getKlineSnapshot(klineKey, promise);
+    return promise.future();
+  }
+
+  // ----------------------------------------------------------------------------------------------------------
 
   /**
    * 更新k线
@@ -247,37 +305,16 @@ public class KlineRepository {
    */
   private Future<Void> initKlineData(String klineKey) {
     long startTime = System.currentTimeMillis();
-    return getCommittedIndex(METADATA_PREFIX + klineKey)
-        .compose(committedIndex -> {
-          return sizeOfKlineTicks(klineKey)
-              .compose(size -> {
-                if (size != null && size > 0) {
-                  // 只截取最新的部分
-                  long start = 0;
-                  if (size >= Period._1_MIN.getNumOfPeriod()) {
-                    start = size - Period._1_MIN.getNumOfPeriod();
-                  }
-                  return listKlineTicksLimit(klineKey, start, -1)
-                      .compose(ticks -> {
-                        if (!ticks.isEmpty()) {
-                          KlineTimeLine timeLine = klineTimeManager.getOrCreate(klineKey, Period._1_MIN);
-                          try {
-                            List<KlineTick> tickList = new ArrayList<>(ticks.size());
-                            for (String tickJson : ticks) {
-                              tickList.add(Json.decodeValue(tickJson, KlineTick.class));
-                            }
-                            timeLine.applySnapshot(committedIndex, tickList).get();
-                          } catch (Exception ex) {
-                            ex.printStackTrace();
-                          }
-                        }
-                        log.info("[Kline-Repository]: init kline: {} size: {} using: {}ms", klineKey, size, System.currentTimeMillis() - startTime);
-                        return Future.succeededFuture();
-                      });
-                } else {
-                  return Future.succeededFuture();
-                }
-              });
+    return getKlineSnapshot(klineKey)
+        .compose(snapshot -> {
+          KlineTimeLine timeLine = klineTimeManager.getOrCreate(klineKey, Period._1_MIN);
+          try {
+            timeLine.applySnapshot(snapshot.getCommittedIndex(), snapshot.getTickList()).get();
+          } catch (Exception ex) {
+            ex.printStackTrace();
+          }
+          log.info("[Kline-Repository]: init kline: {} size: {} using: {}ms", klineKey, snapshot.getTickList().size(), System.currentTimeMillis() - startTime);
+          return Future.succeededFuture();
         });
   }
 }

@@ -1,11 +1,11 @@
 package com.tqxd.jys.collectors;
 
-import com.tqxd.jys.collectors.api.CollectorOpenApiImpl;
+import com.tqxd.jys.collectors.openapi.CollectorOpenApiImpl;
 import com.tqxd.jys.constance.DataType;
 import com.tqxd.jys.messagebus.MessageBusFactory;
-import com.tqxd.jys.servicebus.payload.CollectorStatusDto;
-import com.tqxd.jys.servicebus.service.ServiceAddress;
-import com.tqxd.jys.servicebus.service.collectors.CollectorOpenApi;
+import com.tqxd.jys.openapi.CollectorOpenApi;
+import com.tqxd.jys.openapi.ServiceAddress;
+import com.tqxd.jys.openapi.payload.CollectorStatusDto;
 import com.tqxd.jys.utils.VertxUtil;
 import io.vertx.core.*;
 import io.vertx.core.eventbus.MessageConsumer;

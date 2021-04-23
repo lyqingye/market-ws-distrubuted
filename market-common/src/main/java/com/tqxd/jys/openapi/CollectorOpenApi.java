@@ -1,8 +1,7 @@
-package com.tqxd.jys.servicebus.service.collectors;
+package com.tqxd.jys.openapi;
 
 import com.tqxd.jys.constance.DataType;
-import com.tqxd.jys.servicebus.payload.CollectorStatusDto;
-import com.tqxd.jys.servicebus.service.ServiceAddress;
+import com.tqxd.jys.openapi.payload.CollectorStatusDto;
 import io.vertx.codegen.annotations.ProxyGen;
 import io.vertx.core.AsyncResult;
 import io.vertx.core.Handler;

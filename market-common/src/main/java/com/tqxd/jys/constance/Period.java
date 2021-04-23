@@ -39,4 +39,13 @@ public enum Period {
   public int getNumOfPeriod() {
     return this.numOfPeriod;
   }
+
+  public static Period ofName(String name) {
+    for (Period value : values()) {
+      if (value.equals(name)) {
+        return value;
+      }
+    }
+    return null;
+  }
 }
