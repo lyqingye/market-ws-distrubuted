@@ -1,5 +1,6 @@
 package com.tqxd.jys.timeline;
 
+import com.tqxd.jys.common.payload.KlineTick;
 import com.tqxd.jys.constance.Period;
 import com.tqxd.jys.messagebus.payload.detail.MarketDetailTick;
 import com.tqxd.jys.timeline.cmd.CmdResult;
@@ -10,20 +11,29 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.BiConsumer;
 
+/**
+ * k线管理器
+ *
+ * @author lyqingye
+ */
 public class KlineTimeManager {
   /**
-   * 名称 -> timeLine 映射
+   * 名称 -> timeLine 映射的索引
+   * 用数组和map作为索引，因为需要频繁遍历，避免经常遍历映射导致频繁创建 {@link java.util.Iterator} 迭代器对象
    */
-  private Map<String, KlineTimeLine> timeLineMap = new ConcurrentHashMap<>();
+  private Map<String, Integer> timeLineIndexMap = new ConcurrentHashMap<>();
+  private KlineTimeLine[] timeLines = new KlineTimeLine[256];
+  private AtomicInteger timeLinesSize = new AtomicInteger(0);
 
   /**
    * 聚合数据消费者
    * String -> k线名称
    * MarketDetailTick -> 聚合数据
    */
-  private BiConsumer<String, MarketDetailTick> aggregateConsumer;
+  private BiConsumer<KlineTimeLineMeta, MarketDetailTick> aggregateConsumer;
 
   /**
    * vertx
@@ -33,7 +43,7 @@ public class KlineTimeManager {
   private KlineTimeManager() {
   }
 
-  public static KlineTimeManager create(Vertx vertx, BiConsumer<String, MarketDetailTick> aggregateConsumer) {
+  public static KlineTimeManager create(Vertx vertx, BiConsumer<KlineTimeLineMeta, MarketDetailTick> aggregateConsumer) {
     KlineTimeManager mgr = new KlineTimeManager();
     mgr.vertx = Objects.requireNonNull(vertx);
     mgr.aggregateConsumer = Objects.requireNonNull(aggregateConsumer);
@@ -41,8 +51,26 @@ public class KlineTimeManager {
     return mgr;
   }
 
-  public KlineTimeLine getOrCreate(String name, Period period) {
-    return timeLineMap.computeIfAbsent(name, k -> new KlineTimeLine(name, period.getMill(), period.getNumOfPeriod(), period.equals(Period._1_MIN)));
+  public CmdResult<KlineTick> updateKline(String name, Period period, long commitIndex, KlineTick tick) {
+    KlineTimeLine timeLine = getOrCreate(name, period);
+    return timeLine.update(commitIndex, tick);
+  }
+
+  public KlineTimeLine getOrCreate(String klineKey, Period period) {
+    Integer index = timeLineIndexMap.computeIfAbsent(klineKey, k -> {
+      KlineTimeLineMeta meta = new KlineTimeLineMeta();
+      meta.setKlineKey(klineKey);
+      KlineTimeLine timeLine = new KlineTimeLine(meta, period.getMill(), period.getNumOfPeriod(), period.equals(Period._1_MIN));
+      int newSize = timeLinesSize.incrementAndGet();
+      if (newSize > timeLines.length) {
+        KlineTimeLine[] newKlineTimeLines = new KlineTimeLine[timeLines.length << 1];
+        System.arraycopy(timeLines, 0, newKlineTimeLines, 0, timeLines.length);
+        timeLines = newKlineTimeLines;
+      }
+      timeLines[newSize - 1] = timeLine;
+      return newSize - 1;
+    });
+    return timeLines[index];
   }
 
   private void startTickKlineThread() {
@@ -53,7 +81,6 @@ public class KlineTimeManager {
     thread.start();
   }
 
-
   /**
    * k线tick job
    *
@@ -63,7 +90,8 @@ public class KlineTimeManager {
     return () -> {
       while (true) {
         // tick 所有k线
-        for (KlineTimeLine timeLine : timeLineMap.values()) {
+        for (int i = 0; i < timeLinesSize.get(); i++) {
+          KlineTimeLine timeLine = timeLines[i];
           if (timeLine != null) {
             // tick当前k线
             CmdResult<MarketDetailTick> result = timeLine.tick();
@@ -74,7 +102,7 @@ public class KlineTimeManager {
                 if (aggregate != null) {
                   // 异步消费聚合数据
                   VertxUtil.asyncFastCallIgnoreRs(vertx, () -> {
-                    aggregateConsumer.accept(timeLine.name(), aggregate);
+                    aggregateConsumer.accept(timeLine.meta(), aggregate);
                   });
                 }
               } catch (InterruptedException | ExecutionException e) {

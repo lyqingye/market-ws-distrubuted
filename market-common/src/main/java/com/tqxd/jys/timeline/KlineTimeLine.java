@@ -2,6 +2,7 @@ package com.tqxd.jys.timeline;
 
 import com.tqxd.jys.common.payload.KlineTick;
 import com.tqxd.jys.messagebus.payload.detail.MarketDetailTick;
+import com.tqxd.jys.timeline.cmd.ApplySnapshotCmd;
 import com.tqxd.jys.timeline.cmd.CmdResult;
 import com.tqxd.jys.timeline.cmd.PollTicksCmd;
 import com.tqxd.jys.timeline.cmd.UpdateTickCmd;
@@ -15,10 +16,7 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 import static com.tqxd.jys.utils.TimeUtils.alignWithPeriod;
 
 public class KlineTimeLine {
-  /**
-   * 名称
-   */
-  private final String name;
+  CmdResult<MarketDetailTick> CACHED_CMD_RESULT = new CmdResult<>();
 
   /**
    * 周期大小
@@ -55,9 +53,13 @@ public class KlineTimeLine {
    * 命令队列
    */
   private ConcurrentLinkedQueue<Object> cmdBuffer = new ConcurrentLinkedQueue<Object>();
+  /**
+   *
+   */
+  private KlineTimeLineMeta meta;
 
-  public KlineTimeLine(String name, long period, int numOfPeriod, boolean autoAggregate) {
-    this.name = name;
+  public KlineTimeLine(KlineTimeLineMeta meta, long period, int numOfPeriod, boolean autoAggregate) {
+    this.meta = meta;
     this.period = period;
     this.numOfPeriod = numOfPeriod;
     this.totalPeriodSize = period * numOfPeriod;
@@ -68,15 +70,8 @@ public class KlineTimeLine {
     this.autoAggregate = autoAggregate;
   }
 
-  public String name() {
-    return this.name;
-  }
-
-  public CmdResult<KlineTick> update(KlineTick tick) {
-    UpdateTickCmd cmd = new UpdateTickCmd();
-    cmd.setTick(tick);
-    cmdBuffer.offer(cmd);
-    return cmd.getResult();
+  public KlineTimeLineMeta meta() {
+    return this.meta;
   }
 
   public CmdResult<List<KlineTick>> poll(long start, long end, int partIdx) {
@@ -88,17 +83,32 @@ public class KlineTimeLine {
     return cmd.getResult();
   }
 
+  public CmdResult<KlineTick> update(long commitIndex, KlineTick tick) {
+    UpdateTickCmd cmd = new UpdateTickCmd();
+    cmd.setTick(tick);
+    cmd.setCommitIndex(commitIndex);
+    cmdBuffer.offer(cmd);
+    return cmd.getResult();
+  }
+
+  public CmdResult<MarketDetailTick> applySnapshot(long commitIndex, List<KlineTick> ticks) {
+    ApplySnapshotCmd cmd = new ApplySnapshotCmd();
+    cmd.setCommitIndex(commitIndex);
+    cmd.setTicks(ticks);
+    cmdBuffer.offer(cmd);
+    return cmd.getResult();
+  }
+
   public CmdResult<MarketDetailTick> tick() {
-    CmdResult<MarketDetailTick> result = new CmdResult<>();
     if (execUpdateWindow()) {
-      result.setSuccess(true);
+      CACHED_CMD_RESULT.setSuccess(true);
       if (autoAggregate) {
-        result.complete(snapAggregate());
+        CACHED_CMD_RESULT.complete(snapAggregate());
       } else {
-        result.complete(null);
+        CACHED_CMD_RESULT.complete(null);
       }
     } else {
-      result.complete(null);
+      CACHED_CMD_RESULT.complete(null);
     }
     Object cmd;
     while ((cmd = cmdBuffer.poll()) != null) {
@@ -106,18 +116,41 @@ public class KlineTimeLine {
         execUpdateTick((UpdateTickCmd) cmd);
       } else if (cmd instanceof PollTicksCmd) {
         execPollTicks((PollTicksCmd) cmd);
+      } else if (cmd instanceof ApplySnapshotCmd) {
+        execApplySnapshot((ApplySnapshotCmd) cmd);
       }
     }
-    return result;
+    return CACHED_CMD_RESULT;
   }
 
   private void execUpdateTick(UpdateTickCmd cmd) {
-    KlineTick newObj = cmd.getTick();
-    int idx = calculateIdx(newObj.getTime());
-    if (idx < 0 || idx >= numOfPeriod) {
+    if (cmd.getCommitIndex() <= meta.getCommitIndex()) {
       cmd.getResult().setSuccess(false);
+      cmd.getResult().setReason("invalid commit index cur commitIndex: " + meta.getCommitIndex() + " cmd commitIndex: " + cmd.getCommitIndex());
+      cmd.getResult().complete(null);
+
+      return;
+    }
+    KlineTick newObj = cmd.getTick();
+    KlineTick result = applyTick(newObj);
+    if (result == null) {
+      cmd.getResult().setSuccess(false);
+      cmd.getResult().setReason("apply tick fail! index outbound: " + calculateIdx(newObj.getTime()));
       cmd.getResult().complete(null);
       return;
+    }
+    // aggregate the window
+    doAggregate(newObj);
+    // complete
+    cmd.getResult().setSuccess(true);
+    cmd.getResult().complete(result);
+    meta.applyCommitIndex(cmd.getCommitIndex());
+  }
+
+  private KlineTick applyTick(KlineTick newObj) {
+    int idx = calculateIdx(newObj.getTime());
+    if (idx < 0 || idx >= numOfPeriod) {
+      return null;
     }
     KlineTick oldObj = (KlineTick) data[idx];
     if (oldObj != null) {
@@ -129,11 +162,7 @@ public class KlineTimeLine {
     } else {
       data[idx] = newObj;
     }
-    // aggregate the window
-    doAggregate(newObj);
-    // complete
-    cmd.getResult().setSuccess(true);
-    cmd.getResult().complete((KlineTick) data[idx]);
+    return (KlineTick) data[idx];
   }
 
   private void execPollTicks(PollTicksCmd cmd) {
@@ -184,6 +213,24 @@ public class KlineTimeLine {
       // the window already updated
       return false;
     }
+  }
+
+  private void execApplySnapshot(ApplySnapshotCmd cmd) {
+    long commitIndex = cmd.getCommitIndex();
+    if (commitIndex < 0) {
+      cmd.getResult().setSuccess(false);
+      cmd.getResult().setReason("invalid commit index while apply the snapshot! commit index: " + cmd.getCommitIndex());
+      return;
+    }
+    meta.applyCommitIndex(commitIndex);
+    for (KlineTick tick : cmd.getTicks()) {
+      KlineTick newObj = applyTick(tick);
+      if (newObj != null) {
+        doAggregate(newObj);
+      }
+    }
+    cmd.getResult().setSuccess(true);
+    cmd.getResult().complete(snapAggregate());
   }
 
   private void clearAggregate() {

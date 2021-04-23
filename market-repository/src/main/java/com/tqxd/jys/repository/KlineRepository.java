@@ -6,9 +6,9 @@ import com.tqxd.jys.constance.Period;
 import com.tqxd.jys.messagebus.payload.detail.MarketDetailTick;
 import com.tqxd.jys.repository.redis.RedisHelper;
 import com.tqxd.jys.timeline.KlineTimeLine;
+import com.tqxd.jys.timeline.KlineTimeLineMeta;
 import com.tqxd.jys.timeline.KlineTimeManager;
 import com.tqxd.jys.timeline.cmd.CmdResult;
-import com.tqxd.jys.utils.HuoBiUtils;
 import com.tqxd.jys.utils.TimeUtils;
 import io.vertx.core.*;
 import io.vertx.core.json.Json;
@@ -103,7 +103,7 @@ public class KlineRepository {
    * @param key     key
    * @param handler 结果处理器
    */
-  public void sizeOfKlineTicks(String key, Handler<AsyncResult<Integer>> handler) {
+  public void sizeOfKlineTicks(String key, Handler<AsyncResult<Long>> handler) {
     redis.zCard(key, handler);
   }
 
@@ -113,8 +113,8 @@ public class KlineRepository {
    * @param key key
    * @return future
    */
-  public Future<Integer> sizeOfKlineTicks(String key) {
-    Promise<Integer> promise = Promise.promise();
+  public Future<Long> sizeOfKlineTicks(String key) {
+    Promise<Long> promise = Promise.promise();
     sizeOfKlineTicks(key, promise);
     return promise.future();
   }
@@ -127,7 +127,7 @@ public class KlineRepository {
    * @param stop    结束索引 size - 1
    * @param handler 结果处理器
    */
-  public void listKlineTicksLimit(String key, int start, int stop, Handler<AsyncResult<List<String>>> handler) {
+  public void listKlineTicksLimit(String key, long start, long stop, Handler<AsyncResult<List<String>>> handler) {
     redis.zRange(key, start, stop, handler);
   }
 
@@ -139,9 +139,25 @@ public class KlineRepository {
    * @param stop  结束索引 size - 1
    * @return future
    */
-  public Future<List<String>> listKlineTicksLimit(String key, int start, int stop) {
+  public Future<List<String>> listKlineTicksLimit(String key, long start, long stop) {
     Promise<List<String>> promise = Promise.promise();
     listKlineTicksLimit(key, start, stop, promise);
+    return promise.future();
+  }
+
+  public void getCommittedIndex(String key, Handler<AsyncResult<Long>> handler) {
+    redis.hGet(key, METADATA_COMMIT_INDEX, ar -> {
+      if (ar.succeeded()) {
+        handler.handle(Future.succeededFuture(Long.valueOf((String) ar.result())));
+      } else {
+        handler.handle(Future.failedFuture(ar.cause()));
+      }
+    });
+  }
+
+  public Future<Long> getCommittedIndex(String key) {
+    Promise<Long> promise = Promise.promise();
+    getCommittedIndex(key, promise);
     return promise.future();
   }
 
@@ -178,9 +194,8 @@ public class KlineRepository {
     });
   }
 
-  private void updateMarketDetail(String timeLineName, MarketDetailTick tick) {
-    String ch = HuoBiUtils.toDetailSub(HuoBiUtils.getSymbolFromKlineSub(timeLineName));
-    redis.hSet(KLINE_DETAIL_KEY, ch, Json.encode(TemplatePayload.of(ch, tick)), ar -> {
+  private void updateMarketDetail(KlineTimeLineMeta meta, MarketDetailTick tick) {
+    redis.hSet(KLINE_DETAIL_KEY, meta.getDetailKey(), Json.encode(TemplatePayload.of(meta.getDetailKey(), tick)), ar -> {
       if (ar.failed()) {
         ar.cause().printStackTrace();
       }
@@ -195,7 +210,7 @@ public class KlineRepository {
       String sub = payload.getCh();
       KlineTick tick = payload.getTick();
       if (tick != null) {
-        CmdResult<KlineTick> updateResult = klineTimeManager.getOrCreate(sub, Period._1_MIN).update(tick);
+        CmdResult<KlineTick> updateResult = klineTimeManager.updateKline(sub, Period._1_MIN, commitIndex, tick);
         KlineTick updatedTick = null;
         try {
           updatedTick = updateResult.get();
@@ -203,12 +218,17 @@ public class KlineRepository {
           e.printStackTrace();
           return;
         }
-        // 异步更新到redis
-        this.updateKlineTickAsync(sub, commitIndex, ts, updatedTick, ar -> {
-          if (ar.failed()) {
-            ar.cause().printStackTrace();
-          }
-        });
+        if (updateResult.isSuccess()) {
+          // 异步更新到redis
+          this.updateKlineTickAsync(sub, commitIndex, ts, updatedTick, ar -> {
+            if (ar.failed()) {
+              ar.cause().printStackTrace();
+            }
+          });
+        } else {
+          log.warn("[Kline-Repository]: update kline tick fail! reason: {}, commitIndex: {} payload: {}", updateResult.getReason(), commitIndex, Json.encode(payload));
+        }
+
       }
     } else {
       log.info("[Kline-Repository]: payload is null! message index: {}", commitIndex);
@@ -218,35 +238,42 @@ public class KlineRepository {
   /**
    * 初始化k线数据
    *
-   * @param key key
+   * @param klineKey key
    * @return future
    */
-  private Future<Void> initKlineData(String key) {
+  private Future<Void> initKlineData(String klineKey) {
     long startTime = System.currentTimeMillis();
-    return sizeOfKlineTicks(key)
-        .compose(size -> {
-          if (size != null && size > 0) {
-            // 只截取最新的部分
-            int start = 0;
-            if (size >= Period._1_MIN.getNumOfPeriod()) {
-              start = size - Period._1_MIN.getNumOfPeriod();
-            }
-            return listKlineTicksLimit(key, start, -1)
-                .compose(ticks -> {
-                  KlineTimeLine timeLine = klineTimeManager.getOrCreate(key, Period._1_MIN);
-                  try {
-                    for (String tickJson : ticks) {
-                      timeLine.update(Json.decodeValue(tickJson, KlineTick.class)).get();
-                    }
-                  } catch (Exception ex) {
-                    ex.printStackTrace();
+    return getCommittedIndex(METADATA_PREFIX + klineKey)
+        .compose(committedIndex -> {
+          return sizeOfKlineTicks(klineKey)
+              .compose(size -> {
+                if (size != null && size > 0) {
+                  // 只截取最新的部分
+                  long start = 0;
+                  if (size >= Period._1_MIN.getNumOfPeriod()) {
+                    start = size - Period._1_MIN.getNumOfPeriod();
                   }
-                  log.info("[Kline-Repository]: init kline: {} size: {} using: {}ms", key, size, System.currentTimeMillis() - startTime);
+                  return listKlineTicksLimit(klineKey, start, -1)
+                      .compose(ticks -> {
+                        if (!ticks.isEmpty()) {
+                          KlineTimeLine timeLine = klineTimeManager.getOrCreate(klineKey, Period._1_MIN);
+                          try {
+                            List<KlineTick> tickList = new ArrayList<>(ticks.size());
+                            for (String tickJson : ticks) {
+                              tickList.add(Json.decodeValue(tickJson, KlineTick.class));
+                            }
+                            timeLine.applySnapshot(committedIndex, tickList).get();
+                          } catch (Exception ex) {
+                            ex.printStackTrace();
+                          }
+                        }
+                        log.info("[Kline-Repository]: init kline: {} size: {} using: {}ms", klineKey, size, System.currentTimeMillis() - startTime);
+                        return Future.succeededFuture();
+                      });
+                } else {
                   return Future.succeededFuture();
-                });
-          } else {
-            return Future.succeededFuture();
-          }
+                }
+              });
         });
   }
 }

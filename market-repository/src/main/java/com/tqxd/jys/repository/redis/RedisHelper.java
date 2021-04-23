@@ -89,6 +89,17 @@ public class RedisHelper {
     });
   }
 
+  public <E> void hGet(String key, String hashKey, Handler<AsyncResult<E>> handler) {
+    redisApi.hget(key, hashKey, ar -> {
+      if (ar.succeeded()) {
+        Response response = ar.result();
+        handler.handle(Future.succeededFuture(responseToObj(response)));
+      } else {
+        handler.handle(Future.failedFuture(ar.cause()));
+      }
+    });
+  }
+
   /**
    * Hash set
    *
@@ -115,7 +126,7 @@ public class RedisHelper {
    * @param handler handler
    */
   public void zCard(String key,
-                    Handler<AsyncResult<Integer>> handler) {
+                    Handler<AsyncResult<Long>> handler) {
     redisApi.zcard(key, ar -> {
       if (ar.succeeded()) {
         handler.handle(Future.succeededFuture(this.responseToObj(ar.result())));
@@ -133,7 +144,7 @@ public class RedisHelper {
    * @param stop    stop
    * @param handler handler
    */
-  public void zRange(String key, int start, int stop,
+  public void zRange(String key, long start, long stop,
                      Handler<AsyncResult<List<String>>> handler) {
     final List<String> cmd = Arrays.asList(key, String.valueOf(start), String.valueOf(stop));
     redisApi.zrange(cmd, ar -> {
@@ -199,7 +210,7 @@ public class RedisHelper {
   private <T> T responseToObj(Response r) {
     switch (r.type()) {
       case NUMBER: {
-        return (T) Integer.valueOf(r.toNumber().intValue());
+        return (T) Long.valueOf(r.toNumber().longValue());
       }
       case MULTI:
       case BULK: {

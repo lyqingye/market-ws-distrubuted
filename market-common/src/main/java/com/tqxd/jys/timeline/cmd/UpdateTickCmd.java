@@ -5,6 +5,7 @@ import com.tqxd.jys.common.payload.KlineTick;
 
 public class UpdateTickCmd {
   private CmdResult<KlineTick> result = new CmdResult<>();
+  private long commitIndex;
   private KlineTick tick;
 
   public CmdResult<KlineTick> getResult() {
@@ -21,5 +22,13 @@ public class UpdateTickCmd {
 
   public void setTick(KlineTick tick) {
     this.tick = tick;
+  }
+
+  public long getCommitIndex() {
+    return commitIndex;
+  }
+
+  public void setCommitIndex(long commitIndex) {
+    this.commitIndex = commitIndex;
   }
 }
