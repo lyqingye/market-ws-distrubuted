@@ -4,10 +4,7 @@ import com.tqxd.jys.messagebus.MessageBusFactory;
 import com.tqxd.jys.openapi.RepositoryOpenApi;
 import com.tqxd.jys.openapi.payload.KlineSnapshot;
 import com.tqxd.jys.utils.VertxUtil;
-import io.vertx.core.AbstractVerticle;
-import io.vertx.core.Promise;
-import io.vertx.core.Vertx;
-import io.vertx.core.VertxOptions;
+import io.vertx.core.*;
 import io.vertx.core.json.Json;
 import io.vertx.core.json.JsonObject;
 import io.vertx.core.spi.cluster.ClusterManager;
@@ -69,24 +66,7 @@ public class PushingApplication extends AbstractVerticle {
 
   @Override
   public void start(Promise<Void> startPromise) throws Exception {
-    RepositoryOpenApi openAPI = RepositoryOpenApi.createProxy(vertx);
-    openAPI.listKlineKeys(ar -> {
-      if (ar.succeeded()) {
-        System.out.println(ar.result());
-        for (String klineKey : ar.result()) {
-          openAPI.getKlineSnapshot(klineKey, ar2 -> {
-            if (ar2.succeeded()) {
-              KlineSnapshot snapshot = Json.decodeValue(ar2.result(), KlineSnapshot.class);
-              System.out.println(ar2.result());
-            } else {
-              ar2.cause().printStackTrace();
-            }
-          });
-        }
-      } else {
-        ar.cause().printStackTrace();
-      }
-    });
+    vertx.deployVerticle(new KlineWorkerVerticle(),new DeploymentOptions().setWorker(true));
   }
 
   @Override

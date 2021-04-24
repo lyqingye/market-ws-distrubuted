@@ -83,7 +83,7 @@ public class GZIPUtils {
     try (GZIPInputStream gis = new GZIPInputStream(is)) {
       int count;
       byte[] data = new byte[gis.available()];
-      while ((count = gis.read(data, 0, gis.available())) != -1) {
+      while ((count = gis.read(data, 0, gis.available())) > 0) {
         os.write(data, 0, count);
       }
     }
