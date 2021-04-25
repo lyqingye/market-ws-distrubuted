@@ -51,9 +51,17 @@ public class KlineTimeManager {
     return mgr;
   }
 
-  public CmdResult<UpdateTickResult> updateKline(String name, Period period, long commitIndex, KlineTick tick) {
+  public CmdResult<UpdateTickResult> applyTick(String name, Period period, long commitIndex, KlineTick tick) {
     KlineTimeLine timeLine = getOrCreate(name, period);
     return timeLine.update(commitIndex, tick);
+  }
+
+  public void pollTicks() {
+
+  }
+
+  public void applySnapshot() {
+
   }
 
   public KlineTimeLine getOrCreate(String klineKey, Period period) {
@@ -75,8 +83,8 @@ public class KlineTimeManager {
 
   private void startTickKlineThread() {
     Thread thread = new Thread(tickJob());
-    thread.setName("[Kline-TimeLine-Tick]");
-    thread.setDaemon(false);
+    thread.setName("kline-timeLine-tick-thread]");
+    thread.setDaemon(true);
     thread.setUncaughtExceptionHandler(((t, e) -> e.printStackTrace()));
     thread.start();
   }

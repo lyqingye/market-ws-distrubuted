@@ -271,7 +271,7 @@ public class KlineRepository {
       String sub = payload.getCh();
       KlineTick tick = payload.getTick();
       if (tick != null) {
-        CmdResult<UpdateTickResult> updateResult = klineTimeManager.updateKline(sub, Period._1_MIN, commitIndex, tick);
+        CmdResult<UpdateTickResult> updateResult = klineTimeManager.applyTick(sub, Period._1_MIN, commitIndex, tick);
         UpdateTickResult updatedResult = null;
         try {
           updatedResult = updateResult.get();
@@ -286,11 +286,9 @@ public class KlineRepository {
               ar.cause().printStackTrace();
             }
           });
-
         } else {
           log.warn("[Kline-Repository]: update kline tick fail! reason: {}, commitIndex: {} payload: {}", updateResult.getReason(), commitIndex, Json.encode(payload));
         }
-
       }
     } else {
       log.info("[Kline-Repository]: payload is null! message index: {}", commitIndex);
