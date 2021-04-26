@@ -2,18 +2,39 @@ package com.tqxd.jys.timeline.cmd;
 
 
 import com.tqxd.jys.common.payload.KlineTick;
+import com.tqxd.jys.constance.Period;
+import io.vertx.core.AsyncResult;
+import io.vertx.core.Handler;
 
 public class ApplyTickCmd {
-  private CmdResult<ApplyTickResult> result = new CmdResult<>();
+  private String symbol;
+  private Period period;
   private long commitIndex;
   private KlineTick tick;
+  private Handler<AsyncResult<Void>> handler;
 
-  public CmdResult<ApplyTickResult> getResult() {
-    return result;
+  public Handler<AsyncResult<Void>> getHandler() {
+    return handler;
   }
 
-  public void setResult(CmdResult<ApplyTickResult> result) {
-    this.result = result;
+  public void setHandler(Handler<AsyncResult<Void>> handler) {
+    this.handler = handler;
+  }
+
+  public String getSymbol() {
+    return symbol;
+  }
+
+  public void setSymbol(String symbol) {
+    this.symbol = symbol;
+  }
+
+  public Period getPeriod() {
+    return period;
+  }
+
+  public void setPeriod(Period period) {
+    this.period = period;
   }
 
   public KlineTick getTick() {

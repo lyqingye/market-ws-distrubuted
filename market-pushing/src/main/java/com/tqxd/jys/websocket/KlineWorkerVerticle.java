@@ -7,8 +7,7 @@ import com.tqxd.jys.messagebus.payload.detail.MarketDetailTick;
 import com.tqxd.jys.messagebus.topic.Topic;
 import com.tqxd.jys.openapi.RepositoryOpenApi;
 import com.tqxd.jys.openapi.payload.KlineSnapshot;
-import com.tqxd.jys.timeline.KlineTimeLine;
-import com.tqxd.jys.timeline.KlineTimeManager;
+import com.tqxd.jys.timeline.KLine;
 import com.tqxd.jys.timeline.cmd.CmdResult;
 import io.vertx.core.AbstractVerticle;
 import io.vertx.core.CompositeFuture;
@@ -73,7 +72,7 @@ public class KlineWorkerVerticle extends AbstractVerticle {
                 Future future = getKlineSnapshot(klineKey)
                         .compose(snapshot -> {
                             for (Period period : Period.values()) {
-                                KlineTimeLine timeLine = klineManager.getOrCreate(klineKey, period);
+                                KLine timeLine = klineManager.getOrCreate(klineKey, period);
                                 CmdResult<MarketDetailTick> applyRs = timeLine.applySnapshot(snapshot.getCommittedIndex(), snapshot.getTickList());
                                 if (Period._1_MIN.equals(period)) {
                                     try {

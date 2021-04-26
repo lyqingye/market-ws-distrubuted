@@ -2,11 +2,11 @@ package com.tqxd.jys.websocket.cache;
 
 import com.tqxd.jys.constance.DepthLevel;
 import com.tqxd.jys.constance.Period;
+import io.vertx.core.AsyncResult;
+import io.vertx.core.Handler;
 import io.vertx.core.buffer.Buffer;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
-
-import java.util.function.BiConsumer;
 
 /**
  * 缓存管理器, 直接面向用户数据
@@ -52,14 +52,13 @@ public class CacheManager {
   /**
    * 查询分时图
    *
-   * @param symbol    交易对
-   * @param from      开始时间
-   * @param to        结束时间
-   * @param userParam 用户参数，因为是异步任务，所以可以传入用户参数
-   * @param handler   异步结果处理器
+   * @param symbol  交易对
+   * @param from    开始时间
+   * @param to      结束时间
+   * @param handler 异步结果处理器
    */
   public void reqTimeSharing(@NonNull String symbol, long from, long to,
-                             Object userParam, @NonNull BiConsumer<Object, Buffer> handler) {
+                             @NonNull Handler<AsyncResult<Buffer>> handler) {
 
   }
 
@@ -70,10 +69,9 @@ public class CacheManager {
    * @param period    {@link Period}
    * @param from      开始时间
    * @param to        结束时间
-   * @param userParam 用户参数，因为是异步任务，所以可以传入用户参数
    * @param handler   异步结果处理器
    */
   public void reqKlineHistory(@NonNull String symbol, Period period, long from, long to,
-                              Object userParam, @NonNull BiConsumer<Object, Buffer> handler) {
+                              @NonNull Handler<AsyncResult<Buffer>> handler) {
   }
 }

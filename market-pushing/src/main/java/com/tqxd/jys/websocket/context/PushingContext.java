@@ -1,7 +1,7 @@
 package com.tqxd.jys.websocket.context;
 
 import com.tqxd.jys.messagebus.payload.trade.TradeDetailTickData;
-import com.tqxd.jys.timeline.KlineTimeLine;
+import com.tqxd.jys.timeline.KLine;
 import com.tqxd.jys.websocket.session.SessionManager;
 import com.tqxd.jys.websocket.session.WsSession;
 import io.vertx.core.Vertx;
@@ -42,7 +42,7 @@ public class PushingContext {
   /**
    * K线实时热点数据
    */
-  private Map<String, KlineTimeLine> klineTimeLineMap = new ConcurrentHashMap<>(64);
+  private Map<String, KLine> klineTimeLineMap = new ConcurrentHashMap<>(64);
 
   /**
    * 市场详情缓存数据
@@ -131,11 +131,11 @@ public class PushingContext {
     this.detailSM = detailSM;
   }
 
-  public Map<String, KlineTimeLine> getKlineTimeLineMap() {
+  public Map<String, KLine> getKlineTimeLineMap() {
     return klineTimeLineMap;
   }
 
-  public void setKlineTimeLineMap(Map<String, KlineTimeLine> klineTimeLineMap) {
+  public void setKlineTimeLineMap(Map<String, KLine> klineTimeLineMap) {
     this.klineTimeLineMap = klineTimeLineMap;
   }
 

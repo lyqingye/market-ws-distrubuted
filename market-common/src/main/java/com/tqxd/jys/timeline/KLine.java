@@ -1,15 +1,19 @@
 package com.tqxd.jys.timeline;
 
 import com.tqxd.jys.common.payload.KlineTick;
+import com.tqxd.jys.common.payload.TemplatePayload;
 import com.tqxd.jys.constance.Period;
 import com.tqxd.jys.messagebus.payload.detail.MarketDetailTick;
-import com.tqxd.jys.timeline.cmd.*;
+import com.tqxd.jys.timeline.cmd.ApplyTickResult;
+import com.tqxd.jys.utils.HuoBiUtils;
+import io.vertx.core.AsyncResult;
+import io.vertx.core.Future;
+import io.vertx.core.Handler;
 
 import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-import java.util.concurrent.ConcurrentLinkedQueue;
 
 import static com.tqxd.jys.utils.TimeUtils.alignWithPeriod;
 
@@ -18,7 +22,7 @@ import static com.tqxd.jys.utils.TimeUtils.alignWithPeriod;
  *
  * @author lyqingye
  */
-public class KlineTimeLine {
+public class KLine {
   /**
    * 周期大小
    */
@@ -51,15 +55,11 @@ public class KlineTimeLine {
   private int count = 0;
 
   /**
-   * 命令队列
-   */
-  private ConcurrentLinkedQueue<Object> cmdBuffer = new ConcurrentLinkedQueue<Object>();
-  /**
    * 元数据
    */
-  private KlineTimeLineMeta meta;
+  private KLineMeta meta;
 
-  public KlineTimeLine(KlineTimeLineMeta meta, Period p, boolean autoAggregate) {
+  public KLine(KLineMeta meta, Period p, boolean autoAggregate) {
     this.meta = meta;
     this.period = p.getMill();
     this.numOfPeriod = p.getNumOfPeriod();
@@ -71,7 +71,7 @@ public class KlineTimeLine {
     this.autoAggregate = autoAggregate;
   }
 
-  public KlineTimeLineMeta meta() {
+  public KLineMeta meta() {
     return this.meta;
   }
 
@@ -81,26 +81,52 @@ public class KlineTimeLine {
    * @param from 开始时间
    * @param to   结束时间
    */
-  public CmdResult<List<KlineTick>> poll(long from, long to) {
-    PollTicksCmd cmd = new PollTicksCmd();
-    cmd.setEndTime(to);
-    cmd.setStartTime(from);
-    cmdBuffer.offer(cmd);
-    return cmd.getResult();
+  public void poll(long from, long to, Handler<AsyncResult<TemplatePayload<List<KlineTick>>>> handler) {
+    int startIdx = calculateIdx(alignWithPeriod(from, period));
+    int endIdx = calculateIdx(alignWithPeriod(to, period));
+    if (startIdx >= 0 && startIdx < numOfPeriod && endIdx > startIdx) {
+      endIdx = Math.min(endIdx, numOfPeriod - 1);
+    } else {
+      handler.handle(Future.failedFuture("fail to poll kline data! from: " + from + " to: " + to + " startIdx: " + startIdx + " endIdx: " + endIdx));
+      return;
+    }
+    List<KlineTick> result = new ArrayList<>(300);
+    while (startIdx < endIdx) {
+      KlineTick obj = (KlineTick) this.data[startIdx];
+      if (obj != null) {
+        if (obj.getTime() >= from && obj.getTime() <= to) {
+          result.add(obj);
+        }
+      }
+      startIdx++;
+    }
+    handler.handle(Future.succeededFuture(TemplatePayload.of(HuoBiUtils.toKlineSub(meta.getSymbol(), meta.getPeriod()), result)));
   }
 
   /**
    * 应用一个tick
    *
    * @param commitIndex 消息索引
-   * @param tick        tick
+   * @param newObj      tick
    */
-  public CmdResult<ApplyTickResult> applyTick(long commitIndex, KlineTick tick) {
-    ApplyTickCmd cmd = new ApplyTickCmd();
-    cmd.setTick(tick);
-    cmd.setCommitIndex(commitIndex);
-    cmdBuffer.offer(cmd);
-    return cmd.getResult();
+  public void applyTick(long commitIndex, KlineTick newObj, Handler<AsyncResult<ApplyTickResult>> handler) {
+    if (commitIndex <= meta.getCommitIndex()) {
+      handler.handle(Future.failedFuture("invalid commit index cur commitIndex: " + meta.getCommitIndex() + " cmd commitIndex: " + commitIndex));
+      return;
+    }
+    KlineTick updateTick = applyTick(newObj);
+    if (updateTick == null) {
+      handler.handle(Future.failedFuture("apply tick fail! index outbound: " + calculateIdx(newObj.getTime())));
+      return;
+    }
+    // aggregate the window
+    doAggregate(newObj);
+    // complete
+    TemplatePayload<KlineTick> tickPayLoad = TemplatePayload.of(HuoBiUtils.toKlineSub(meta.getSymbol(), meta.getPeriod()), updateTick);
+    TemplatePayload<MarketDetailTick> detailPayLoad = TemplatePayload.of(HuoBiUtils.toDetailSub(meta.getSymbol()), snapAggregate());
+    handler.handle(Future.succeededFuture(new ApplyTickResult(tickPayLoad, detailPayLoad)));
+    // apply the committed index
+    meta.applyCommittedIndex(commitIndex);
   }
 
   /**
@@ -109,12 +135,19 @@ public class KlineTimeLine {
    * @param commitIndex 消息索引
    * @param ticks       tick列表
    */
-  public CmdResult<MarketDetailTick> applySnapshot(long commitIndex, List<KlineTick> ticks) {
-    ApplySnapshotCmd cmd = new ApplySnapshotCmd();
-    cmd.setCommitIndex(commitIndex);
-    cmd.setTicks(ticks);
-    cmdBuffer.offer(cmd);
-    return cmd.getResult();
+  public void applySnapshot(long commitIndex, List<KlineTick> ticks, Handler<AsyncResult<TemplatePayload<MarketDetailTick>>> handler) {
+    if (commitIndex < 0) {
+      handler.handle(Future.failedFuture("invalid commit index while apply the snapshot! commit index: " + commitIndex));
+      return;
+    }
+    for (KlineTick tick : ticks) {
+      KlineTick newObj = applyTick(tick);
+      if (newObj != null) {
+        doAggregate(newObj);
+      }
+    }
+    meta.applyCommittedIndex(commitIndex);
+    handler.handle(Future.succeededFuture(TemplatePayload.of(HuoBiUtils.toDetailSub(meta.getSymbol()), snapAggregate())));
   }
 
   public MarketDetailTick tick() {
@@ -124,40 +157,7 @@ public class KlineTimeLine {
         result = snapAggregate();
       }
     }
-    Object cmd;
-    while ((cmd = cmdBuffer.poll()) != null) {
-      if (cmd instanceof ApplyTickCmd) {
-        execUpdateTick((ApplyTickCmd) cmd);
-      } else if (cmd instanceof PollTicksCmd) {
-        execPollTicks((PollTicksCmd) cmd);
-      } else if (cmd instanceof ApplySnapshotCmd) {
-        execApplySnapshot((ApplySnapshotCmd) cmd);
-      }
-    }
     return result;
-  }
-
-  private void execUpdateTick(ApplyTickCmd cmd) {
-    if (cmd.getCommitIndex() <= meta.getCommitIndex()) {
-      cmd.getResult().setSuccess(false);
-      cmd.getResult().setReason("invalid commit index cur commitIndex: " + meta.getCommitIndex() + " cmd commitIndex: " + cmd.getCommitIndex());
-      cmd.getResult().complete(null);
-      return;
-    }
-    KlineTick newObj = cmd.getTick();
-    KlineTick updateTick = applyTick(newObj);
-    if (updateTick == null) {
-      cmd.getResult().setSuccess(false);
-      cmd.getResult().setReason("apply tick fail! index outbound: " + calculateIdx(newObj.getTime()));
-      cmd.getResult().complete(null);
-      return;
-    }
-    // aggregate the window
-    doAggregate(newObj);
-    // complete
-    cmd.getResult().setSuccess(true);
-    cmd.getResult().complete(new ApplyTickResult(this.meta, updateTick, snapAggregate()));
-    meta.applyCommitIndex(cmd.getCommitIndex());
   }
 
   private KlineTick applyTick(KlineTick newObj) {
@@ -176,27 +176,6 @@ public class KlineTimeLine {
       data[idx] = newObj;
     }
     return (KlineTick) data[idx];
-  }
-
-  private void execPollTicks(PollTicksCmd cmd) {
-    int partIdx = cmd.getPartIdx();
-    long startTime = cmd.getStartTime();
-    long endTime = cmd.getEndTime();
-    final int partSize = 300;
-    int startIdx = partSize * partIdx;
-    int endIdx = Math.min(startIdx + partSize, numOfPeriod);
-    List<KlineTick> result = new ArrayList<>(partSize);
-    while (startIdx < endIdx) {
-      KlineTick obj = (KlineTick) this.data[startIdx];
-      if (obj != null) {
-        if (obj.getTime() >= startTime && obj.getTime() <= endTime) {
-          result.add(obj);
-        }
-      }
-      startIdx++;
-    }
-    cmd.getResult().setSuccess(true);
-    cmd.getResult().complete(result);
   }
 
   private boolean execUpdateWindow() {
@@ -226,24 +205,6 @@ public class KlineTimeLine {
       // the window already updated
       return false;
     }
-  }
-
-  private void execApplySnapshot(ApplySnapshotCmd cmd) {
-    long commitIndex = cmd.getCommitIndex();
-    if (commitIndex < 0) {
-      cmd.getResult().setSuccess(false);
-      cmd.getResult().setReason("invalid commit index while apply the snapshot! commit index: " + cmd.getCommitIndex());
-      return;
-    }
-    meta.applyCommitIndex(commitIndex);
-    for (KlineTick tick : cmd.getTicks()) {
-      KlineTick newObj = applyTick(tick);
-      if (newObj != null) {
-        doAggregate(newObj);
-      }
-    }
-    cmd.getResult().setSuccess(true);
-    cmd.getResult().complete(snapAggregate());
   }
 
   private void clearAggregate() {

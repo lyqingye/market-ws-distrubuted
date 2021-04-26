@@ -2,43 +2,56 @@ package com.tqxd.jys.timeline.cmd;
 
 
 import com.tqxd.jys.common.payload.KlineTick;
+import com.tqxd.jys.common.payload.TemplatePayload;
+import com.tqxd.jys.constance.Period;
+import io.vertx.core.AsyncResult;
+import io.vertx.core.Handler;
 
 import java.util.List;
 
 public class PollTicksCmd {
-  private CmdResult<List<KlineTick>> result = new CmdResult<>();
-  private long startTime, endTime;
-  private int partIdx;
+  private String symbol;
+  private Period period;
+  private long from, to;
+  private Handler<AsyncResult<TemplatePayload<List<KlineTick>>>> handler;
 
-  public CmdResult<List<KlineTick>> getResult() {
-    return result;
+  public Handler<AsyncResult<TemplatePayload<List<KlineTick>>>> getHandler() {
+    return handler;
   }
 
-  public void setResult(CmdResult<List<KlineTick>> result) {
-    this.result = result;
+  public void setHandler(Handler<AsyncResult<TemplatePayload<List<KlineTick>>>> handler) {
+    this.handler = handler;
   }
 
-  public long getStartTime() {
-    return startTime;
+  public String getSymbol() {
+    return symbol;
   }
 
-  public void setStartTime(long startTime) {
-    this.startTime = startTime;
+  public void setSymbol(String symbol) {
+    this.symbol = symbol;
   }
 
-  public long getEndTime() {
-    return endTime;
+  public Period getPeriod() {
+    return period;
   }
 
-  public void setEndTime(long endTime) {
-    this.endTime = endTime;
+  public void setPeriod(Period period) {
+    this.period = period;
   }
 
-  public int getPartIdx() {
-    return partIdx;
+  public long getFrom() {
+    return from;
   }
 
-  public void setPartIdx(int partIdx) {
-    this.partIdx = partIdx;
+  public void setFrom(long from) {
+    this.from = from;
+  }
+
+  public long getTo() {
+    return to;
+  }
+
+  public void setTo(long to) {
+    this.to = to;
   }
 }

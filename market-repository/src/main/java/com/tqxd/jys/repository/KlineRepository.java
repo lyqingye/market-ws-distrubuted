@@ -6,9 +6,8 @@ import com.tqxd.jys.constance.Period;
 import com.tqxd.jys.messagebus.payload.detail.MarketDetailTick;
 import com.tqxd.jys.openapi.payload.KlineSnapshot;
 import com.tqxd.jys.repository.redis.RedisHelper;
-import com.tqxd.jys.timeline.KlineTimeLine;
-import com.tqxd.jys.timeline.KlineTimeLineMeta;
-import com.tqxd.jys.timeline.KlineTimeManager;
+import com.tqxd.jys.timeline.KLine;
+import com.tqxd.jys.timeline.KLineMeta;
 import com.tqxd.jys.timeline.cmd.ApplyTickResult;
 import com.tqxd.jys.timeline.cmd.CmdResult;
 import com.tqxd.jys.utils.TimeUtils;
@@ -225,7 +224,7 @@ public class KlineRepository {
    */
   private void updateAsync(ApplyTickResult data, long commitIndex, long ts, Handler<AsyncResult<Void>> handler) {
     KlineTick tick = data.getTick();
-    KlineTimeLineMeta meta = data.getMeta();
+    KLineMeta meta = data.getMeta();
     String klineKey = meta.getKlineKey();
     String detailKey = meta.getDetailKey();
     // 构造redis命令
@@ -255,7 +254,7 @@ public class KlineRepository {
     });
   }
 
-  private void updateMarketDetail(KlineTimeLineMeta meta, MarketDetailTick tick) {
+  private void updateMarketDetail(KLineMeta meta, MarketDetailTick tick) {
     redis.hSet(KLINE_DETAIL_KEY, meta.getDetailKey(), Json.encode(TemplatePayload.of(meta.getDetailKey(), tick)), ar -> {
       if (ar.failed()) {
         ar.cause().printStackTrace();
@@ -305,7 +304,7 @@ public class KlineRepository {
     long startTime = System.currentTimeMillis();
     return getKlineSnapshot(klineKey)
         .compose(snapshot -> {
-          KlineTimeLine timeLine = klineTimeManager.getOrCreate(klineKey, Period._1_MIN);
+          KLine timeLine = klineTimeManager.getOrCreate(klineKey, Period._1_MIN);
           try {
             timeLine.applySnapshot(snapshot.getCommittedIndex(), snapshot.getTickList()).get();
           } catch (Exception ex) {
