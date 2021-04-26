@@ -263,18 +263,4 @@ public class KlineTimeLine {
     long at = alignWithPeriod(t, period);
     return Math.toIntExact(((at - ht) % totalPeriodSize) / period);
   }
-
-  private String dumpData() {
-    StringBuilder sb = new StringBuilder();
-    for (Object obj : data) {
-      KlineTick tick = KlineTick.class.cast(obj);
-      if (tick != null) {
-        sb.append(tick.getTime());
-      } else {
-        sb.append("null");
-      }
-      sb.append(" | ");
-    }
-    return sb.toString();
-  }
 }
