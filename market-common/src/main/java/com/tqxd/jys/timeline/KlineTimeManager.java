@@ -51,8 +51,8 @@ public class KlineTimeManager {
     return mgr;
   }
 
-  public CmdResult<UpdateTickResult> applyTick(String name, Period period, long commitIndex, KlineTick tick) {
-    KlineTimeLine timeLine = getOrCreate(name, period);
+  public CmdResult<UpdateTickResult> applyTick(String klineKey, Period period, long commitIndex, KlineTick tick) {
+    KlineTimeLine timeLine = getOrCreate(klineKey, period);
     return timeLine.update(commitIndex, tick);
   }
 
