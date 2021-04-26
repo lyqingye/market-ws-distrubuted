@@ -131,7 +131,7 @@ public class CollectorOpenApiImpl implements CollectorOpenApi {
           // 异步数据处理
           VertxUtil.asyncFastCallIgnoreRs(vertx, () -> {
             // 推送k线数据
-            msgBus.publishIgnoreRs(topic, Message.withData(type, collectorName, data.encode()));
+            msgBus.publishIgnoreRs(topic, Message.withData(type, "HuoBi", data.encode()));
           });
         }, config)) {
       deployMap.put(collectorName, collector);

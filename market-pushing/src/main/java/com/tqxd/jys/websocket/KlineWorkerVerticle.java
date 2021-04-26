@@ -1,8 +1,5 @@
 package com.tqxd.jys.websocket;
 
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.tqxd.jys.common.payload.KlineTick;
-import com.tqxd.jys.common.payload.TemplatePayload;
 import com.tqxd.jys.constance.Period;
 import com.tqxd.jys.messagebus.MessageBusFactory;
 import com.tqxd.jys.messagebus.payload.Message;
@@ -13,21 +10,17 @@ import com.tqxd.jys.openapi.payload.KlineSnapshot;
 import com.tqxd.jys.timeline.KlineTimeLine;
 import com.tqxd.jys.timeline.KlineTimeManager;
 import com.tqxd.jys.timeline.cmd.CmdResult;
-import com.tqxd.jys.timeline.cmd.UpdateTickResult;
 import io.vertx.core.AbstractVerticle;
 import io.vertx.core.CompositeFuture;
 import io.vertx.core.Future;
 import io.vertx.core.Promise;
-import io.vertx.core.http.HttpServer;
 import io.vertx.core.json.Json;
-import io.vertx.core.json.jackson.JacksonCodec;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
-import java.util.concurrent.ExecutionException;
 
 /**
  * 应用模块名称:

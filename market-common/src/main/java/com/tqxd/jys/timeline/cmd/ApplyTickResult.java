@@ -5,12 +5,12 @@ import com.tqxd.jys.common.payload.KlineTick;
 import com.tqxd.jys.messagebus.payload.detail.MarketDetailTick;
 import com.tqxd.jys.timeline.KlineTimeLineMeta;
 
-public class UpdateTickResult {
+public class ApplyTickResult {
   private KlineTick tick;
   private KlineTimeLineMeta meta;
   private MarketDetailTick detail;
 
-  public UpdateTickResult(KlineTimeLineMeta meta, KlineTick tick, MarketDetailTick detail) {
+  public ApplyTickResult(KlineTimeLineMeta meta, KlineTick tick, MarketDetailTick detail) {
     this.meta = meta;
     this.tick = tick;
     this.detail = detail;

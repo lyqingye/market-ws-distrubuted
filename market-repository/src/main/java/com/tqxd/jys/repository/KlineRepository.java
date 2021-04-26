@@ -9,8 +9,8 @@ import com.tqxd.jys.repository.redis.RedisHelper;
 import com.tqxd.jys.timeline.KlineTimeLine;
 import com.tqxd.jys.timeline.KlineTimeLineMeta;
 import com.tqxd.jys.timeline.KlineTimeManager;
+import com.tqxd.jys.timeline.cmd.ApplyTickResult;
 import com.tqxd.jys.timeline.cmd.CmdResult;
-import com.tqxd.jys.timeline.cmd.UpdateTickResult;
 import com.tqxd.jys.utils.TimeUtils;
 import io.vertx.core.*;
 import io.vertx.core.json.Json;
@@ -223,7 +223,7 @@ public class KlineRepository {
   /**
    * 更新k线
    */
-  private void updateAsync(UpdateTickResult data, long commitIndex, long ts, Handler<AsyncResult<Void>> handler) {
+  private void updateAsync(ApplyTickResult data, long commitIndex, long ts, Handler<AsyncResult<Void>> handler) {
     KlineTick tick = data.getTick();
     KlineTimeLineMeta meta = data.getMeta();
     String klineKey = meta.getKlineKey();
@@ -271,8 +271,8 @@ public class KlineRepository {
       String sub = payload.getCh();
       KlineTick tick = payload.getTick();
       if (tick != null) {
-        CmdResult<UpdateTickResult> updateResult = klineTimeManager.applyTick(sub, Period._1_MIN, commitIndex, tick);
-        UpdateTickResult updatedResult = null;
+        CmdResult<ApplyTickResult> updateResult = klineTimeManager.applyTick(sub, Period._1_MIN, commitIndex, tick);
+        ApplyTickResult updatedResult = null;
         try {
           updatedResult = updateResult.get();
         } catch (InterruptedException | ExecutionException e) {

@@ -1,6 +1,7 @@
 package com.tqxd.jys.timeline;
 
 import com.tqxd.jys.common.payload.KlineTick;
+import com.tqxd.jys.constance.Period;
 import com.tqxd.jys.messagebus.payload.detail.MarketDetailTick;
 import com.tqxd.jys.timeline.cmd.*;
 
@@ -12,6 +13,11 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 
 import static com.tqxd.jys.utils.TimeUtils.alignWithPeriod;
 
+/**
+ * k线时间线
+ *
+ * @author lyqingye
+ */
 public class KlineTimeLine {
   /**
    * 周期大小
@@ -49,19 +55,19 @@ public class KlineTimeLine {
    */
   private ConcurrentLinkedQueue<Object> cmdBuffer = new ConcurrentLinkedQueue<Object>();
   /**
-   *
+   * 元数据
    */
   private KlineTimeLineMeta meta;
 
-  public KlineTimeLine(KlineTimeLineMeta meta, long period, int numOfPeriod, boolean autoAggregate) {
+  public KlineTimeLine(KlineTimeLineMeta meta, Period p, boolean autoAggregate) {
     this.meta = meta;
-    this.period = period;
-    this.numOfPeriod = numOfPeriod;
-    this.totalPeriodSize = period * numOfPeriod;
+    this.period = p.getMill();
+    this.numOfPeriod = p.getNumOfPeriod();
+    this.totalPeriodSize = p.getMill() * numOfPeriod;
     long now = System.currentTimeMillis();
-    this.tt = alignWithPeriod(now, period);
+    this.tt = alignWithPeriod(now, p.getMill());
     this.data = new Object[numOfPeriod];
-    this.ht = tt - totalPeriodSize + period;
+    this.ht = tt - totalPeriodSize + p.getMill();
     this.autoAggregate = autoAggregate;
   }
 
@@ -69,23 +75,40 @@ public class KlineTimeLine {
     return this.meta;
   }
 
-  public CmdResult<List<KlineTick>> poll(long start, long end, int partIdx) {
+  /**
+   * k线拉取指定指定时间范围内的数据
+   *
+   * @param from 开始时间
+   * @param to   结束时间
+   */
+  public CmdResult<List<KlineTick>> poll(long from, long to) {
     PollTicksCmd cmd = new PollTicksCmd();
-    cmd.setEndTime(end);
-    cmd.setStartTime(start);
-    cmd.setPartIdx(partIdx);
+    cmd.setEndTime(to);
+    cmd.setStartTime(from);
     cmdBuffer.offer(cmd);
     return cmd.getResult();
   }
 
-  public CmdResult<UpdateTickResult> update(long commitIndex, KlineTick tick) {
-    UpdateTickCmd cmd = new UpdateTickCmd();
+  /**
+   * 应用一个tick
+   *
+   * @param commitIndex 消息索引
+   * @param tick        tick
+   */
+  public CmdResult<ApplyTickResult> applyTick(long commitIndex, KlineTick tick) {
+    ApplyTickCmd cmd = new ApplyTickCmd();
     cmd.setTick(tick);
     cmd.setCommitIndex(commitIndex);
     cmdBuffer.offer(cmd);
     return cmd.getResult();
   }
 
+  /**
+   * 应用快照
+   *
+   * @param commitIndex 消息索引
+   * @param ticks       tick列表
+   */
   public CmdResult<MarketDetailTick> applySnapshot(long commitIndex, List<KlineTick> ticks) {
     ApplySnapshotCmd cmd = new ApplySnapshotCmd();
     cmd.setCommitIndex(commitIndex);
@@ -103,8 +126,8 @@ public class KlineTimeLine {
     }
     Object cmd;
     while ((cmd = cmdBuffer.poll()) != null) {
-      if (cmd instanceof UpdateTickCmd) {
-        execUpdateTick((UpdateTickCmd) cmd);
+      if (cmd instanceof ApplyTickCmd) {
+        execUpdateTick((ApplyTickCmd) cmd);
       } else if (cmd instanceof PollTicksCmd) {
         execPollTicks((PollTicksCmd) cmd);
       } else if (cmd instanceof ApplySnapshotCmd) {
@@ -114,12 +137,11 @@ public class KlineTimeLine {
     return result;
   }
 
-  private void execUpdateTick(UpdateTickCmd cmd) {
+  private void execUpdateTick(ApplyTickCmd cmd) {
     if (cmd.getCommitIndex() <= meta.getCommitIndex()) {
       cmd.getResult().setSuccess(false);
       cmd.getResult().setReason("invalid commit index cur commitIndex: " + meta.getCommitIndex() + " cmd commitIndex: " + cmd.getCommitIndex());
       cmd.getResult().complete(null);
-
       return;
     }
     KlineTick newObj = cmd.getTick();
@@ -134,7 +156,7 @@ public class KlineTimeLine {
     doAggregate(newObj);
     // complete
     cmd.getResult().setSuccess(true);
-    cmd.getResult().complete(new UpdateTickResult(this.meta, updateTick, snapAggregate()));
+    cmd.getResult().complete(new ApplyTickResult(this.meta, updateTick, snapAggregate()));
     meta.applyCommitIndex(cmd.getCommitIndex());
   }
 

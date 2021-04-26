@@ -3,8 +3,8 @@ package com.tqxd.jys.timeline;
 import com.tqxd.jys.common.payload.KlineTick;
 import com.tqxd.jys.constance.Period;
 import com.tqxd.jys.messagebus.payload.detail.MarketDetailTick;
+import com.tqxd.jys.timeline.cmd.ApplyTickResult;
 import com.tqxd.jys.timeline.cmd.CmdResult;
-import com.tqxd.jys.timeline.cmd.UpdateTickResult;
 import com.tqxd.jys.utils.VertxUtil;
 import io.vertx.core.Vertx;
 
@@ -51,24 +51,16 @@ public class KlineTimeManager {
     return mgr;
   }
 
-  public CmdResult<UpdateTickResult> applyTick(String klineKey, Period period, long commitIndex, KlineTick tick) {
+  public CmdResult<ApplyTickResult> applyTick(String klineKey, Period period, long commitIndex, KlineTick tick) {
     KlineTimeLine timeLine = getOrCreate(klineKey, period);
-    return timeLine.update(commitIndex, tick);
-  }
-
-  public void pollTicks() {
-
-  }
-
-  public void applySnapshot() {
-
+    return timeLine.applyTick(commitIndex, tick);
   }
 
   public KlineTimeLine getOrCreate(String klineKey, Period period) {
     Integer index = timeLineIndexMap.computeIfAbsent(klineKey, k -> {
       KlineTimeLineMeta meta = new KlineTimeLineMeta();
       meta.setKlineKey(klineKey);
-      KlineTimeLine timeLine = new KlineTimeLine(meta, period.getMill(), period.getNumOfPeriod(), period.equals(Period._1_MIN));
+      KlineTimeLine timeLine = new KlineTimeLine(meta, period, period.equals(Period._1_MIN));
       int newSize = timeLinesSize.incrementAndGet();
       if (newSize > timeLines.length) {
         KlineTimeLine[] newKlineTimeLines = new KlineTimeLine[timeLines.length << 1];

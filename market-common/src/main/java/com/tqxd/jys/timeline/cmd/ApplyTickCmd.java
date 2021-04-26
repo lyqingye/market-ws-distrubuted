@@ -3,16 +3,16 @@ package com.tqxd.jys.timeline.cmd;
 
 import com.tqxd.jys.common.payload.KlineTick;
 
-public class UpdateTickCmd {
-  private CmdResult<UpdateTickResult> result = new CmdResult<>();
+public class ApplyTickCmd {
+  private CmdResult<ApplyTickResult> result = new CmdResult<>();
   private long commitIndex;
   private KlineTick tick;
 
-  public CmdResult<UpdateTickResult> getResult() {
+  public CmdResult<ApplyTickResult> getResult() {
     return result;
   }
 
-  public void setResult(CmdResult<UpdateTickResult> result) {
+  public void setResult(CmdResult<ApplyTickResult> result) {
     this.result = result;
   }
 
