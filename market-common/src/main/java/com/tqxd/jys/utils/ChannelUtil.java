@@ -8,7 +8,7 @@ import com.tqxd.jys.common.payload.TemplatePayload;
 public class ChannelUtil {
   /**
    * 1. k线channel
-   * market.$symbol.kline
+   * market.$symbol.kline.$period
    * <p>
    * 2. 深度channel
    * market.$symbol.depth
@@ -100,5 +100,14 @@ public class ChannelUtil {
       return "detail".equalsIgnoreCase(split[2]);
     }
     return false;
+  }
+
+  /**
+   * 生成市场概要channel
+   *
+   * @param symbol 交易对
+   */
+  public static String buildMarketDetailChannel(String symbol) {
+    return "market:" + symbol + ":detail";
   }
 }

@@ -9,7 +9,7 @@ import com.tqxd.jys.openapi.payload.KlineSnapshot;
 import com.tqxd.jys.repository.redis.RedisHelper;
 import com.tqxd.jys.timeline.KlineManager;
 import com.tqxd.jys.timeline.cmd.ApplyTickResult;
-import com.tqxd.jys.utils.HuoBiUtils;
+import com.tqxd.jys.utils.ChannelUtil;
 import com.tqxd.jys.utils.TimeUtils;
 import io.vertx.core.*;
 import io.vertx.core.json.Json;
@@ -287,7 +287,7 @@ public class KlineRepository {
       String sub = payload.getCh();
       KlineTick tick = payload.getTick();
       if (tick != null) {
-        klineManager.applyTick(HuoBiUtils.getSymbolFromKlineSub(sub), Period._1_MIN, commitIndex, tick, h -> {
+        klineManager.applyTick(ChannelUtil.getSymbol(sub), Period._1_MIN, commitIndex, tick, h -> {
           if (h.failed()) {
             log.warn("[Kline-Repository]: apply kline tick fail! reason: {}, commitIndex: {} payload: {}", h.cause().getMessage(), commitIndex, Json.encode(payload));
             h.cause().printStackTrace();
@@ -309,7 +309,7 @@ public class KlineRepository {
     long startTime = System.currentTimeMillis();
     return getKlineSnapshot(klineKey)
         .compose(snapshot -> {
-          klineManager.applySnapshot(HuoBiUtils.getSymbolFromKlineSub(klineKey), Period._1_MIN, snapshot.getCommittedIndex(), snapshot.getTickList(), h -> {
+          klineManager.applySnapshot(ChannelUtil.getSymbol(klineKey), Period._1_MIN, snapshot.getCommittedIndex(), snapshot.getTickList(), h -> {
             if (h.failed()) {
               h.cause().printStackTrace();
             } else {

@@ -30,6 +30,7 @@ import java.util.concurrent.ExecutionException;
 public class RepositoryApplication extends AbstractVerticle {
   private static final Logger log = LoggerFactory.getLogger(RepositoryApplication.class);
 
+
   public static void main(String[] args) {
     Map<String, String> kafkaConfig = new HashMap<>();
     kafkaConfig.put("bootstrap.servers", "localhost:9092");
@@ -56,6 +57,7 @@ public class RepositoryApplication extends AbstractVerticle {
         try {
           VertxUtil.readYamlConfig(vertx, "config.yaml", h -> {
             if (h.succeeded()) {
+              h.result().put("worker", true);
               MessageBusFactory.init(MessageBusFactory.KAFKA_MESSAGE_BUS, vertx, kafkaConfig, kafkaConfig);
               VertxUtil.deploy(vertx, new RepositoryApplication(), h.result())
                   .onFailure(Throwable::printStackTrace);

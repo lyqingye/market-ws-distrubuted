@@ -11,7 +11,7 @@ import com.tqxd.jys.messagebus.topic.Topic;
 import com.tqxd.jys.openapi.RepositoryOpenApi;
 import com.tqxd.jys.openapi.payload.KlineSnapshot;
 import com.tqxd.jys.timeline.KlineManager;
-import com.tqxd.jys.utils.HuoBiUtils;
+import com.tqxd.jys.utils.ChannelUtil;
 import io.vertx.core.AbstractVerticle;
 import io.vertx.core.CompositeFuture;
 import io.vertx.core.Future;
@@ -74,7 +74,7 @@ public class KlineWorkerVerticle extends AbstractVerticle {
                 Future future = getKlineSnapshot(klineKey)
                         .compose(snapshot -> {
                             for (Period period : Period.values()) {
-                                klineManager.applySnapshot(HuoBiUtils.getSymbolFromKlineSub(klineKey), period, snapshot.getCommittedIndex(), snapshot.getTickList(), h -> {
+                                klineManager.applySnapshot(ChannelUtil.getSymbol(klineKey), period, snapshot.getCommittedIndex(), snapshot.getTickList(), h -> {
                                     if (h.failed()) {
                                         h.cause().printStackTrace();
                                     }
@@ -133,7 +133,7 @@ public class KlineWorkerVerticle extends AbstractVerticle {
                 });
                 log.info("[KlineWorker]: apply msgIndex: {}, payload: {}", msg.getIndex(), msg.getPayload());
                 for (Period period : Period.values()) {
-                    klineManager.applyTick(HuoBiUtils.getSymbolFromKlineSub(payload.getCh()), period, msg.getIndex(), payload.getTick(), h -> {
+                    klineManager.applyTick(ChannelUtil.getSymbol(payload.getCh()), period, msg.getIndex(), payload.getTick(), h -> {
                         if (h.failed()) {
                             log.warn("[Kline-Repository]: update kline tick fail! reason: {}, commitIndex: {} payload: {}", h.cause().getMessage(), msg.getIndex(), Json.encode(payload));
                         }

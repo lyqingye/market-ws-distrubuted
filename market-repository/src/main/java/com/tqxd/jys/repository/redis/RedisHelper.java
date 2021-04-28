@@ -41,7 +41,9 @@ public class RedisHelper {
         .setReconnectInterval(1000);
     RedisOptions redisOptions = new RedisOptions()
         .setConnectionString(connectionString)
-        .setNetClientOptions(netOptions);
+        .setNetClientOptions(netOptions)
+        .setMaxWaitingHandlers(1 << 16)
+        .setMaxPoolWaiting(1 << 16);
     Redis.createClient(vertx, redisOptions)
         .connect(onConnect -> {
           if (onConnect.succeeded()) {

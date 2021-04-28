@@ -11,6 +11,7 @@ import com.tqxd.jys.timeline.cmd.ApplySnapshotCmd;
 import com.tqxd.jys.timeline.cmd.ApplyTickCmd;
 import com.tqxd.jys.timeline.cmd.ApplyTickResult;
 import com.tqxd.jys.timeline.cmd.PollTicksCmd;
+import com.tqxd.jys.utils.ChannelUtil;
 import com.tqxd.jys.utils.HuoBiUtils;
 import io.vertx.core.AsyncResult;
 import io.vertx.core.Future;
@@ -134,7 +135,7 @@ public class KlineManager {
         MarketDetailTick aggregate = timeLine.tick();
         // k线窗口滑动，触发了数据聚合
         if (aggregate != null) {
-          outResultQueue.add(TemplatePayload.of(timeLine.meta().getDetailKey(), aggregate));
+          outResultQueue.add(TemplatePayload.of(ChannelUtil.buildMarketDetailChannel(timeLine.meta().getSymbol()), aggregate));
         }
       }
     }
@@ -172,7 +173,6 @@ public class KlineManager {
     String key = HuoBiUtils.toKlineSub(symbol, period);
     Integer index = indexMap.computeIfAbsent(key, k -> {
       KLineMeta meta = new KLineMeta();
-      meta.setKlineKey(key);
       meta.setSymbol(symbol);
       meta.setPeriod(period);
       KLine timeLine = new KLine(meta, period, period.equals(Period._1_MIN));
