@@ -3,13 +3,13 @@ package com.tqxd.jys.repository;
 import com.tqxd.jys.common.payload.KlineTick;
 import com.tqxd.jys.common.payload.TemplatePayload;
 import com.tqxd.jys.constance.Period;
+import com.tqxd.jys.disruptor.AbstractDisruptorConsumer;
 import com.tqxd.jys.messagebus.payload.detail.MarketDetailTick;
 import com.tqxd.jys.openapi.payload.KlineSnapshot;
 import com.tqxd.jys.repository.redis.RedisHelper;
-import com.tqxd.jys.timeline.KLine;
-import com.tqxd.jys.timeline.KLineMeta;
+import com.tqxd.jys.timeline.KlineManager;
 import com.tqxd.jys.timeline.cmd.ApplyTickResult;
-import com.tqxd.jys.timeline.cmd.CmdResult;
+import com.tqxd.jys.utils.HuoBiUtils;
 import com.tqxd.jys.utils.TimeUtils;
 import io.vertx.core.*;
 import io.vertx.core.json.Json;
@@ -22,7 +22,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
-import java.util.concurrent.ExecutionException;
 
 /**
  * k线数据的存储，使用redis作为存储
@@ -59,7 +58,7 @@ public class KlineRepository {
   /**
    * k线数据缓存管理器
    */
-  private KlineTimeManager klineTimeManager;
+  private KlineManager klineManager;
 
   /**
    * 初始化仓库
@@ -71,7 +70,7 @@ public class KlineRepository {
     KlineRepository self = new KlineRepository();
     self.redis = Objects.requireNonNull(redis);
     // 创建k线管理器
-    self.klineTimeManager = KlineTimeManager.create(vertx, self::updateMarketDetail);
+    self.klineManager = KlineManager.create(self.klineDataConsumer());
     Promise<KlineRepository> promise = Promise.promise();
     self.listKlineKeys()
         .onSuccess(keys -> {
@@ -223,10 +222,9 @@ public class KlineRepository {
    * 更新k线
    */
   private void updateAsync(ApplyTickResult data, long commitIndex, long ts, Handler<AsyncResult<Void>> handler) {
-    KlineTick tick = data.getTick();
-    KLineMeta meta = data.getMeta();
-    String klineKey = meta.getKlineKey();
-    String detailKey = meta.getDetailKey();
+    KlineTick tick = data.getTick().getTick();
+    String klineKey = data.getTick().getCh();
+    String detailKey = data.getDetail().getCh();
     // 构造redis命令
     List<Request> batchCmd = new ArrayList<>(6);
 
@@ -254,12 +252,31 @@ public class KlineRepository {
     });
   }
 
-  private void updateMarketDetail(KLineMeta meta, MarketDetailTick tick) {
-    redis.hSet(KLINE_DETAIL_KEY, meta.getDetailKey(), Json.encode(TemplatePayload.of(meta.getDetailKey(), tick)), ar -> {
-      if (ar.failed()) {
-        ar.cause().printStackTrace();
+  private AbstractDisruptorConsumer<Object> klineDataConsumer() {
+    return new AbstractDisruptorConsumer<Object>() {
+      @Override
+      public void process(Object obj) {
+        if (obj instanceof TemplatePayload) {
+          if (((TemplatePayload) obj).getTick() instanceof MarketDetailTick) {
+            redis.hSet(KLINE_DETAIL_KEY, ((TemplatePayload) obj).getCh(), Json.encode(obj), ar -> {
+              if (ar.failed()) {
+                ar.cause().printStackTrace();
+              }
+            });
+          }
+        } else if (obj instanceof ApplyTickResult) {
+          ApplyTickResult result = (ApplyTickResult) obj;
+          updateAsync(result, result.getCommittedIndex(), System.currentTimeMillis(), ar -> {
+            if (ar.failed()) {
+              log.warn("[Kline-Repository]: update kline tick fail! reason: {}, commitIndex: {} payload: {}", ar.cause().getMessage(), result.getCommittedIndex(), Json.encode(obj));
+              ar.cause().printStackTrace();
+            }
+          });
+        } else {
+          log.warn("unknown data: {}", obj);
+        }
       }
-    });
+    };
   }
 
   /**
@@ -270,24 +287,12 @@ public class KlineRepository {
       String sub = payload.getCh();
       KlineTick tick = payload.getTick();
       if (tick != null) {
-        CmdResult<ApplyTickResult> updateResult = klineTimeManager.applyTick(sub, Period._1_MIN, commitIndex, tick);
-        ApplyTickResult updatedResult = null;
-        try {
-          updatedResult = updateResult.get();
-        } catch (InterruptedException | ExecutionException e) {
-          e.printStackTrace();
-          return;
-        }
-        if (updateResult.isSuccess()) {
-          // 异步更新到redis
-          this.updateAsync(updatedResult, commitIndex, ts, ar -> {
-            if (ar.failed()) {
-              ar.cause().printStackTrace();
-            }
-          });
-        } else {
-          log.warn("[Kline-Repository]: update kline tick fail! reason: {}, commitIndex: {} payload: {}", updateResult.getReason(), commitIndex, Json.encode(payload));
-        }
+        klineManager.applyTick(HuoBiUtils.getSymbolFromKlineSub(sub), Period._1_MIN, commitIndex, tick, h -> {
+          if (h.failed()) {
+            log.warn("[Kline-Repository]: apply kline tick fail! reason: {}, commitIndex: {} payload: {}", h.cause().getMessage(), commitIndex, Json.encode(payload));
+            h.cause().printStackTrace();
+          }
+        });
       }
     } else {
       log.info("[Kline-Repository]: payload is null! message index: {}", commitIndex);
@@ -304,13 +309,13 @@ public class KlineRepository {
     long startTime = System.currentTimeMillis();
     return getKlineSnapshot(klineKey)
         .compose(snapshot -> {
-          KLine timeLine = klineTimeManager.getOrCreate(klineKey, Period._1_MIN);
-          try {
-            timeLine.applySnapshot(snapshot.getCommittedIndex(), snapshot.getTickList()).get();
-          } catch (Exception ex) {
-            ex.printStackTrace();
-          }
-          log.info("[Kline-Repository]: init kline: {} size: {} using: {}ms", klineKey, snapshot.getTickList().size(), System.currentTimeMillis() - startTime);
+          klineManager.applySnapshot(HuoBiUtils.getSymbolFromKlineSub(klineKey), Period._1_MIN, snapshot.getCommittedIndex(), snapshot.getTickList(), h -> {
+            if (h.failed()) {
+              h.cause().printStackTrace();
+            } else {
+              log.info("[Kline-Repository]: init kline: {} size: {} using: {}ms", klineKey, snapshot.getTickList().size(), System.currentTimeMillis() - startTime);
+            }
+          });
           return Future.succeededFuture();
         });
   }

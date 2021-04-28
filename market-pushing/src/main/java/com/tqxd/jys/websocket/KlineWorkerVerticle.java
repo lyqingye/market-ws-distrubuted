@@ -1,19 +1,23 @@
 package com.tqxd.jys.websocket;
 
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.tqxd.jys.common.payload.KlineTick;
+import com.tqxd.jys.common.payload.TemplatePayload;
 import com.tqxd.jys.constance.Period;
+import com.tqxd.jys.disruptor.AbstractDisruptorConsumer;
 import com.tqxd.jys.messagebus.MessageBusFactory;
 import com.tqxd.jys.messagebus.payload.Message;
-import com.tqxd.jys.messagebus.payload.detail.MarketDetailTick;
 import com.tqxd.jys.messagebus.topic.Topic;
 import com.tqxd.jys.openapi.RepositoryOpenApi;
 import com.tqxd.jys.openapi.payload.KlineSnapshot;
-import com.tqxd.jys.timeline.KLine;
-import com.tqxd.jys.timeline.cmd.CmdResult;
+import com.tqxd.jys.timeline.KlineManager;
+import com.tqxd.jys.utils.HuoBiUtils;
 import io.vertx.core.AbstractVerticle;
 import io.vertx.core.CompositeFuture;
 import io.vertx.core.Future;
 import io.vertx.core.Promise;
 import io.vertx.core.json.Json;
+import io.vertx.core.json.jackson.JacksonCodec;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -37,7 +41,7 @@ public class KlineWorkerVerticle extends AbstractVerticle {
     /**
      * k线管理器
      */
-    private KlineTimeManager klineManager;
+    private KlineManager klineManager;
 
     /**
      * 持久化仓库 open api
@@ -58,9 +62,7 @@ public class KlineWorkerVerticle extends AbstractVerticle {
 
     private Future initKline () {
         // 初始化k线管理器
-        klineManager = KlineTimeManager.create(vertx,(meta,detail) -> {
-           // TODO 窗口滑动，生成市场详情数据, 需要做处理
-        });
+        klineManager = KlineManager.create(klineDataConsumer());
         // 初始化k线快照信息
         return listKlineKeys().compose(keys -> {
             if (keys.isEmpty()) {
@@ -72,17 +74,11 @@ public class KlineWorkerVerticle extends AbstractVerticle {
                 Future future = getKlineSnapshot(klineKey)
                         .compose(snapshot -> {
                             for (Period period : Period.values()) {
-                                KLine timeLine = klineManager.getOrCreate(klineKey, period);
-                                CmdResult<MarketDetailTick> applyRs = timeLine.applySnapshot(snapshot.getCommittedIndex(), snapshot.getTickList());
-                                if (Period._1_MIN.equals(period)) {
-                                    try {
-                                        MarketDetailTick detail = applyRs.get();
-                                        // TODO　市场详情数据处理
-                                        System.out.println();
-                                    } catch (Exception ex) {
-                                        ex.printStackTrace();
+                                klineManager.applySnapshot(HuoBiUtils.getSymbolFromKlineSub(klineKey), period, snapshot.getCommittedIndex(), snapshot.getTickList(), h -> {
+                                    if (h.failed()) {
+                                        h.cause().printStackTrace();
                                     }
-                                }
+                                });
                             }
                             log.info("[KlineWorker]: init kline: {} size: {} using: {}ms", klineKey, snapshot.getTickList().size(), System.currentTimeMillis() - startTime);
                             return Future.succeededFuture();
@@ -93,15 +89,28 @@ public class KlineWorkerVerticle extends AbstractVerticle {
         });
     }
 
-    private Future<Set<String>> listKlineKeys () {
+    private AbstractDisruptorConsumer<Object> klineDataConsumer() {
+        return new AbstractDisruptorConsumer<Object>() {
+            @Override
+            public void process(Object obj) {
+                if (obj instanceof TemplatePayload) {
+                    log.info(Json.encode(obj));
+                } else {
+                    log.warn("[KLineManager]: unknown data: {}", obj);
+                }
+            }
+        };
+    }
+
+    private Future<Set<String>> listKlineKeys() {
         Promise<Set<String>> promise = Promise.promise();
         repository.listKlineKeys(promise);
         return promise.future();
     }
 
-    private Future<KlineSnapshot> getKlineSnapshot (String klineKey) {
+    private Future<KlineSnapshot> getKlineSnapshot(String klineKey) {
         Promise<KlineSnapshot> promise = Promise.promise();
-        repository.getKlineSnapshot(klineKey,h -> {
+        repository.getKlineSnapshot(klineKey, h -> {
             if (h.succeeded()) {
                 promise.complete(Json.decodeValue(h.result(),KlineSnapshot.class));
             }else {
@@ -118,29 +127,23 @@ public class KlineWorkerVerticle extends AbstractVerticle {
     }
 
     private void processKlineMsg (Message<?> msg) {
-//        switch (msg.getType()) {
-//            case KLINE: {
-//                TemplatePayload<KlineTick> payload = JacksonCodec.decodeValue((String) msg.getPayload(), new TypeReference<TemplatePayload<KlineTick>>() {
-//                });
-//                log.info("[KlineWorker]: apply msgIndex: {}, payload: {}", msg.getIndex(), msg.getPayload());
-//                CmdResult<UpdateTickResult> updateResult = klineManager.updateKline(payload.getCh(), Period._1_MIN, commitIndex, tick);
-//                UpdateTickResult updatedResult = null;
-//                try {
-//                    updatedResult = updateResult.get();
-//                } catch (InterruptedException | ExecutionException e) {
-//                    e.printStackTrace();
-//                    return;
-//                }
-//                if (updateResult.isSuccess()) {
-//
-//                } else {
-////                    log.warn("[Kline-Repository]: update kline tick fail! reason: {}, commitIndex: {} payload: {}", updateResult.getReason(), commitIndex, Json.encode(payload));
-//                }
-//                break;
-//            }
-//            default:
-//                log.error("[KlineWorker]: invalid message type from Kline topic! message: {}", msg);
-//        }
+        switch (msg.getType()) {
+            case KLINE: {
+                TemplatePayload<KlineTick> payload = JacksonCodec.decodeValue((String) msg.getPayload(), new TypeReference<TemplatePayload<KlineTick>>() {
+                });
+                log.info("[KlineWorker]: apply msgIndex: {}, payload: {}", msg.getIndex(), msg.getPayload());
+                for (Period period : Period.values()) {
+                    klineManager.applyTick(HuoBiUtils.getSymbolFromKlineSub(payload.getCh()), period, msg.getIndex(), payload.getTick(), h -> {
+                        if (h.failed()) {
+                            log.warn("[Kline-Repository]: update kline tick fail! reason: {}, commitIndex: {} payload: {}", h.cause().getMessage(), msg.getIndex(), Json.encode(payload));
+                        }
+                    });
+                }
+                break;
+            }
+            default:
+                log.error("[KlineWorker]: invalid message type from Kline topic! message: {}", msg);
+        }
     }
 
     @Override

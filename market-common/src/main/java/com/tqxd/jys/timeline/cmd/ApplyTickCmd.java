@@ -11,13 +11,13 @@ public class ApplyTickCmd {
   private Period period;
   private long commitIndex;
   private KlineTick tick;
-  private Handler<AsyncResult<Void>> handler;
+  private Handler<AsyncResult<Long>> handler;
 
-  public Handler<AsyncResult<Void>> getHandler() {
+  public Handler<AsyncResult<Long>> getHandler() {
     return handler;
   }
 
-  public void setHandler(Handler<AsyncResult<Void>> handler) {
+  public void setHandler(Handler<AsyncResult<Long>> handler) {
     this.handler = handler;
   }
 

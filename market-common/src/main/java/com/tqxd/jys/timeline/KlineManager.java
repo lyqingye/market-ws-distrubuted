@@ -55,7 +55,7 @@ public class KlineManager {
    * @return {@link ApplyTickResult} 不为null
    */
   public void applyTick(String symbol, Period period, long committedIndex, @NonNull KlineTick tick,
-                        @NonNull Handler<AsyncResult<Void>> handler) {
+                        @NonNull Handler<AsyncResult<Long>> handler) {
     ApplyTickCmd cmd = new ApplyTickCmd();
     cmd.setSymbol(symbol);
     cmd.setPeriod(period);
@@ -145,7 +145,7 @@ public class KlineManager {
         .applyTick(cmd.getCommitIndex(), cmd.getTick(), ar -> {
           if (ar.succeeded()) {
             outResultQueue.add(ar.result());
-            cmd.getHandler().handle(Future.succeededFuture());
+            cmd.getHandler().handle(Future.succeededFuture(cmd.getCommitIndex()));
           } else {
             cmd.getHandler().handle(Future.failedFuture(ar.cause()));
           }
@@ -153,14 +153,7 @@ public class KlineManager {
   }
 
   private void execPollTicksCmd(PollTicksCmd cmd) {
-    selectKline(cmd.getSymbol(), cmd.getPeriod())
-        .poll(cmd.getFrom(), cmd.getTo(), ar -> {
-          if (ar.succeeded()) {
-            cmd.getHandler().handle(Future.succeededFuture(ar.result()));
-          } else {
-            cmd.getHandler().handle(Future.failedFuture(ar.cause()));
-          }
-        });
+    selectKline(cmd.getSymbol(), cmd.getPeriod()).poll(cmd.getFrom(), cmd.getTo(), cmd.getHandler());
   }
 
   private void execApplySnapshotCmd(ApplySnapshotCmd cmd) {
@@ -180,8 +173,10 @@ public class KlineManager {
     Integer index = indexMap.computeIfAbsent(key, k -> {
       KLineMeta meta = new KLineMeta();
       meta.setKlineKey(key);
+      meta.setSymbol(symbol);
+      meta.setPeriod(period);
       KLine timeLine = new KLine(meta, period, period.equals(Period._1_MIN));
-      int newSize = size++;
+      int newSize = ++size;
       if (newSize > timeLines.length) {
         KLine[] newKLines = new KLine[timeLines.length << 1];
         System.arraycopy(timeLines, 0, newKLines, 0, timeLines.length);

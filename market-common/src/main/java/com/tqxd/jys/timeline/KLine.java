@@ -124,7 +124,7 @@ public class KLine {
     // complete
     TemplatePayload<KlineTick> tickPayLoad = TemplatePayload.of(HuoBiUtils.toKlineSub(meta.getSymbol(), meta.getPeriod()), updateTick);
     TemplatePayload<MarketDetailTick> detailPayLoad = TemplatePayload.of(HuoBiUtils.toDetailSub(meta.getSymbol()), snapAggregate());
-    handler.handle(Future.succeededFuture(new ApplyTickResult(tickPayLoad, detailPayLoad)));
+    handler.handle(Future.succeededFuture(new ApplyTickResult(commitIndex, tickPayLoad, detailPayLoad)));
     // apply the committed index
     meta.applyCommittedIndex(commitIndex);
   }
