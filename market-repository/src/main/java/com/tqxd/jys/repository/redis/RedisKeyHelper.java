@@ -20,7 +20,7 @@ public class RedisKeyHelper {
   /**
    * 所有交易对的key
    */
-  public static String toSymbolsKey() {
+  public static String getSymbolsKey() {
     return "market:symbols";
   }
 

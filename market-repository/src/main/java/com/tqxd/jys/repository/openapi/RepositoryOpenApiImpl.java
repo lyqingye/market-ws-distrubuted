@@ -55,8 +55,8 @@ public class RepositoryOpenApiImpl implements RepositoryOpenApi {
   }
 
   @Override
-  public void getKlineSnapshot(String klineKey, Handler<AsyncResult<String>> handler) {
-    repository.getKlineSnapshot(klineKey, ar -> {
+  public void getKlineSnapshot(String symbol, Handler<AsyncResult<String>> handler) {
+    repository.getKlineSnapshot(symbol, ar -> {
       if (ar.succeeded()) {
         handler.handle(Future.succeededFuture(Json.encode(ar.result())));
       } else {

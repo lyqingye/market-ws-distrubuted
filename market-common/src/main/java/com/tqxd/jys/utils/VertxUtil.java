@@ -52,7 +52,7 @@ public final class VertxUtil {
    * @return future
    */
   public static Future<String> deploy(Vertx vertx, Verticle verticle, JsonObject config) {
-    return deploy(vertx, verticle, new DeploymentOptions(Objects.requireNonNull(config)));
+    return deploy(vertx, verticle, new DeploymentOptions().setConfig(Objects.requireNonNull(config)));
   }
 
   /**

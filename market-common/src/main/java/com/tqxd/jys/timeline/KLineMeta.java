@@ -34,4 +34,12 @@ public class KLineMeta {
   protected void incCommitIndex() {
     this.commitIndex++;
   }
+
+  public KLineMeta snapshot() {
+    KLineMeta meta = new KLineMeta();
+    meta.applyCommittedIndex(this.commitIndex);
+    meta.setPeriod(this.period);
+    meta.setSymbol(this.symbol);
+    return meta;
+  }
 }

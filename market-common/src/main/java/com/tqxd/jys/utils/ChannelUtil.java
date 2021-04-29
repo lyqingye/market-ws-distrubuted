@@ -108,6 +108,6 @@ public class ChannelUtil {
    * @param symbol 交易对
    */
   public static String buildMarketDetailChannel(String symbol) {
-    return "market:" + symbol + ":detail";
+    return "market." + symbol + ".detail";
   }
 }

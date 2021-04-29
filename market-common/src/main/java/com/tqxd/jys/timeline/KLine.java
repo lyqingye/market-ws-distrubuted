@@ -124,7 +124,7 @@ public class KLine {
     // complete
     TemplatePayload<KlineTick> tickPayLoad = TemplatePayload.of(HuoBiUtils.toKlineSub(meta.getSymbol(), meta.getPeriod()), updateTick);
     TemplatePayload<MarketDetailTick> detailPayLoad = TemplatePayload.of(HuoBiUtils.toDetailSub(meta.getSymbol()), snapAggregate());
-    handler.handle(Future.succeededFuture(new ApplyTickResult(commitIndex, tickPayLoad, detailPayLoad)));
+    handler.handle(Future.succeededFuture(new ApplyTickResult(meta.snapshot(), tickPayLoad, detailPayLoad)));
     // apply the committed index
     meta.applyCommittedIndex(commitIndex);
   }
@@ -170,6 +170,8 @@ public class KLine {
       if (alignWithPeriod(newObj.getTime(), period) != alignWithPeriod(oldObj.getTime(), period)) {
         data[idx] = newObj;
       } else {
+        // rollback Aggregate before merge
+        doRollbackAggregate(oldObj);
         data[idx] = oldObj.merge(newObj);
       }
     } else {
@@ -228,6 +230,14 @@ public class KLine {
       high = tick.getHigh();
     if (tick.getLow().compareTo(low) > 0)
       low = tick.getLow();
+  }
+
+  private void doRollbackAggregate(KlineTick oldTick) {
+    if (!autoAggregate || oldTick == null)
+      return;
+    count -= oldTick.getCount();
+    amount = amount.subtract(oldTick.getAmount());
+    vol = vol.subtract(oldTick.getVol());
   }
 
   private MarketDetailTick snapAggregate() {

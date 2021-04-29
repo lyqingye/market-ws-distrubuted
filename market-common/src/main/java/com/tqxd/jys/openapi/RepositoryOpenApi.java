@@ -21,5 +21,5 @@ public interface RepositoryOpenApi {
 
   void listKlineKeys(Handler<AsyncResult<Set<String>>> handler);
 
-  void getKlineSnapshot(String klineKey, Handler<AsyncResult<String>> handler);
+  void getKlineSnapshot(String symbol, Handler<AsyncResult<String>> handler);
 }

@@ -205,6 +205,26 @@ public class RedisHelper {
     redisConn.batch(commands, onSend);
   }
 
+  public void set(String key, String value, Handler<AsyncResult<Void>> handler) {
+    redisApi.set(Arrays.asList(key, value), ar -> {
+      if (ar.succeeded()) {
+        handler.handle(Future.succeededFuture());
+      } else {
+        handler.handle(Future.failedFuture(ar.cause()));
+      }
+    });
+  }
+
+  public void get(String key, Handler<AsyncResult<String>> handler) {
+    redisApi.get(key, ar -> {
+      if (ar.succeeded()) {
+        handler.handle(Future.succeededFuture(responseToObj(ar.result())));
+      } else {
+        handler.handle(Future.failedFuture(ar.cause()));
+      }
+    });
+  }
+
   /**
    * 关闭redis
    */

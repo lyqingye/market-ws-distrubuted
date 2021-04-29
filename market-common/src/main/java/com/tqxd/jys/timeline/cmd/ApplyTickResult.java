@@ -4,28 +4,29 @@ package com.tqxd.jys.timeline.cmd;
 import com.tqxd.jys.common.payload.KlineTick;
 import com.tqxd.jys.common.payload.TemplatePayload;
 import com.tqxd.jys.messagebus.payload.detail.MarketDetailTick;
+import com.tqxd.jys.timeline.KLineMeta;
 
 public class ApplyTickResult {
-  private long committedIndex;
+  private KLineMeta meta;
   private TemplatePayload<KlineTick> tick;
   private TemplatePayload<MarketDetailTick> detail;
 
-  public ApplyTickResult(long committedIndex, TemplatePayload<KlineTick> tick, TemplatePayload<MarketDetailTick> detail) {
-    this.committedIndex = committedIndex;
+  public ApplyTickResult(KLineMeta meta, TemplatePayload<KlineTick> tick, TemplatePayload<MarketDetailTick> detail) {
+    this.meta = meta;
     this.tick = tick;
     this.detail = detail;
   }
 
+  public KLineMeta getMeta() {
+    return meta;
+  }
+
+  public void setMeta(KLineMeta meta) {
+    this.meta = meta;
+  }
+
   public TemplatePayload<KlineTick> getTick() {
     return tick;
-  }
-
-  public long getCommittedIndex() {
-    return committedIndex;
-  }
-
-  public void setCommittedIndex(long committedIndex) {
-    this.committedIndex = committedIndex;
   }
 
   public void setTick(TemplatePayload<KlineTick> tick) {

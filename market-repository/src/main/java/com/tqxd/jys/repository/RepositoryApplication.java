@@ -9,10 +9,7 @@ import com.tqxd.jys.messagebus.topic.Topic;
 import com.tqxd.jys.repository.openapi.RepositoryOpenApiImpl;
 import com.tqxd.jys.repository.redis.RedisHelper;
 import com.tqxd.jys.utils.VertxUtil;
-import io.vertx.core.AbstractVerticle;
-import io.vertx.core.Promise;
-import io.vertx.core.Vertx;
-import io.vertx.core.VertxOptions;
+import io.vertx.core.*;
 import io.vertx.core.json.JsonObject;
 import io.vertx.core.json.jackson.JacksonCodec;
 import io.vertx.core.spi.cluster.ClusterManager;
@@ -57,9 +54,8 @@ public class RepositoryApplication extends AbstractVerticle {
         try {
           VertxUtil.readYamlConfig(vertx, "config.yaml", h -> {
             if (h.succeeded()) {
-              h.result().put("worker", true);
               MessageBusFactory.init(MessageBusFactory.KAFKA_MESSAGE_BUS, vertx, kafkaConfig, kafkaConfig);
-              VertxUtil.deploy(vertx, new RepositoryApplication(), h.result())
+              VertxUtil.deploy(vertx, new RepositoryApplication(), new DeploymentOptions().setWorker(true).setConfig(h.result()))
                   .onFailure(Throwable::printStackTrace);
 
             } else {

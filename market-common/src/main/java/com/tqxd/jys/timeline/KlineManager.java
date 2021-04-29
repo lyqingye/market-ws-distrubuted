@@ -7,6 +7,7 @@ import com.tqxd.jys.disruptor.AbstractDisruptorConsumer;
 import com.tqxd.jys.disruptor.DisruptorQueue;
 import com.tqxd.jys.disruptor.DisruptorQueueFactory;
 import com.tqxd.jys.messagebus.payload.detail.MarketDetailTick;
+import com.tqxd.jys.openapi.payload.KlineSnapshot;
 import com.tqxd.jys.timeline.cmd.ApplySnapshotCmd;
 import com.tqxd.jys.timeline.cmd.ApplyTickCmd;
 import com.tqxd.jys.timeline.cmd.ApplyTickResult;
@@ -77,13 +78,13 @@ public class KlineManager {
     inCmdQueue.offer(cmd);
   }
 
-  public void applySnapshot(String symbol, Period period, long committedIndex, @NonNull List<KlineTick> ticks,
+  public void applySnapshot(KlineSnapshot snapshot,
                             @NonNull Handler<AsyncResult<Void>> handler) {
     ApplySnapshotCmd cmd = new ApplySnapshotCmd();
-    cmd.setSymbol(symbol);
-    cmd.setPeriod(period);
-    cmd.setCommitIndex(committedIndex);
-    cmd.setTicks(ticks);
+    cmd.setSymbol(snapshot.getMeta().getSymbol());
+    cmd.setPeriod(snapshot.getMeta().getPeriod());
+    cmd.setCommitIndex(snapshot.getMeta().getCommittedIndex());
+    cmd.setTicks(snapshot.getTickList());
     cmd.setHandler(handler);
     inCmdQueue.offer(cmd);
   }
