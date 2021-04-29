@@ -91,7 +91,7 @@ public class KLine {
       return;
     }
     List<KlineTick> result = new ArrayList<>(300);
-    while (startIdx < endIdx) {
+    while (startIdx <= endIdx) {
       KlineTick obj = (KlineTick) this.data[startIdx];
       if (obj != null) {
         if (obj.getTime() >= from && obj.getTime() <= to) {
