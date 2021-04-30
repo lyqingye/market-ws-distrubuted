@@ -30,21 +30,6 @@ import java.util.Set;
  * @author lyqingye
  */
 public class KlineRepository {
-  /**
-   * 在redis维护一个集合存放各种key
-   * [market.BTC-USDT.kline.1min,market.ETH-BTC.kline.1min]
-   */
-  public static final String SYMBOL_SET_KEY = "market:kline:symbols";
-  /**
-   * k线快照元数据的key的前缀，这个是一个hash数据结构
-   * key: market:kline:metadata: + market.BTC-USDT.kline.1min
-   * - commitIndex: 1
-   * - updateTs: System.currentMills()
-   */
-  public static final String METADATA_PREFIX = "market:kline:metadata:";
-  public static final String METADATA_COMMIT_INDEX = "commitIndex";
-  public static final String METADATA_UPDATE_TS = "updateTs";
-  public static final String KLINE_DETAIL_KEY = "market:kline:detail";
   private static final Logger log = LoggerFactory.getLogger(KlineRepository.class);
   /**
    * redis repo
