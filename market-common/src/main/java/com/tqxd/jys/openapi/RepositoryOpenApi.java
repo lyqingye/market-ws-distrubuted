@@ -4,6 +4,7 @@ import io.vertx.codegen.annotations.ProxyGen;
 import io.vertx.core.AsyncResult;
 import io.vertx.core.Handler;
 import io.vertx.core.Vertx;
+import io.vertx.core.eventbus.DeliveryOptions;
 
 import java.util.Set;
 
@@ -16,7 +17,7 @@ import java.util.Set;
 public interface RepositoryOpenApi {
 
   static RepositoryOpenApi createProxy(Vertx vertx) {
-    return new RepositoryOpenApiVertxEBProxy(vertx, ServiceAddress.REPOSITORY.name());
+    return new RepositoryOpenApiVertxEBProxy(vertx, ServiceAddress.REPOSITORY.name(), new DeliveryOptions().setSendTimeout(5000));
   }
 
   void listKlineKeys(Handler<AsyncResult<Set<String>>> handler);

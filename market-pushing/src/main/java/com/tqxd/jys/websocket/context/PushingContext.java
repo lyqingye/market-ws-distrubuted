@@ -2,7 +2,6 @@ package com.tqxd.jys.websocket.context;
 
 import com.tqxd.jys.messagebus.payload.trade.TradeDetailTickData;
 import com.tqxd.jys.timeline.KLine;
-import com.tqxd.jys.websocket.session.SessionManager;
 import com.tqxd.jys.websocket.session.WsSession;
 import io.vertx.core.Vertx;
 import io.vertx.core.buffer.Buffer;
@@ -17,12 +16,7 @@ import java.util.concurrent.ConcurrentHashMap;
  * @since 2020/11/14 18:13
  */
 public class PushingContext {
-  /**
-   * 会话管理
-   * <p>
-   * channelId -> websocket session
-   */
-  private SessionManager<WsSession> sm = new SessionManager<>(4096);
+
 
   /**
    * 订阅K线了的会话
@@ -99,13 +93,7 @@ public class PushingContext {
 //        return buffer;
 //    }
 
-  public SessionManager<WsSession> getSm() {
-    return sm;
-  }
 
-  public void setSm(SessionManager<WsSession> sm) {
-    this.sm = sm;
-  }
 
   public Map<String, WsSession> getKlineSM() {
     return klineSM;

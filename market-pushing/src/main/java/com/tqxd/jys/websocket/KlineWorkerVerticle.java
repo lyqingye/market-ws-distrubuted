@@ -74,7 +74,7 @@ public class KlineWorkerVerticle extends AbstractVerticle {
                 Future future = getKlineSnapshot(klineKey)
                         .compose(snapshot -> {
                             for (Period period : Period.values()) {
-                                klineManager.applySnapshot(ChannelUtil.getSymbol(klineKey), period, snapshot.getCommittedIndex(), snapshot.getTickList(), h -> {
+                                klineManager.applySnapshot(snapshot, h -> {
                                     if (h.failed()) {
                                         h.cause().printStackTrace();
                                     }
