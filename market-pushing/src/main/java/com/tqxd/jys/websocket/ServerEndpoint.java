@@ -30,7 +30,7 @@ public class ServerEndpoint extends AbstractVerticle {
     /**
      * 会话管理器
      */
-    private FastSessionMgr sessionMgr;
+    private FastSessionMgr sessionMgr = new FastSessionMgr(1 << 16);
     private long expire = 10;
     private TimeUnit timeUnit = TimeUnit.SECONDS;
 
