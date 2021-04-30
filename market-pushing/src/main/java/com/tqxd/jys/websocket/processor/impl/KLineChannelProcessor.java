@@ -11,6 +11,7 @@ import io.vertx.core.json.JsonObject;
 /**
  * k线主题处理器
  */
+@SuppressWarnings("Duplicates")
 public class KLineChannelProcessor implements ChannelProcessor {
   private static final String KLINE_TOPIC = "kline";
 
