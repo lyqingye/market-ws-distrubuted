@@ -122,9 +122,7 @@ public class KLine {
     // aggregate the window
     doAggregate(newObj);
     // complete
-    TemplatePayload<KlineTick> tickPayLoad = TemplatePayload.of(HuoBiUtils.toKlineSub(meta.getSymbol().replace("-", "").toLowerCase(), meta.getPeriod()), updateTick);
-    TemplatePayload<MarketDetailTick> detailPayLoad = TemplatePayload.of(HuoBiUtils.toDetailSub(meta.getSymbol()), snapAggregate());
-    handler.handle(Future.succeededFuture(new ApplyTickResult(meta.snapshot(), tickPayLoad, detailPayLoad)));
+    handler.handle(Future.succeededFuture(new ApplyTickResult(meta.snapshot(), updateTick, snapAggregate())));
     // apply the committed index
     meta.applyCommittedIndex(commitIndex);
   }

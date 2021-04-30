@@ -3,7 +3,6 @@ package com.tqxd.jys.websocket;
 import com.tqxd.jys.common.payload.TemplatePayload;
 import com.tqxd.jys.timeline.KLineManager;
 import com.tqxd.jys.timeline.cmd.ApplyTickResult;
-import com.tqxd.jys.utils.GZIPUtils;
 import com.tqxd.jys.websocket.processor.ChannelProcessor;
 import com.tqxd.jys.websocket.processor.Context;
 import com.tqxd.jys.websocket.processor.impl.KLineChannelProcessor;
@@ -11,14 +10,12 @@ import com.tqxd.jys.websocket.session.FastSessionMgr;
 import com.tqxd.jys.websocket.session.Session;
 import io.vertx.core.AbstractVerticle;
 import io.vertx.core.Promise;
-import io.vertx.core.buffer.Buffer;
 import io.vertx.core.http.HttpServer;
 import io.vertx.core.json.Json;
 import io.vertx.core.json.JsonObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.IOException;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -134,14 +131,14 @@ public class ServerEndpoint extends AbstractVerticle {
     private void onUpdateData(Object data) {
         if (data instanceof ApplyTickResult) {
             ApplyTickResult result = (ApplyTickResult) data;
-
-            try {
-                sessionMgr.broadcast(Buffer.buffer(GZIPUtils.compress(Json.encode(result.getTick()).getBytes())), session -> {
-                    return session.getAttr(result.getTick().getCh()) != null;
-                });
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
+//
+//            try {
+//                sessionMgr.broadcast(Buffer.buffer(GZIPUtils.compress(Json.encode(result.getTick()).getBytes())), session -> {
+//                    return session.getAttr(result.getTick().getCh()) != null;
+//                });
+//            } catch (IOException e) {
+//                e.printStackTrace();
+//            }
         } else if (data instanceof TemplatePayload) {
             System.out.println();
         }

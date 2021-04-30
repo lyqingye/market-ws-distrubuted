@@ -213,7 +213,7 @@ public class KlineRepository {
    * 更新k线
    */
   private void applyTickResultAsync(ApplyTickResult data, Handler<AsyncResult<Void>> handler) {
-    KlineTick tick = data.getTick().getTick();
+    KlineTick tick = data.getTick();
     KLineMeta meta = data.getMeta();
     String klineKey = RedisKeyHelper.toKlineDataKey(meta.getSymbol());
     // 构造redis命令
