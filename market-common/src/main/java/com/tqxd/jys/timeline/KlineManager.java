@@ -119,7 +119,7 @@ public class KlineManager {
               execApplySnapshotCmd((ApplySnapshotCmd) obj);
             }
           }
-          Thread.sleep(0);
+          Thread.sleep(10);
         } catch (Exception ex) {
           ex.printStackTrace();
         }
