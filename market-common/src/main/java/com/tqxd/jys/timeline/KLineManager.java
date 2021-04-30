@@ -13,7 +13,6 @@ import com.tqxd.jys.timeline.cmd.ApplyTickCmd;
 import com.tqxd.jys.timeline.cmd.ApplyTickResult;
 import com.tqxd.jys.timeline.cmd.PollTicksCmd;
 import com.tqxd.jys.utils.ChannelUtil;
-import com.tqxd.jys.utils.HuoBiUtils;
 import io.vertx.core.AsyncResult;
 import io.vertx.core.Future;
 import io.vertx.core.Handler;
@@ -25,15 +24,17 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.Consumer;
 
 /**
  * k线数据管理器
  *
  * @author lyqingye
  */
-public class KlineManager {
+public class KLineManager {
   private ConcurrentLinkedQueue<Object> inCmdQueue = new ConcurrentLinkedQueue<>();
   private DisruptorQueue<Object> outResultQueue;
+  private Consumer<Object> consumer;
   /**
    * 名称 -> timeLine 映射的索引
    * 用数组和map作为索引，因为需要频繁遍历，避免经常遍历映射导致频繁创建 {@link java.util.Iterator} 迭代器对象
@@ -42,11 +43,15 @@ public class KlineManager {
   private KLine[] timeLines = new KLine[256];
   private int size = 0;
 
-  public static KlineManager create(@NonNull AbstractDisruptorConsumer<Object> outResultConsumer) {
-    KlineManager mgr = new KlineManager();
-    mgr.outResultQueue = DisruptorQueueFactory.createQueue(1 << 16, mgr.createThreadFactory("kline-output-result-thread-"), outResultConsumer);
+  public static KLineManager create() {
+    KLineManager mgr = new KLineManager();
+    mgr.outResultQueue = DisruptorQueueFactory.createQueue(1 << 16, mgr.createThreadFactory("kline-output-result-thread-"), mgr.adapterConsumer());
     mgr.startJob();
     return mgr;
+  }
+
+  public void setOutResultConsumer(Consumer<Object> consumer) {
+    this.consumer = consumer;
   }
 
   /**
@@ -68,7 +73,7 @@ public class KlineManager {
   }
 
   public void pollTicks(String symbol, Period period, long from, long to,
-                        @NonNull Handler<AsyncResult<TemplatePayload<List<KlineTick>>>> handler) {
+                        @NonNull Handler<AsyncResult<List<KlineTick>>> handler) {
     PollTicksCmd cmd = new PollTicksCmd();
     cmd.setSymbol(symbol);
     cmd.setPeriod(period);
@@ -171,7 +176,7 @@ public class KlineManager {
   }
 
   private @NonNull KLine selectKline(String symbol, Period period) {
-    String key = HuoBiUtils.toKlineSub(symbol, period);
+    String key = symbol + ":" + period;
     Integer index = indexMap.computeIfAbsent(key, k -> {
       KLineMeta meta = new KLineMeta();
       meta.setSymbol(symbol);
@@ -200,6 +205,17 @@ public class KlineManager {
         thread.setDaemon(false);
         thread.setUncaughtExceptionHandler(((t, e) -> e.printStackTrace()));
         return thread;
+      }
+    };
+  }
+
+  private @NonNull AbstractDisruptorConsumer<Object> adapterConsumer() {
+    return new AbstractDisruptorConsumer<Object>() {
+      @Override
+      public void process(Object event) {
+        if (consumer != null) {
+          consumer.accept(event);
+        }
       }
     };
   }

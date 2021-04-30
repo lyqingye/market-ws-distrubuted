@@ -4,13 +4,12 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.tqxd.jys.common.payload.KlineTick;
 import com.tqxd.jys.common.payload.TemplatePayload;
 import com.tqxd.jys.constance.Period;
-import com.tqxd.jys.disruptor.AbstractDisruptorConsumer;
 import com.tqxd.jys.messagebus.MessageBusFactory;
 import com.tqxd.jys.messagebus.payload.Message;
 import com.tqxd.jys.messagebus.topic.Topic;
 import com.tqxd.jys.openapi.RepositoryOpenApi;
 import com.tqxd.jys.openapi.payload.KlineSnapshot;
-import com.tqxd.jys.timeline.KlineManager;
+import com.tqxd.jys.timeline.KLineManager;
 import com.tqxd.jys.utils.ChannelUtil;
 import io.vertx.core.AbstractVerticle;
 import io.vertx.core.CompositeFuture;
@@ -34,35 +33,33 @@ import java.util.Set;
  * @author
  * @since 2021/4/23 21:40
  */
-@SuppressWarnings({"rawtypes","unchecked"})
-public class KlineWorkerVerticle extends AbstractVerticle {
-    private static final Logger log = LoggerFactory.getLogger(KlineWorkerVerticle.class);
+@SuppressWarnings({"rawtypes", "unchecked"})
+public class KLineWorkerVerticle extends AbstractVerticle {
+  private static final Logger log = LoggerFactory.getLogger(KLineWorkerVerticle.class);
 
-    /**
-     * k线管理器
-     */
-    private KlineManager klineManager;
+  /**
+   * 持久化仓库 open api
+   */
+  private RepositoryOpenApi repository;
 
-    /**
-     * 持久化仓库 open api
-     */
-    private RepositoryOpenApi repository;
+  private KLineManager klineManager;
 
+  public KLineWorkerVerticle(KLineManager klineManager) {
+    this.klineManager = klineManager;
+  }
 
-    @Override
-    public void start(Promise<Void> startPromise) throws Exception {
-        repository = RepositoryOpenApi.createProxy(vertx);
-        long startTime = System.currentTimeMillis();
-        CompositeFuture.join(initKline(),listenKlineMessageTopic())
-                .onFailure(startPromise::fail)
-                .onSuccess(h -> {
-                    log.info("[KlineWorker]: start kline worker success! using {}ms",System.currentTimeMillis() - startTime);
-                });
+  @Override
+  public void start(Promise<Void> startPromise) throws Exception {
+    repository = RepositoryOpenApi.createProxy(vertx);
+    long startTime = System.currentTimeMillis();
+    CompositeFuture.join(initKline(), listenKlineMessageTopic())
+        .onFailure(startPromise::fail)
+        .onSuccess(h -> {
+          log.info("[KlineWorker]: start kline worker success! using {}ms", System.currentTimeMillis() - startTime);
+        });
     }
 
     private Future initKline () {
-        // 初始化k线管理器
-        klineManager = KlineManager.create(klineDataConsumer());
         // 初始化k线快照信息
         return listKlineKeys().compose(keys -> {
             if (keys.isEmpty()) {
@@ -74,11 +71,12 @@ public class KlineWorkerVerticle extends AbstractVerticle {
                 Future future = getKlineSnapshot(klineKey)
                         .compose(snapshot -> {
                             for (Period period : Period.values()) {
-                                klineManager.applySnapshot(snapshot, h -> {
-                                    if (h.failed()) {
-                                        h.cause().printStackTrace();
-                                    }
-                                });
+                                snapshot.getMeta().setPeriod(period);
+                              klineManager.applySnapshot(snapshot, h -> {
+                                if (h.failed()) {
+                                  h.cause().printStackTrace();
+                                }
+                              });
                             }
                             log.info("[KlineWorker]: init kline: {} size: {} using: {}ms", klineKey, snapshot.getTickList().size(), System.currentTimeMillis() - startTime);
                             return Future.succeededFuture();
@@ -87,19 +85,6 @@ public class KlineWorkerVerticle extends AbstractVerticle {
             }
             return CompositeFuture.all(allKlineFutures);
         });
-    }
-
-    private AbstractDisruptorConsumer<Object> klineDataConsumer() {
-        return new AbstractDisruptorConsumer<Object>() {
-            @Override
-            public void process(Object obj) {
-                if (obj instanceof TemplatePayload) {
-                    log.info(Json.encode(obj));
-                } else {
-                    log.warn("[KLineManager]: unknown data: {}", obj);
-                }
-            }
-        };
     }
 
     private Future<Set<String>> listKlineKeys() {
@@ -131,8 +116,8 @@ public class KlineWorkerVerticle extends AbstractVerticle {
             case KLINE: {
                 TemplatePayload<KlineTick> payload = JacksonCodec.decodeValue((String) msg.getPayload(), new TypeReference<TemplatePayload<KlineTick>>() {
                 });
-                log.info("[KlineWorker]: apply msgIndex: {}, payload: {}", msg.getIndex(), msg.getPayload());
-                for (Period period : Period.values()) {
+//                log.info("[KlineWorker]: apply msgIndex: {}, payload: {}", msg.getIndex(), msg.getPayload());
+              for (Period period : Period.values()) {
                     klineManager.applyTick(ChannelUtil.getSymbol(payload.getCh()), period, msg.getIndex(), payload.getTick(), h -> {
                         if (h.failed()) {
                             log.warn("[Kline-Repository]: update kline tick fail! reason: {}, commitIndex: {} payload: {}", h.cause().getMessage(), msg.getIndex(), Json.encode(payload));

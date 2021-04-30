@@ -99,7 +99,11 @@ public class Session {
   }
 
   public void refreshTTL(long expire, TimeUnit timeUnit) {
-    this.ttl = System.currentTimeMillis() + timeUnit.toMillis(expire);
+    if (expire == -1) {
+      this.ttl = -1;
+    } else {
+      this.ttl = System.currentTimeMillis() + timeUnit.toMillis(expire);
+    }
   }
 
   public <T> T getAttr(String key) {

@@ -2,7 +2,6 @@ package com.tqxd.jys.timeline.cmd;
 
 
 import com.tqxd.jys.common.payload.KlineTick;
-import com.tqxd.jys.common.payload.TemplatePayload;
 import com.tqxd.jys.constance.Period;
 import io.vertx.core.AsyncResult;
 import io.vertx.core.Handler;
@@ -13,13 +12,13 @@ public class PollTicksCmd {
   private String symbol;
   private Period period;
   private long from, to;
-  private Handler<AsyncResult<TemplatePayload<List<KlineTick>>>> handler;
+  private Handler<AsyncResult<List<KlineTick>>> handler;
 
-  public Handler<AsyncResult<TemplatePayload<List<KlineTick>>>> getHandler() {
+  public Handler<AsyncResult<List<KlineTick>>> getHandler() {
     return handler;
   }
 
-  public void setHandler(Handler<AsyncResult<TemplatePayload<List<KlineTick>>>> handler) {
+  public void setHandler(Handler<AsyncResult<List<KlineTick>>> handler) {
     this.handler = handler;
   }
 

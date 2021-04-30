@@ -19,7 +19,7 @@ import java.util.function.Predicate;
 public class FastSessionMgr {
   private static final Logger log = LoggerFactory.getLogger(ServerEndpoint.class);
   private final Object[] objects; // must have exact type Object[]
-  private MpscAtomicArrayQueue<Object> freeQueue;
+  private MpscAtomicArrayQueue<Integer> freeQueue;
   private AtomicInteger usedCounter = new AtomicInteger(0);
 
   public FastSessionMgr(int capacity) {
@@ -31,7 +31,7 @@ public class FastSessionMgr {
     for (int i = 0; i < capacity; i++) {
       Session newSession = new Session(i);
       objects[i] = newSession;
-      freeQueue.offer(newSession);
+      freeQueue.offer(i);
     }
     startClearExpiredSessionThread();
   }
@@ -56,7 +56,7 @@ public class FastSessionMgr {
           Session session = (Session) obj;
           if (session.tryToExpired()) {
             usedCounter.decrementAndGet();
-            freeQueue.offer(session);
+            freeQueue.offer(session.id());
             log.info("[SessionMgr]: clear expired session at id: {}", session.id());
           }
         }
@@ -70,12 +70,16 @@ public class FastSessionMgr {
   }
 
   public Session allocate() {
-    Session session;
+    Integer id;
     for (int i = 0; i < 255; i++) {
-      session = (Session) freeQueue.poll();
-      if (session != null && session.tryToUse()) {
-        usedCounter.incrementAndGet();
-        return session;
+      id = freeQueue.poll();
+      Session session;
+      if (id != null) {
+        session = getById(id);
+        if (session != null && session.tryToUse()) {
+          usedCounter.incrementAndGet();
+          return session;
+        }
       }
     }
     throw new RuntimeException("get session fail!");
@@ -84,7 +88,7 @@ public class FastSessionMgr {
   public boolean release(Session session) {
     if (session.tryToFree()) {
       usedCounter.decrementAndGet();
-      freeQueue.offer(session);
+      freeQueue.offer(session.id());
       return true;
     }
     return false;

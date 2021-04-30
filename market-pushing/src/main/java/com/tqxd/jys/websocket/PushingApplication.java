@@ -1,6 +1,7 @@
 package com.tqxd.jys.websocket;
 
 import com.tqxd.jys.messagebus.MessageBusFactory;
+import com.tqxd.jys.timeline.KLineManager;
 import com.tqxd.jys.utils.VertxUtil;
 import io.vertx.core.*;
 import io.vertx.core.eventbus.EventBusOptions;
@@ -26,7 +27,7 @@ public class PushingApplication extends AbstractVerticle {
     kafkaConfig.put("value.serializer", "com.tqxd.jys.messagebus.impl.kafka.KafkaJsonSerializer");
     kafkaConfig.put("key.deserializer", "com.tqxd.jys.messagebus.impl.kafka.KafkaJsonDeSerializer");
     kafkaConfig.put("value.deserializer", "com.tqxd.jys.messagebus.impl.kafka.KafkaJsonDeSerializer");
-    kafkaConfig.put("group.id", "repository");
+    kafkaConfig.put("group.id", "pushing");
     kafkaConfig.put("auto.offset.reset", "earliest");
     kafkaConfig.put("enable.auto.commit", "true");
 
@@ -65,8 +66,11 @@ public class PushingApplication extends AbstractVerticle {
 
   @Override
   public void start(Promise<Void> startPromise) throws Exception {
-    vertx.deployVerticle(new KlineWorkerVerticle(), new DeploymentOptions().setWorker(true));
-    vertx.deployVerticle(new ServerEndpoint(), new DeploymentOptions().setWorker(true));
+    KLineManager klineManager;
+    // 初始化k线管理器
+    klineManager = KLineManager.create();
+    vertx.deployVerticle(new KLineWorkerVerticle(klineManager), new DeploymentOptions().setWorker(true));
+    vertx.deployVerticle(new ServerEndpoint(klineManager), new DeploymentOptions().setWorker(true));
   }
 
   @Override

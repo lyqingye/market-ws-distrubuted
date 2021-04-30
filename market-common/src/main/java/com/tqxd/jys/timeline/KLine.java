@@ -81,7 +81,7 @@ public class KLine {
    * @param from 开始时间
    * @param to   结束时间
    */
-  public void poll(long from, long to, Handler<AsyncResult<TemplatePayload<List<KlineTick>>>> handler) {
+  public void poll(long from, long to, Handler<AsyncResult<List<KlineTick>>> handler) {
     int startIdx = calculateIdx(alignWithPeriod(from, period));
     int endIdx = calculateIdx(alignWithPeriod(to, period));
     if (startIdx >= 0 && startIdx < numOfPeriod && endIdx > startIdx) {
@@ -100,7 +100,7 @@ public class KLine {
       }
       startIdx++;
     }
-    handler.handle(Future.succeededFuture(TemplatePayload.of(HuoBiUtils.toKlineSub(meta.getSymbol(), meta.getPeriod()), result)));
+    handler.handle(Future.succeededFuture(result));
   }
 
   /**
@@ -122,7 +122,7 @@ public class KLine {
     // aggregate the window
     doAggregate(newObj);
     // complete
-    TemplatePayload<KlineTick> tickPayLoad = TemplatePayload.of(HuoBiUtils.toKlineSub(meta.getSymbol(), meta.getPeriod()), updateTick);
+    TemplatePayload<KlineTick> tickPayLoad = TemplatePayload.of(HuoBiUtils.toKlineSub(meta.getSymbol().replace("-", "").toLowerCase(), meta.getPeriod()), updateTick);
     TemplatePayload<MarketDetailTick> detailPayLoad = TemplatePayload.of(HuoBiUtils.toDetailSub(meta.getSymbol()), snapAggregate());
     handler.handle(Future.succeededFuture(new ApplyTickResult(meta.snapshot(), tickPayLoad, detailPayLoad)));
     // apply the committed index

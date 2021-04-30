@@ -3,14 +3,13 @@ package com.tqxd.jys.repository;
 import com.tqxd.jys.common.payload.KlineTick;
 import com.tqxd.jys.common.payload.TemplatePayload;
 import com.tqxd.jys.constance.Period;
-import com.tqxd.jys.disruptor.AbstractDisruptorConsumer;
 import com.tqxd.jys.messagebus.payload.detail.MarketDetailTick;
 import com.tqxd.jys.openapi.payload.KlineSnapshot;
 import com.tqxd.jys.openapi.payload.KlineSnapshotMeta;
 import com.tqxd.jys.repository.redis.RedisHelper;
 import com.tqxd.jys.repository.redis.RedisKeyHelper;
+import com.tqxd.jys.timeline.KLineManager;
 import com.tqxd.jys.timeline.KLineMeta;
-import com.tqxd.jys.timeline.KlineManager;
 import com.tqxd.jys.timeline.cmd.ApplyTickResult;
 import com.tqxd.jys.utils.ChannelUtil;
 import com.tqxd.jys.utils.TimeUtils;
@@ -55,7 +54,7 @@ public class KlineRepository {
   /**
    * k线数据缓存管理器
    */
-  private KlineManager klineManager;
+  private KLineManager klineManager;
 
   /**
    * 初始化仓库
@@ -67,7 +66,8 @@ public class KlineRepository {
     KlineRepository self = new KlineRepository();
     self.redis = Objects.requireNonNull(redis);
     // 创建k线管理器
-    self.klineManager = KlineManager.create(self.klineDataConsumer());
+    self.klineManager = KLineManager.create();
+    self.klineManager.setOutResultConsumer(self::klineDataConsumer);
     Promise<KlineRepository> promise = Promise.promise();
     self.listKlineKeys()
         .onSuccess(keys -> {
@@ -248,32 +248,27 @@ public class KlineRepository {
     });
   }
 
-  private AbstractDisruptorConsumer<Object> klineDataConsumer() {
-    return new AbstractDisruptorConsumer<Object>() {
-      @Override
-      public void process(Object obj) {
-        if (obj instanceof TemplatePayload) {
-          if (((TemplatePayload) obj).getTick() instanceof MarketDetailTick) {
-            TemplatePayload<MarketDetailTick> payload = (TemplatePayload<MarketDetailTick>) obj;
-            redis.set(RedisKeyHelper.toMarketDetailKey(ChannelUtil.getSymbol(payload.getCh())), Json.encode(obj), ar -> {
-              if (ar.failed()) {
-                ar.cause().printStackTrace();
-              }
-            });
+  private void klineDataConsumer(Object obj) {
+    if (obj instanceof TemplatePayload) {
+      if (((TemplatePayload) obj).getTick() instanceof MarketDetailTick) {
+        TemplatePayload<MarketDetailTick> payload = (TemplatePayload<MarketDetailTick>) obj;
+        redis.set(RedisKeyHelper.toMarketDetailKey(ChannelUtil.getSymbol(payload.getCh())), Json.encode(obj), ar -> {
+          if (ar.failed()) {
+            ar.cause().printStackTrace();
           }
-        } else if (obj instanceof ApplyTickResult) {
-          ApplyTickResult result = (ApplyTickResult) obj;
-          applyTickResultAsync(result, ar -> {
-            if (ar.failed()) {
-              log.warn("[Kline-Repository]: update kline tick fail! reason: {}, commitIndex: {} payload: {}", ar.cause().getMessage(), result.getMeta().getCommitIndex(), Json.encode(obj));
-              ar.cause().printStackTrace();
-            }
-          });
-        } else {
-          log.warn("unknown data: {}", obj);
-        }
+        });
       }
-    };
+    } else if (obj instanceof ApplyTickResult) {
+      ApplyTickResult result = (ApplyTickResult) obj;
+      applyTickResultAsync(result, ar -> {
+        if (ar.failed()) {
+          log.warn("[Kline-Repository]: update kline tick fail! reason: {}, commitIndex: {} payload: {}", ar.cause().getMessage(), result.getMeta().getCommitIndex(), Json.encode(obj));
+          ar.cause().printStackTrace();
+        }
+      });
+    } else {
+      log.warn("unknown data: {}", obj);
+    }
   }
 
   /**

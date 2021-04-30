@@ -40,12 +40,14 @@ public enum Period {
     return this.numOfPeriod;
   }
 
-  public static Period ofName(String name) {
+  public static Period valueOfSymbol(String symbol) {
     for (Period value : values()) {
-      if (value.equals(name)) {
+      if (value.symbol.equalsIgnoreCase(symbol)) {
         return value;
       }
     }
     return null;
   }
+
+
 }

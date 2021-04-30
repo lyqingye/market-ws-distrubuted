@@ -96,7 +96,7 @@ public class RepositoryApplication extends AbstractVerticle {
         TemplatePayload<KlineTick> payload = JacksonCodec.decodeValue((String) msg.getPayload(), new TypeReference<TemplatePayload<KlineTick>>() {
         });
         repository.forUpdateKline(msg.getIndex(), msg.getTs(), payload);
-        log.info("[Market-Repository]: for update kline msgIndex: {}, payload: {}", msg.getIndex(), msg.getPayload());
+//        log.info("[Market-Repository]: for update kline msgIndex: {}, payload: {}", msg.getIndex(), msg.getPayload());
         break;
       }
       default:

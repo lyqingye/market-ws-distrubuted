@@ -1,11 +1,20 @@
 package com.tqxd.jys.utils;
 
 import com.tqxd.jys.common.payload.TemplatePayload;
+import com.tqxd.jys.constance.Period;
+
+import java.util.HashMap;
+import java.util.Map;
 
 /**
  * 用于处理 {@link TemplatePayload#getCh()} 的数据
  */
 public class ChannelUtil {
+  /**
+   * k线主题解析缓存
+   */
+  private static Map<String, KLineChannel> KLINE_CHANNEL_RESOLVE_CACHE = new HashMap<>(64);
+
   /**
    * 1. k线channel
    * market.$symbol.kline.$period
@@ -34,6 +43,23 @@ public class ChannelUtil {
     String[] split = ch.split(DOT);
     if (split.length >= 2) {
       return split[1];
+    }
+    return null;
+  }
+
+  /**
+   * 获取主题
+   *
+   * @param ch channel
+   * @return 主题 or null
+   */
+  public static String getTopic(String ch) {
+    if (ch == null || ch.isEmpty()) {
+      return null;
+    }
+    String[] split = ch.split(DOT);
+    if (split.length >= 2) {
+      return split[2];
     }
     return null;
   }
@@ -109,5 +135,51 @@ public class ChannelUtil {
    */
   public static String buildMarketDetailChannel(String symbol) {
     return "market." + symbol + ".detail";
+  }
+
+  /**
+   * 解析k线主题
+   *
+   * @param ch k线主题字符串
+   * @return null or {@link KLineChannel}
+   */
+  public static KLineChannel resolveKLineCh(String ch) {
+    if (ch == null || ch.isEmpty()) {
+      return null;
+    }
+    return KLINE_CHANNEL_RESOLVE_CACHE.computeIfAbsent(ch, k -> {
+      String[] split = ch.split(DOT);
+      if (split.length != 4) {
+        // ``market.$symbol.kline.$period``
+        return null;
+      }
+      String symbol = split[1];
+      Period period = Period.valueOfSymbol(split[3]);
+      if (symbol == null || period == null) {
+        return null;
+      }
+      return new KLineChannel(symbol, period);
+    });
+  }
+
+  //
+  // 解析类
+  //
+  public static class KLineChannel {
+    private String symbol;
+    private Period period;
+
+    public KLineChannel(String symbol, Period period) {
+      this.symbol = symbol;
+      this.period = period;
+    }
+
+    public String getSymbol() {
+      return symbol;
+    }
+
+    public Period getPeriod() {
+      return period;
+    }
   }
 }
