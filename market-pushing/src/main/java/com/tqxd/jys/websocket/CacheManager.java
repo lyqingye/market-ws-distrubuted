@@ -38,6 +38,7 @@ public class CacheManager {
    * 成交记录缓存
    */
   private Map<String, List<TradeDetailTickData>> tradeDetailHistory = new HashMap<>();
+  private Map<String, List<TradeDetailTickData>> tradeDetailHistoryTemp = new HashMap<>();
 
   /**
    * 深度缓存, 默认20档
@@ -135,8 +136,24 @@ public class CacheManager {
    *
    * @param data 交易记录
    */
-  protected void updateTradeDetail (List<TradeDetailTickData> data) {
+  protected void updateTradeDetail (String symbol, List<TradeDetailTickData> data) {
+    String ch = ChannelUtil.buildTradeDetailChannel(symbol);
+    List<TradeDetailTickData> cache = tradeDetailHistory.computeIfAbsent(ch, k -> new ArrayList<>());
+    List<TradeDetailTickData> temp = tradeDetailHistoryTemp.computeIfAbsent(ch, k -> new ArrayList<>());
 
+    // cache始终保持30条，将需要新增的加进去
+    cache.addAll(data);
+    // 只保留30条历史数据
+    if (cache.size() > 30) {
+      temp.addAll(cache.subList(cache.size() - 30, cache.size()));
+    }else {
+      // 如果没超过30条，则拷贝到temp
+      temp.addAll(cache);
+    }
+    // 交换cache 和 temp，交替使用
+    tradeDetailHistory.put(ch,temp);
+    cache.clear();
+    tradeDetailHistoryTemp.put(ch,cache);
   }
 
   /**
@@ -144,8 +161,8 @@ public class CacheManager {
    *
    * @param data 市场概要
    */
-  protected void updateMarketDetail (MarketDetailTick data) {
-
+  protected void updateMarketDetail (String symbol,MarketDetailTick data) {
+    marketDetailCache.put(ChannelUtil.buildMarketDetailChannel(symbol),data);
   }
 
   /**
