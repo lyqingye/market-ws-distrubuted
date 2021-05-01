@@ -40,7 +40,7 @@ public class KLineChannelProcessor implements ChannelProcessor {
       return true;
     }
     // unix 时间戳转换是为了适配火币
-    ctx.getKlineManager().pollTicks(channel.getSymbol(), channel.getPeriod(), from * 1000, to * 1000, h -> {
+    ctx.klineManager().pollTicks(channel.getSymbol(), channel.getPeriod(), from * 1000, to * 1000, h -> {
       if (h.succeeded()) {
         session.writeText(Json.encode(Response.kLineReqOk(id, req, h.result())));
       } else {
@@ -64,7 +64,7 @@ public class KLineChannelProcessor implements ChannelProcessor {
       return true;
     }
     // set subscribe
-    if (ctx.getSessionMgr().subscribeChannel(session,ch)) {
+    if (ctx.sessionManager().subscribeChannel(session,ch)) {
       session.writeText(Json.encode(Response.subOK(id, sub)));
     }else{
       session.writeText(Json.encode(Response.err(id,sub,"server internal error!")));
@@ -85,7 +85,7 @@ public class KLineChannelProcessor implements ChannelProcessor {
       return true;
     }
     // set subscribe
-    if (ctx.getSessionMgr().unsubScribeChannel(session,ch)) {
+    if (ctx.sessionManager().unsubScribeChannel(session,ch)) {
       session.writeText(Json.encode(Response.unSubOK(id, unsub)));
     }else {
       session.writeText(Json.encode(Response.err(id,unsub,"server internal error!")));

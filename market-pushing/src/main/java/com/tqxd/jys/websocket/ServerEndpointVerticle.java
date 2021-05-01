@@ -10,7 +10,7 @@ import com.tqxd.jys.websocket.processor.ChannelProcessor;
 import com.tqxd.jys.websocket.processor.Context;
 import com.tqxd.jys.websocket.processor.Response;
 import com.tqxd.jys.websocket.processor.impl.KLineChannelProcessor;
-import com.tqxd.jys.websocket.session.FastSessionMgr;
+import com.tqxd.jys.websocket.session.SessionManager;
 import com.tqxd.jys.websocket.session.Session;
 import io.vertx.core.AbstractVerticle;
 import io.vertx.core.Promise;
@@ -40,14 +40,14 @@ public class ServerEndpointVerticle extends AbstractVerticle {
     /**
      * 会话管理器
      */
-    private FastSessionMgr sessionMgr = new FastSessionMgr(1 << 16);
+    private SessionManager sessionMgr = new SessionManager(1 << 16);
     private Context context;
     private TimeUnit timeUnit = TimeUnit.SECONDS;
     private long expire = 30;
 
     public ServerEndpointVerticle(KLineManager kLineManager) {
         kLineManager.setOutResultConsumer(this::onUpdateData);
-        context = new Context(sessionMgr, kLineManager);
+        context = new Context(sessionMgr, kLineManager,new CacheManager(kLineManager));
     }
 
     @Override

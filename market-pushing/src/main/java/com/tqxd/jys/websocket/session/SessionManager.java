@@ -19,7 +19,7 @@ import java.util.function.Predicate;
  *
  * @author lyqingye
  */
-public class FastSessionMgr {
+public class SessionManager {
   private static final Logger log = LoggerFactory.getLogger(ServerEndpointVerticle.class);
   private final int capacity;
   private final Object[] objects; // must have exact type Object[]
@@ -37,7 +37,7 @@ public class FastSessionMgr {
   //
   private Map<String, long[]> partition = new HashMap<>();
 
-  public FastSessionMgr(int capacity) {
+  public SessionManager(int capacity) {
     if (capacity < 64 || capacity %8 != 0) {
       throw new IllegalArgumentException("capacity must be >= 64 && capacity % 8 == 0");
     }

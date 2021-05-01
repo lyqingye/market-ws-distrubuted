@@ -129,6 +129,15 @@ public class ChannelUtil {
   }
 
   /**
+   * 生成交易记录channel
+   *
+   * @param symbol 交易对
+   */
+  public static String buildTradeDetailChannel(String symbol) {
+    return "market." + symbol + ".trade.detail";
+  }
+
+  /**
    * 生成市场概要channel
    *
    * @param symbol 交易对
