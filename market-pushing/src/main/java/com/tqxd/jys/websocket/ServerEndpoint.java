@@ -9,6 +9,7 @@ import com.tqxd.jys.timeline.cmd.ApplyTickResult;
 import com.tqxd.jys.utils.ChannelUtil;
 import com.tqxd.jys.websocket.processor.ChannelProcessor;
 import com.tqxd.jys.websocket.processor.Context;
+import com.tqxd.jys.websocket.processor.Response;
 import com.tqxd.jys.websocket.processor.impl.KLineChannelProcessor;
 import com.tqxd.jys.websocket.session.FastSessionMgr;
 import com.tqxd.jys.websocket.session.Session;
@@ -43,7 +44,7 @@ public class ServerEndpoint extends AbstractVerticle {
     private FastSessionMgr sessionMgr = new FastSessionMgr(1 << 16);
     private Context context;
     private TimeUnit timeUnit = TimeUnit.SECONDS;
-    private long expire = -1;
+    private long expire = 30;
 
     public ServerEndpoint(KLineManager kLineManager) {
         kLineManager.setOutResultConsumer(this::onUpdateData);
@@ -68,9 +69,7 @@ public class ServerEndpoint extends AbstractVerticle {
                 if (frame.isText() && frame.isFinal()) {
                     this.onReceiveTextMsg(session, frame.textData());
                 } else {
-                    if (frame.isClose()) {
-                        safeRelease(session);
-                    } else {
+                    if (!frame.isClose()) {
                         log.warn("[KlineWorker]: binary frame is not supported!");
                     }
                 }
@@ -100,7 +99,13 @@ public class ServerEndpoint extends AbstractVerticle {
      * @param msg     消息
      */
     private void onReceiveTextMsg(Session session, String msg) {
-        JsonObject jsonObj = (JsonObject) Json.decodeValue(msg);
+        JsonObject jsonObj;
+        try{
+         jsonObj = (JsonObject) Json.decodeValue(msg);
+        }catch (Exception ex) {
+          session.writeText(Json.encode(Response.err(null,null,"only support json message!")));
+          return;
+        }
         // 忽略心跳
         if (jsonObj.containsKey("ping")) {
             return;
@@ -127,8 +132,8 @@ public class ServerEndpoint extends AbstractVerticle {
                 }
             }
         } else {
+            session.writeText(Json.encode(Response.err(null,null,"unknown message: {}" + msg)));
             log.warn("[ServerEndpoint]: unknown message: {}", msg);
-            return;
         }
     }
 
@@ -146,26 +151,15 @@ public class ServerEndpoint extends AbstractVerticle {
         }
     }
 
-    private void processRequest(Session session, JsonObject obj) {
-
-    }
-
-    private void processSubscribe(Session session, JsonObject obj) {
-
-    }
-
-    private void processUnSubscribe(Session session, JsonObject obj) {
-
-    }
-
     /**
      * 释放会话
      *
      * @param session 会话释放
      */
     private void safeRelease(Session session) {
-        if (sessionMgr.release(session)) {
-            log.warn("release session fail! sessionId: {}", session.id());
+        if (!sessionMgr.release(session)) {
+            log.warn("release session fail! the session maybe already released! sessionId: {}", session.id());
         }
+        sessionMgr.removeSessionSubscribedAllChannels(session);
     }
 }

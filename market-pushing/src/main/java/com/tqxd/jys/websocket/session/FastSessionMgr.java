@@ -73,9 +73,8 @@ public class FastSessionMgr {
         for (Object obj : objects) {
           Session session = (Session) obj;
           if (session.tryToExpired()) {
-            usedCounter.decrementAndGet();
             freeQueue.offer(session.id());
-            log.info("[SessionMgr]: clear expired session at id: {}", session.id());
+            log.info("[SessionMgr]: clear expired session at id: {}! current number of online session is: {}", session.id(),usedCounter.decrementAndGet());
           }
         }
         try {
@@ -95,7 +94,7 @@ public class FastSessionMgr {
       if (id != null) {
         session = getById(id);
         if (session != null && session.tryToUse()) {
-          usedCounter.incrementAndGet();
+          log.info("[SessionMgr]: allocate session: {}! current number of online session is: {}",session.id(),usedCounter.incrementAndGet());
           return session;
         }
       }
@@ -105,8 +104,8 @@ public class FastSessionMgr {
 
   public boolean release(Session session) {
     if (session.tryToFree()) {
-      usedCounter.decrementAndGet();
       freeQueue.offer(session.id());
+      log.info("[SessionMgr]: release session: {}! current number of online session is: {}",session.id(),usedCounter.decrementAndGet());
       return true;
     }
     return false;
@@ -205,29 +204,38 @@ public class FastSessionMgr {
     }
   }
 
+  public void removeSessionSubscribedAllChannels (Session session) {
+    if(session == null)
+      return;
+    int id = session.id();
+    for (long[] bitmap : partition.values()) {
+      bitmap[id >> ADDRESS_BITS_PER_WORD] &= ~(1L << id);
+    }
+  }
+
   public boolean subscribeChannel (Session session, String ch){
-    long[] bitset = partition.get(ch);
-    if (bitset == null) {
+    long[] bitmap = partition.get(ch);
+    if (bitmap == null) {
       return false;
     }
     int id = session.id();
-    bitset[id >> ADDRESS_BITS_PER_WORD] |= (1L << id);
+    bitmap[id >> ADDRESS_BITS_PER_WORD] |= (1L << id);
     return true;
   }
 
   public boolean unsubScribeChannel(Session session,String ch) {
-    long[] bitset = partition.get(ch);
-    if (bitset == null) {
+    long[] bitmap = partition.get(ch);
+    if (bitmap == null) {
       return false;
     }
 
     int id = session.id();
-    bitset[id >> ADDRESS_BITS_PER_WORD] &= ~(1L << id);
+    bitmap[id >> ADDRESS_BITS_PER_WORD] &= ~(1L << id);
     return true;
   }
 
   private long[] selectPartition(String ch) {
-    return partition.computeIfAbsent(ch, k -> new long[capacity]);
+    return partition.computeIfAbsent(ch, k -> new long[capacity >> ADDRESS_BITS_PER_WORD]);
   }
 
 
