@@ -161,6 +161,8 @@ public class ServerEndpointVerticle extends AbstractVerticle {
       String marketDetailCh = ChannelUtil.buildMarketDetailChannel(aggregate.getSymbol());
       TemplatePayload<MarketDetailTick> detail = TemplatePayload.of(marketDetailCh, aggregate.getTick());
       sessionMgr.foreachSessionByChannel(marketDetailCh, session -> session.writeText(Json.encode(detail)));
+    }else {
+      log.info("[ServerEndpoint]: unknown updated data: {}",Json.encode(data));
     }
   }
 
