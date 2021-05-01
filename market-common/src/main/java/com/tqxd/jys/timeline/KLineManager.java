@@ -8,10 +8,7 @@ import com.tqxd.jys.disruptor.DisruptorQueue;
 import com.tqxd.jys.disruptor.DisruptorQueueFactory;
 import com.tqxd.jys.messagebus.payload.detail.MarketDetailTick;
 import com.tqxd.jys.openapi.payload.KlineSnapshot;
-import com.tqxd.jys.timeline.cmd.ApplySnapshotCmd;
-import com.tqxd.jys.timeline.cmd.ApplyTickCmd;
-import com.tqxd.jys.timeline.cmd.ApplyTickResult;
-import com.tqxd.jys.timeline.cmd.PollTicksCmd;
+import com.tqxd.jys.timeline.cmd.*;
 import com.tqxd.jys.utils.ChannelUtil;
 import io.vertx.core.AsyncResult;
 import io.vertx.core.Future;
@@ -141,7 +138,7 @@ public class KLineManager {
         MarketDetailTick aggregate = timeLine.tick();
         // k线窗口滑动，触发了数据聚合
         if (aggregate != null) {
-          outResultQueue.add(TemplatePayload.of(ChannelUtil.buildMarketDetailChannel(timeLine.meta().getSymbol()), aggregate));
+          outResultQueue.add(new KLineAggregateResult(timeLine.meta().getSymbol(),aggregate));
         }
       }
     }

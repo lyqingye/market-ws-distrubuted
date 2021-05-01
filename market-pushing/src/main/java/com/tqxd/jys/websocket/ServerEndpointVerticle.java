@@ -12,6 +12,7 @@ import com.tqxd.jys.websocket.processor.ChannelProcessor;
 import com.tqxd.jys.websocket.processor.Context;
 import com.tqxd.jys.websocket.processor.Response;
 import com.tqxd.jys.websocket.processor.impl.KLineChannelProcessor;
+import com.tqxd.jys.websocket.processor.impl.MarketDetailChannelProcessor;
 import com.tqxd.jys.websocket.session.Session;
 import com.tqxd.jys.websocket.session.SessionManager;
 import io.vertx.core.AbstractVerticle;
@@ -31,7 +32,10 @@ import java.util.concurrent.TimeUnit;
  */
 public class ServerEndpointVerticle extends AbstractVerticle {
   private static final Logger log = LoggerFactory.getLogger(ServerEndpointVerticle.class);
-  private static final ChannelProcessor PROCESSORS[] = {new KLineChannelProcessor()};
+  private static final ChannelProcessor PROCESSORS[] = {
+      new KLineChannelProcessor(),
+      new MarketDetailChannelProcessor()
+  };
   /**
    * websocket 服务器
    */
@@ -42,7 +46,7 @@ public class ServerEndpointVerticle extends AbstractVerticle {
   private SessionManager sessionMgr = new SessionManager(1 << 16);
   private Context context;
   private TimeUnit timeUnit = TimeUnit.SECONDS;
-  private long expire = 30;
+  private long expire = -1;
 
   public ServerEndpointVerticle(KLineManager kLineManager) {
     kLineManager.setOutResultConsumer(this::onUpdateData);
@@ -145,13 +149,15 @@ public class ServerEndpointVerticle extends AbstractVerticle {
       TemplatePayload<KlineTick> tick = TemplatePayload.of(kLineTickCh, result.getTick());
       sessionMgr.foreachSessionByChannel(kLineTickCh, session -> session.writeText(Json.encode(tick)));
 
-      // 推送市场详情
-      String marketDetailCh = ChannelUtil.buildMarketDetailChannel(meta.getSymbol());
-      TemplatePayload<MarketDetailTick> detail = TemplatePayload.of(marketDetailCh, result.getDetail());
-      sessionMgr.foreachSessionByChannel(marketDetailCh, session -> session.writeText(Json.encode(detail)));
+      if (result.getDetail() != null) {
+        // 推送市场详情
+        String marketDetailCh = ChannelUtil.buildMarketDetailChannel(meta.getSymbol());
+        TemplatePayload<MarketDetailTick> detail = TemplatePayload.of(marketDetailCh, result.getDetail());
+        sessionMgr.foreachSessionByChannel(marketDetailCh, session -> session.writeText(Json.encode(detail)));
 
-      // 更新缓存
-      context.cacheManager().updateMarketDetail(meta.getSymbol(), result.getDetail());
+        // 更新缓存
+        context.cacheManager().updateMarketDetail(meta.getSymbol(), result.getDetail());
+      }
     } else if (data instanceof KLineAggregateResult) {
       KLineAggregateResult aggregate = (KLineAggregateResult) data;
       // 更新缓存

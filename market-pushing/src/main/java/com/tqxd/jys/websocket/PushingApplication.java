@@ -69,8 +69,13 @@ public class PushingApplication extends AbstractVerticle {
     KLineManager klineManager;
     // 初始化k线管理器
     klineManager = KLineManager.create();
-    vertx.deployVerticle(new KLineWorkerVerticle(klineManager), new DeploymentOptions().setWorker(true));
-    vertx.deployVerticle(new ServerEndpointVerticle(klineManager), new DeploymentOptions().setWorker(true));
+    vertx.deployVerticle(new KLineWorkerVerticle(klineManager), new DeploymentOptions().setWorker(true))
+        .compose(c -> vertx.deployVerticle(new ServerEndpointVerticle(klineManager), new DeploymentOptions().setWorker(true))
+    ).onFailure(throwable -> {
+      log.error("[PushingApplication]: start fail! system will be exit! cause by: {}",throwable.getMessage());
+      throwable.printStackTrace();
+      System.exit(-1);
+    });
   }
 
   @Override

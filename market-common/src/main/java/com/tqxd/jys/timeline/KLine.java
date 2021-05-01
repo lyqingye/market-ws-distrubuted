@@ -240,6 +240,9 @@ public class KLine {
   }
 
   private MarketDetailTick snapAggregate() {
+    if (!autoAggregate) {
+      return null;
+    }
     MarketDetailTick detail = new MarketDetailTick();
     detail.setVol(vol);
     detail.setAmount(amount);

@@ -50,7 +50,7 @@ public class Response<T> {
     return resp;
   }
 
-  public static <T> Response<T> kLineReqOk(String id, String req, T data) {
+  public static <T> Response<T> reqOk(String id, String req, T data) {
     Response<T> resp = new Response<>();
     resp.id = id;
     resp.rep = req;
