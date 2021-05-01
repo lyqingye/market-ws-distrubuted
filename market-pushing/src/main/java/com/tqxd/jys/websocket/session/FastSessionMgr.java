@@ -27,11 +27,21 @@ public class FastSessionMgr {
   private final Object[] objects; // must have exact type Object[]
   private MpscAtomicArrayQueue<Integer> freeQueue;
   private AtomicInteger usedCounter = new AtomicInteger(0);
-  private Map<String, BitSet> partition = new HashMap<>();
+
+  //
+  // bitmap helper
+  //
+  // 2 ^ 6 = 64 = 8bit * sizeof(long) = 8bit * 8byte = 64
+  private final static int ADDRESS_BITS_PER_WORD = 6;
+
+  //
+  // channel -> bitmap
+  //
+  private Map<String, long[]> partition = new HashMap<>();
 
   public FastSessionMgr(int capacity) {
-    if (capacity <= 0) {
-      throw new IllegalArgumentException("capacity must be > 0");
+    if (capacity < 64 || capacity %8 != 0) {
+      throw new IllegalArgumentException("capacity must be >= 64 && capacity % 8 == 0");
     }
     this.capacity = capacity;
     objects = new Object[capacity];
@@ -179,36 +189,46 @@ public class FastSessionMgr {
   // partition helper functions
   //
   public void foreachSessionByChannel (String ch, Consumer<Session> consumer) {
-    BitSet bitSet = selectPartition(ch);
-    for (int i = 0; i < capacity; i++) {
-      if (bitSet.get(i)) {
-        Session session = (Session) objects[i];
-        if (session != null & consumer != null) {
-          consumer.accept(getById(i));
+    long[] bitmap = selectPartition(ch);
+    int count = capacity >> ADDRESS_BITS_PER_WORD;
+    for (int i = 0; i < count; i++) {
+      long word = bitmap[i];
+      for (int j = 0; j < 64; j++) {
+        boolean isSet = (word & (1L << j)) != 0;
+        if (isSet) {
+          Session session = (Session) objects[(i << ADDRESS_BITS_PER_WORD) + j];
+          if (session != null & consumer != null) {
+            consumer.accept(getById(i));
+          }
         }
       }
     }
   }
 
   public boolean subscribeChannel (Session session, String ch){
-    BitSet bitset = partition.get(ch);
+    long[] bitset = partition.get(ch);
     if (bitset == null) {
       return false;
     }
-    bitset.set(session.id(),true);
+    int id = session.id();
+    bitset[id >> ADDRESS_BITS_PER_WORD] |= (1L << id);
     return true;
   }
 
   public boolean unsubScribeChannel(Session session,String ch) {
-    BitSet bitset = partition.get(ch);
+    long[] bitset = partition.get(ch);
     if (bitset == null) {
       return false;
     }
-    bitset.set(session.id(),false);
+
+    int id = session.id();
+    bitset[id >> ADDRESS_BITS_PER_WORD] &= ~(1L << id);
     return true;
   }
 
-  private BitSet selectPartition(String ch) {
-    return partition.computeIfAbsent(ch, k -> new BitSet(capacity));
+  private long[] selectPartition(String ch) {
+    return partition.computeIfAbsent(ch, k -> new long[capacity]);
   }
+
+
 }
