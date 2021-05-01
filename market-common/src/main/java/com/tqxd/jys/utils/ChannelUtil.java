@@ -138,6 +138,16 @@ public class ChannelUtil {
   }
 
   /**
+   * 生成k线tick channel
+   *
+   * @param symbol 交易对
+   * @param period 时间级别
+   */
+  public static String buildKLineTickChannel(String symbol,Period period) {
+    return "market." + symbol + ".kline." + period.getSymbol();
+  }
+
+  /**
    * 解析k线主题
    *
    * @param ch k线主题字符串

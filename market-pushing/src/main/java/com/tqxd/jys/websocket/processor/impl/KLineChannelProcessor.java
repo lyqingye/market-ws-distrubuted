@@ -57,14 +57,18 @@ public class KLineChannelProcessor implements ChannelProcessor {
       return false;
     }
     String id = json.getString("id");
-    String req = json.getString("req");
+    String sub = json.getString("sub");
     ChannelUtil.KLineChannel channel = ChannelUtil.resolveKLineCh(ch);
     if (channel == null) {
-      session.writeText(Json.encode(Response.err(id, req, "invalid kline channel string! format: market.$symbol.kline.$period, example: market.ethbtc.kline.1min")));
+      session.writeText(Json.encode(Response.err(id, sub, "invalid kline channel string! format: market.$symbol.kline.$period, example: market.ethbtc.kline.1min")));
       return true;
     }
     // set subscribe
-    session.setAttr(ch, System.currentTimeMillis());
+    if (ctx.getSessionMgr().subscribeChannel(session,ch)) {
+      session.writeText(Json.encode(Response.subOK(id, sub)));
+    }else{
+      session.writeText(Json.encode(Response.err(id,sub,"server internal error!")));
+    }
     return true;
   }
 
@@ -74,14 +78,18 @@ public class KLineChannelProcessor implements ChannelProcessor {
       return false;
     }
     String id = json.getString("id");
-    String req = json.getString("req");
+    String unsub = json.getString("unsub");
     ChannelUtil.KLineChannel channel = ChannelUtil.resolveKLineCh(ch);
     if (channel == null) {
-      session.writeText(Json.encode(Response.err(id, req, "invalid kline channel string! format: market.$symbol.kline.$period, example: market.ethbtc.kline.1min")));
+      session.writeText(Json.encode(Response.err(id, unsub, "invalid kline channel string! format: market.$symbol.kline.$period, example: market.ethbtc.kline.1min")));
       return true;
     }
     // set subscribe
-    session.setAttr(ch, null);
+    if (ctx.getSessionMgr().unsubScribeChannel(session,ch)) {
+      session.writeText(Json.encode(Response.unSubOK(id, unsub)));
+    }else {
+      session.writeText(Json.encode(Response.err(id,unsub,"server internal error!")));
+    }
     return false;
   }
 

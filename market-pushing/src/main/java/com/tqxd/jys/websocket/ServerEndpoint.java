@@ -1,8 +1,12 @@
 package com.tqxd.jys.websocket;
 
+import com.tqxd.jys.common.payload.KlineTick;
 import com.tqxd.jys.common.payload.TemplatePayload;
+import com.tqxd.jys.constance.Period;
 import com.tqxd.jys.timeline.KLineManager;
+import com.tqxd.jys.timeline.KLineMeta;
 import com.tqxd.jys.timeline.cmd.ApplyTickResult;
+import com.tqxd.jys.utils.ChannelUtil;
 import com.tqxd.jys.websocket.processor.ChannelProcessor;
 import com.tqxd.jys.websocket.processor.Context;
 import com.tqxd.jys.websocket.processor.impl.KLineChannelProcessor;
@@ -131,14 +135,12 @@ public class ServerEndpoint extends AbstractVerticle {
     private void onUpdateData(Object data) {
         if (data instanceof ApplyTickResult) {
             ApplyTickResult result = (ApplyTickResult) data;
-//
-//            try {
-//                sessionMgr.broadcast(Buffer.buffer(GZIPUtils.compress(Json.encode(result.getTick()).getBytes())), session -> {
-//                    return session.getAttr(result.getTick().getCh()) != null;
-//                });
-//            } catch (IOException e) {
-//                e.printStackTrace();
-//            }
+            KLineMeta meta = result.getMeta();
+            String kLineTickCh = ChannelUtil.buildKLineTickChannel(meta.getSymbol(), meta.getPeriod());
+            TemplatePayload<KlineTick> tick = TemplatePayload.of(kLineTickCh,result.getTick());
+            sessionMgr.foreachSessionByChannel(kLineTickCh,session -> {
+                session.writeText(Json.encode(tick));
+            });
         } else if (data instanceof TemplatePayload) {
             System.out.println();
         }
