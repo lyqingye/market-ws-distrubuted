@@ -70,7 +70,7 @@ public class PushingApplication extends AbstractVerticle {
     // 初始化k线管理器
     klineManager = KLineManager.create();
     vertx.deployVerticle(new KLineWorkerVerticle(klineManager), new DeploymentOptions().setWorker(true));
-    vertx.deployVerticle(new ServerEndpoint(klineManager), new DeploymentOptions().setWorker(true));
+    vertx.deployVerticle(new ServerEndpointVerticle(klineManager), new DeploymentOptions().setWorker(true));
   }
 
   @Override

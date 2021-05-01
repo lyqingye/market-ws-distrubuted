@@ -2,7 +2,6 @@ package com.tqxd.jys.websocket;
 
 import com.tqxd.jys.common.payload.KlineTick;
 import com.tqxd.jys.common.payload.TemplatePayload;
-import com.tqxd.jys.constance.Period;
 import com.tqxd.jys.timeline.KLineManager;
 import com.tqxd.jys.timeline.KLineMeta;
 import com.tqxd.jys.timeline.cmd.ApplyTickResult;
@@ -28,8 +27,8 @@ import java.util.concurrent.TimeUnit;
  *
  * @author lyqingye
  */
-public class ServerEndpoint extends AbstractVerticle {
-    private static final Logger log = LoggerFactory.getLogger(ServerEndpoint.class);
+public class ServerEndpointVerticle extends AbstractVerticle {
+    private static final Logger log = LoggerFactory.getLogger(ServerEndpointVerticle.class);
 
     /**
      * websocket 服务器
@@ -46,7 +45,7 @@ public class ServerEndpoint extends AbstractVerticle {
     private TimeUnit timeUnit = TimeUnit.SECONDS;
     private long expire = 30;
 
-    public ServerEndpoint(KLineManager kLineManager) {
+    public ServerEndpointVerticle(KLineManager kLineManager) {
         kLineManager.setOutResultConsumer(this::onUpdateData);
         context = new Context(sessionMgr, kLineManager);
     }

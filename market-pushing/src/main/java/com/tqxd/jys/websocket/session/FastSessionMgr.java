@@ -1,14 +1,12 @@
 package com.tqxd.jys.websocket.session;
 
-import com.tqxd.jys.websocket.ServerEndpoint;
+import com.tqxd.jys.websocket.ServerEndpointVerticle;
 import io.netty.util.internal.shaded.org.jctools.queues.atomic.MpscAtomicArrayQueue;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.http.ServerWebSocket;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javax.annotation.Nonnull;
-import java.util.BitSet;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
@@ -22,7 +20,7 @@ import java.util.function.Predicate;
  * @author lyqingye
  */
 public class FastSessionMgr {
-  private static final Logger log = LoggerFactory.getLogger(ServerEndpoint.class);
+  private static final Logger log = LoggerFactory.getLogger(ServerEndpointVerticle.class);
   private final int capacity;
   private final Object[] objects; // must have exact type Object[]
   private MpscAtomicArrayQueue<Integer> freeQueue;

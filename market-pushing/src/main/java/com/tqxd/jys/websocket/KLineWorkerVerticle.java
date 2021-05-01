@@ -25,13 +25,9 @@ import java.util.List;
 import java.util.Set;
 
 /**
- * 应用模块名称:
- * 代码描述:
- * Copyright: Copyright (C) 2021, Inc. All rights reserved.
- * Company:
+ * k线 verticle
  *
- * @author
- * @since 2021/4/23 21:40
+ * @author lyqingye
  */
 @SuppressWarnings({"rawtypes", "unchecked"})
 public class KLineWorkerVerticle extends AbstractVerticle {
@@ -52,11 +48,13 @@ public class KLineWorkerVerticle extends AbstractVerticle {
   public void start(Promise<Void> startPromise) throws Exception {
     repository = RepositoryOpenApi.createProxy(vertx);
     long startTime = System.currentTimeMillis();
-    CompositeFuture.join(initKline(), listenKlineMessageTopic())
-        .onFailure(startPromise::fail)
+    initKline()
+        .compose(c -> listenKlineMessageTopic())
         .onSuccess(h -> {
           log.info("[KlineWorker]: start kline worker success! using {}ms", System.currentTimeMillis() - startTime);
-        });
+          startPromise.complete();
+        })
+        .onFailure(throwable -> startPromise.fail((Throwable) throwable));
     }
 
     private Future initKline () {
