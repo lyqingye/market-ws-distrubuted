@@ -11,6 +11,7 @@ import com.tqxd.jys.repository.redis.RedisKeyHelper;
 import com.tqxd.jys.timeline.KLineManager;
 import com.tqxd.jys.timeline.KLineMeta;
 import com.tqxd.jys.timeline.cmd.ApplyTickResult;
+import com.tqxd.jys.timeline.cmd.KLineAggregateResult;
 import com.tqxd.jys.utils.ChannelUtil;
 import com.tqxd.jys.utils.TimeUtils;
 import io.vertx.core.*;
@@ -234,15 +235,13 @@ public class KlineRepository {
   }
 
   private void klineDataConsumer(Object obj) {
-    if (obj instanceof TemplatePayload) {
-      if (((TemplatePayload) obj).getTick() instanceof MarketDetailTick) {
-        TemplatePayload<MarketDetailTick> payload = (TemplatePayload<MarketDetailTick>) obj;
-        redis.set(RedisKeyHelper.toMarketDetailKey(ChannelUtil.getSymbol(payload.getCh())), Json.encode(obj), ar -> {
-          if (ar.failed()) {
-            ar.cause().printStackTrace();
-          }
-        });
-      }
+    if (obj instanceof KLineAggregateResult) {
+      KLineAggregateResult aggregate = (KLineAggregateResult) obj;
+      redis.set(RedisKeyHelper.toMarketDetailKey(aggregate.getSymbol()), Json.encode(obj), ar -> {
+        if (ar.failed()) {
+          ar.cause().printStackTrace();
+        }
+      });
     } else if (obj instanceof ApplyTickResult) {
       ApplyTickResult result = (ApplyTickResult) obj;
       applyTickResultAsync(result, ar -> {

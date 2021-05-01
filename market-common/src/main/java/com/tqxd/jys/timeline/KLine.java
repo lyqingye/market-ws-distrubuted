@@ -5,6 +5,7 @@ import com.tqxd.jys.common.payload.TemplatePayload;
 import com.tqxd.jys.constance.Period;
 import com.tqxd.jys.messagebus.payload.detail.MarketDetailTick;
 import com.tqxd.jys.timeline.cmd.ApplyTickResult;
+import com.tqxd.jys.timeline.cmd.KLineAggregateResult;
 import com.tqxd.jys.utils.HuoBiUtils;
 import io.vertx.core.AsyncResult;
 import io.vertx.core.Future;
@@ -133,7 +134,7 @@ public class KLine {
    * @param commitIndex 消息索引
    * @param ticks       tick列表
    */
-  public void applySnapshot(long commitIndex, List<KlineTick> ticks, Handler<AsyncResult<TemplatePayload<MarketDetailTick>>> handler) {
+  public void applySnapshot(long commitIndex, List<KlineTick> ticks, Handler<AsyncResult<KLineAggregateResult>> handler) {
     if (commitIndex < 0) {
       handler.handle(Future.failedFuture("invalid commit index while apply the snapshot! commit index: " + commitIndex));
       return;
@@ -145,7 +146,7 @@ public class KLine {
       }
     }
     meta.applyCommittedIndex(commitIndex);
-    handler.handle(Future.succeededFuture(TemplatePayload.of(HuoBiUtils.toDetailSub(meta.getSymbol()), snapAggregate())));
+    handler.handle(Future.succeededFuture(new KLineAggregateResult(meta.getSymbol(),snapAggregate())));
   }
 
   public MarketDetailTick tick() {

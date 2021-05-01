@@ -13,6 +13,7 @@
         <module>market-common</module>
         <module>market-pushing</module>
         <module>market-repository</module>
+        <module>market-dispatcher</module>
     </modules>
 
     <properties>
