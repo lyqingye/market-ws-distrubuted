@@ -22,6 +22,8 @@ import java.util.Map;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 
+import static com.tqxd.jys.utils.VertxUtil.*;
+
 /**
  * @author yjt
  * @since 2020/10/10 下午3:45
@@ -55,17 +57,17 @@ public class CollectorsApplication extends AbstractVerticle {
         if (clusteredAr.succeeded()) {
           Vertx vertx = clusteredAr.result();
           // 读取kafka配置
-          VertxUtil.readJsonFile(vertx, "kafka-consumer.json")
+          readJsonFile(vertx, "kafka-consumer.json")
             .compose(
-              consumerJson -> VertxUtil.readJsonFile(vertx, "kafka-producer.json")
+              consumerJson -> readJsonFile(vertx, "kafka-producer.json")
                 .compose(producerJson -> {
                   // 初始化消息队列
                   MessageBusFactory.init(MessageBusFactory.KAFKA_MESSAGE_BUS, vertx, consumerJson.mapTo(Map.class), producerJson.mapTo(Map.class));
                   Exception ex;
                   try {
                     // 读取yaml配置，然后部署 verticle
-                    return VertxUtil.readYamlConfig(vertx, "config.yaml")
-                      .compose(yamlConfig -> VertxUtil.deploy(vertx, new CollectorsApplication(), yamlConfig));
+                    return readYamlConfig(vertx, "config.yaml")
+                      .compose(yamlConfig -> deploy(vertx, new CollectorsApplication(), yamlConfig));
                   } catch (ExecutionException | InterruptedException e) {
                     ex = e;
                   }
@@ -111,26 +113,25 @@ public class CollectorsApplication extends AbstractVerticle {
       serviceConsumer = serviceBinder.registerLocal(CollectorOpenApi.class, openService);
     }
     JsonObject config = config();
-    String collectorName = VertxUtil.jsonGetValue(config, "market.collector.name", String.class);
-    List<String> klineSubscribe = VertxUtil.jsonListValue(config, "market.collector.subscribe.kline", String.class);
-    List<String> depthSubscribe = VertxUtil.jsonListValue(config, "market.collector.subscribe.depth", String.class);
-    List<String> tradeDetailSubscribe = VertxUtil.jsonListValue(config, "market.collector.subscribe.trade.detail", String.class);
+    String collectorName = jsonGetValue(config, "market.collector.name", String.class);
+    List<String> klineSubscribe = jsonListValue(config, "market.collector.subscribe.kline", String.class);
+    List<String> depthSubscribe = jsonListValue(config, "market.collector.subscribe.depth", String.class);
+    List<String> tradeDetailSubscribe = jsonListValue(config, "market.collector.subscribe.trade.detail", String.class);
     if (collectorName != null && !collectorName.isEmpty()) {
+      log.info("[Collectors]: deploy collector: " + collectorName);
       Future<Boolean> future = openService.deployCollector(collectorName).compose(ignored -> openService.startCollector(collectorName));
       for (String subscribeSymbol : klineSubscribe) {
-        future = future.compose(ignored -> openService.subscribe(collectorName, DataType.KLINE, subscribeSymbol));
+        future = future.compose(none -> openService.subscribe(collectorName, DataType.KLINE, subscribeSymbol));
       }
       for (String subscribeSymbol : depthSubscribe) {
-        future = future.compose(ignored -> openService.subscribe(collectorName, DataType.DEPTH, subscribeSymbol));
+        future = future.compose(none -> openService.subscribe(collectorName, DataType.DEPTH, subscribeSymbol));
       }
       for (String subscribeSymbol : tradeDetailSubscribe) {
-        future = future.compose(ignored -> openService.subscribe(collectorName, DataType.TRADE_DETAIL, subscribeSymbol));
+        future = future.compose(none -> openService.subscribe(collectorName, DataType.TRADE_DETAIL, subscribeSymbol));
       }
       future.onFailure(promise::fail);
       future.onSuccess(ignored -> {
-        log.info("[Market-KlineCollector]: start success!");
-        log.info("[Market-KlineCollector]: deploy collector: " + collectorName);
-        log.info("[Market-KlineCollector]: subscribe: " + klineSubscribe);
+        log.info("[Collectors]: all subscribe success!");
         promise.complete();
       });
     }

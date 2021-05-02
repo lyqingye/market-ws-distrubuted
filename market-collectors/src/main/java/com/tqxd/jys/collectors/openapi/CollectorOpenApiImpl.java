@@ -61,16 +61,16 @@ public class CollectorOpenApiImpl implements CollectorOpenApi {
     vertx.setPeriodic(TimeUnit.MINUTES.toMillis(10), timeId -> {
       deployMap.values().forEach(collector -> {
         if (collector.stop()) {
-          log.info("[KlineCollector]: stop collector: {} success!", collector.name());
+          log.info("[Collectors]: stop collector: {} success!", collector.name());
           collector.start(ar -> {
             if (ar.succeeded()) {
-              log.info("[KlineCollector]: start collector: {} success!", collector.name());
+              log.info("[Collectors]: start collector: {} success!", collector.name());
             } else {
               ar.cause().printStackTrace();
             }
           });
         } else {
-          log.error("[KlineCollector]: stop collector: {}  fail!", collector.name());
+          log.error("[Collectors]: stop collector: {}  fail!", collector.name());
         }
       });
     });
