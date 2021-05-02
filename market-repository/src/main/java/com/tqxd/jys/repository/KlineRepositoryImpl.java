@@ -3,15 +3,14 @@ package com.tqxd.jys.repository;
 import com.tqxd.jys.common.payload.KlineTick;
 import com.tqxd.jys.common.payload.TemplatePayload;
 import com.tqxd.jys.constance.Period;
-import com.tqxd.jys.messagebus.payload.detail.MarketDetailTick;
 import com.tqxd.jys.openapi.payload.KlineSnapshot;
 import com.tqxd.jys.openapi.payload.KlineSnapshotMeta;
 import com.tqxd.jys.repository.redis.RedisHelper;
 import com.tqxd.jys.repository.redis.RedisKeyHelper;
 import com.tqxd.jys.timeline.KLineManager;
 import com.tqxd.jys.timeline.KLineMeta;
-import com.tqxd.jys.timeline.cmd.ApplyTickResult;
-import com.tqxd.jys.timeline.cmd.KLineAggregateResult;
+import com.tqxd.jys.timeline.cmd.AppendTickResult;
+import com.tqxd.jys.timeline.cmd.AutoAggregateResult;
 import com.tqxd.jys.utils.ChannelUtil;
 import com.tqxd.jys.utils.TimeUtils;
 import io.vertx.core.*;
@@ -30,8 +29,8 @@ import java.util.Set;
  * k线数据的存储，使用redis作为存储
  * @author lyqingye
  */
-public class KlineRepository {
-  private static final Logger log = LoggerFactory.getLogger(KlineRepository.class);
+public class KlineRepositoryImpl {
+  private static final Logger log = LoggerFactory.getLogger(KlineRepositoryImpl.class);
   /**
    * redis repo
    */
@@ -47,14 +46,14 @@ public class KlineRepository {
    *
    * @param redis redis工具类
    */
-  public static Future<KlineRepository> create(Vertx vertx, RedisHelper redis) {
+  public static Future<KlineRepositoryImpl> create(Vertx vertx, RedisHelper redis) {
     log.info("[Kline-Repository]: start load kline data!");
-    KlineRepository self = new KlineRepository();
+    KlineRepositoryImpl self = new KlineRepositoryImpl();
     self.redis = Objects.requireNonNull(redis);
     // 创建k线管理器
     self.klineManager = KLineManager.create();
     self.klineManager.setOutResultConsumer(self::klineDataConsumer);
-    Promise<KlineRepository> promise = Promise.promise();
+    Promise<KlineRepositoryImpl> promise = Promise.promise();
     self.listKlineKeys()
         .onSuccess(keys -> {
           if (keys.isEmpty()) {
@@ -198,7 +197,7 @@ public class KlineRepository {
   /**
    * 更新k线
    */
-  private void applyTickResultAsync(ApplyTickResult data, Handler<AsyncResult<Void>> handler) {
+  private void applyTickResultAsync(AppendTickResult data, Handler<AsyncResult<Void>> handler) {
     KlineTick tick = data.getTick();
     KLineMeta meta = data.getMeta();
     String klineKey = RedisKeyHelper.toKlineDataKey(meta.getSymbol());
@@ -235,15 +234,15 @@ public class KlineRepository {
   }
 
   private void klineDataConsumer(Object obj) {
-    if (obj instanceof KLineAggregateResult) {
-      KLineAggregateResult aggregate = (KLineAggregateResult) obj;
-      redis.set(RedisKeyHelper.toMarketDetailKey(aggregate.getSymbol()), Json.encode(obj), ar -> {
+    if (obj instanceof AutoAggregateResult) {
+      AutoAggregateResult aggregate = (AutoAggregateResult) obj;
+      redis.set(RedisKeyHelper.toMarketDetailKey(aggregate.getMeta().getSymbol()), Json.encode(obj), ar -> {
         if (ar.failed()) {
           ar.cause().printStackTrace();
         }
       });
-    } else if (obj instanceof ApplyTickResult) {
-      ApplyTickResult result = (ApplyTickResult) obj;
+    } else if (obj instanceof AppendTickResult) {
+      AppendTickResult result = (AppendTickResult) obj;
       applyTickResultAsync(result, ar -> {
         if (ar.failed()) {
           log.warn("[Kline-Repository]: update kline tick fail! reason: {}, commitIndex: {} payload: {}", ar.cause().getMessage(), result.getMeta().getCommitIndex(), Json.encode(obj));

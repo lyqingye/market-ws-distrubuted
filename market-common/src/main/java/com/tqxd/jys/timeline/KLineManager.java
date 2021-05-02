@@ -1,15 +1,14 @@
 package com.tqxd.jys.timeline;
 
 import com.tqxd.jys.common.payload.KlineTick;
-import com.tqxd.jys.common.payload.TemplatePayload;
 import com.tqxd.jys.constance.Period;
 import com.tqxd.jys.disruptor.AbstractDisruptorConsumer;
 import com.tqxd.jys.disruptor.DisruptorQueue;
-import com.tqxd.jys.disruptor.DisruptorQueueFactory;
+import com.tqxd.jys.disruptor.DisruptorFactory;
 import com.tqxd.jys.messagebus.payload.detail.MarketDetailTick;
 import com.tqxd.jys.openapi.payload.KlineSnapshot;
+import com.tqxd.jys.openapi.payload.KlineSnapshotMeta;
 import com.tqxd.jys.timeline.cmd.*;
-import com.tqxd.jys.utils.ChannelUtil;
 import io.vertx.core.AsyncResult;
 import io.vertx.core.Future;
 import io.vertx.core.Handler;
@@ -42,7 +41,7 @@ public class KLineManager {
 
   public static KLineManager create() {
     KLineManager mgr = new KLineManager();
-    mgr.outResultQueue = DisruptorQueueFactory.createQueue(1 << 16, mgr.createThreadFactory("kline-output-result-thread-"), mgr.adapterConsumer());
+    mgr.outResultQueue = DisruptorFactory.createQueue(1 << 16, mgr.createThreadFactory("kline-output-result-thread-"), mgr.adapterConsumer());
     mgr.startJob();
     return mgr;
   }
@@ -56,11 +55,11 @@ public class KLineManager {
    *
    * @param committedIndex 消息索引
    * @param tick           tick
-   * @return {@link ApplyTickResult} 不为null
+   * @return {@link AppendTickResult} 不为null
    */
   public void applyTick(String symbol, Period period, long committedIndex, @NonNull KlineTick tick,
                         @NonNull Handler<AsyncResult<Long>> handler) {
-    ApplyTickCmd cmd = new ApplyTickCmd();
+    AppendTickCmd cmd = new AppendTickCmd();
     cmd.setSymbol(symbol);
     cmd.setPeriod(period);
     cmd.setCommitIndex(committedIndex);
@@ -71,7 +70,7 @@ public class KLineManager {
 
   public void pollTicks(String symbol, Period period, long from, long to,
                         @NonNull Handler<AsyncResult<List<KlineTick>>> handler) {
-    PollTicksCmd cmd = new PollTicksCmd();
+    QueryHistoryCmd cmd = new QueryHistoryCmd();
     cmd.setSymbol(symbol);
     cmd.setPeriod(period);
     cmd.setFrom(from);
@@ -82,11 +81,8 @@ public class KLineManager {
 
   public void applySnapshot(KlineSnapshot snapshot,
                             @NonNull Handler<AsyncResult<Void>> handler) {
-    ApplySnapshotCmd cmd = new ApplySnapshotCmd();
-    cmd.setSymbol(snapshot.getMeta().getSymbol());
-    cmd.setPeriod(snapshot.getMeta().getPeriod());
-    cmd.setCommitIndex(snapshot.getMeta().getCommittedIndex());
-    cmd.setTicks(snapshot.getTickList());
+    RestoreSnapshotCmd cmd = new RestoreSnapshotCmd();
+    cmd.setSnapshot(snapshot);
     cmd.setHandler(handler);
     inCmdQueue.offer(cmd);
   }
@@ -113,12 +109,12 @@ public class KLineManager {
           // 处理命令
           Object obj;
           while ((obj = inCmdQueue.poll()) != null) {
-            if (obj instanceof ApplyTickCmd) {
-              execApplyTickCmd((ApplyTickCmd) obj);
-            } else if (obj instanceof PollTicksCmd) {
-              execPollTicksCmd((PollTicksCmd) obj);
-            } else if (obj instanceof ApplySnapshotCmd) {
-              execApplySnapshotCmd((ApplySnapshotCmd) obj);
+            if (obj instanceof AppendTickCmd) {
+              execApplyTickCmd((AppendTickCmd) obj);
+            } else if (obj instanceof QueryHistoryCmd) {
+              execPollTicksCmd((QueryHistoryCmd) obj);
+            } else if (obj instanceof RestoreSnapshotCmd) {
+              execApplySnapshotCmd((RestoreSnapshotCmd) obj);
             }
           }
           Thread.sleep(10);
@@ -138,15 +134,15 @@ public class KLineManager {
         MarketDetailTick aggregate = timeLine.tick();
         // k线窗口滑动，触发了数据聚合
         if (aggregate != null) {
-          outResultQueue.add(new KLineAggregateResult(timeLine.meta().getSymbol(),aggregate));
+          outResultQueue.add(new AutoAggregateResult(timeLine.meta().snapshot(),aggregate));
         }
       }
     }
   }
 
-  private void execApplyTickCmd(ApplyTickCmd cmd) {
+  private void execApplyTickCmd(AppendTickCmd cmd) {
     selectKline(cmd.getSymbol(), cmd.getPeriod())
-        .applyTick(cmd.getCommitIndex(), cmd.getTick(), ar -> {
+        .append(cmd.getCommitIndex(), cmd.getTick(), ar -> {
           if (ar.succeeded()) {
             outResultQueue.add(ar.result());
             cmd.getHandler().handle(Future.succeededFuture(cmd.getCommitIndex()));
@@ -156,13 +152,14 @@ public class KLineManager {
         });
   }
 
-  private void execPollTicksCmd(PollTicksCmd cmd) {
-    selectKline(cmd.getSymbol(), cmd.getPeriod()).poll(cmd.getFrom(), cmd.getTo(), cmd.getHandler());
+  private void execPollTicksCmd(QueryHistoryCmd cmd) {
+    selectKline(cmd.getSymbol(), cmd.getPeriod()).query(cmd.getFrom(), cmd.getTo(), cmd.getHandler());
   }
 
-  private void execApplySnapshotCmd(ApplySnapshotCmd cmd) {
-    selectKline(cmd.getSymbol(), cmd.getPeriod())
-        .applySnapshot(cmd.getCommitIndex(), cmd.getTicks(), ar -> {
+  private void execApplySnapshotCmd(RestoreSnapshotCmd cmd) {
+    KlineSnapshotMeta meta = cmd.getSnapshot().getMeta();
+    selectKline(meta.getSymbol(), meta.getPeriod())
+        .restoreWithSnapshot(cmd.getSnapshot(), ar -> {
           if (ar.succeeded()) {
             outResultQueue.add(ar.result());
             cmd.getHandler().handle(Future.succeededFuture());

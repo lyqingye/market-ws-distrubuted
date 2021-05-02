@@ -11,7 +11,7 @@ import java.util.concurrent.ThreadFactory;
  * @author yjt
  * @since 2020/9/24 下午3:49
  */
-public class DisruptorQueueFactory {
+public class DisruptorFactory {
 
   public static <T> DisruptorQueue<T> createQueue(int queueSize, AbstractDisruptorConsumer<T> consumer) {
     Disruptor<ObjectEvent<T>> disruptor = new Disruptor<>(new ObjectEventFactory<T>(), queueSize, Executors.defaultThreadFactory(), ProducerType.MULTI, new BlockingWaitStrategy());

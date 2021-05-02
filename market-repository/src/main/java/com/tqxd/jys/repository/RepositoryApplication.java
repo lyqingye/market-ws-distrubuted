@@ -12,12 +12,10 @@ import com.tqxd.jys.utils.VertxUtil;
 import io.vertx.core.*;
 import io.vertx.core.json.JsonObject;
 import io.vertx.core.json.jackson.JacksonCodec;
-import io.vertx.core.spi.cluster.ClusterManager;
 import io.vertx.spi.cluster.zookeeper.ZookeeperClusterManager;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.ExecutionException;
 
@@ -73,7 +71,7 @@ public class RepositoryApplication extends AbstractVerticle {
       redisConnString = VertxUtil.jsonGetValue(config, "market.repository.redis.connectionString", String.class, redisConnString);
     }
     RedisHelper.create(vertx, redisConnString)
-        .compose(redis -> KlineRepository.create(vertx, redis))
+        .compose(redis -> KlineRepositoryImpl.create(vertx, redis))
         .compose(repository -> {
           // 开放Open API
           RepositoryOpenApiImpl.init(vertx, repository);
@@ -83,7 +81,7 @@ public class RepositoryApplication extends AbstractVerticle {
         .onFailure(startPromise::fail);
   }
 
-  private void processKlineMessage(KlineRepository repository, Message<?> msg) {
+  private void processKlineMessage(KlineRepositoryImpl repository, Message<?> msg) {
     switch (msg.getType()) {
       case KLINE: {
         TemplatePayload<KlineTick> payload = JacksonCodec.decodeValue((String) msg.getPayload(), new TypeReference<TemplatePayload<KlineTick>>() {

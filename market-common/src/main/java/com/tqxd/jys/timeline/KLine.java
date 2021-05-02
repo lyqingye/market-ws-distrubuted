@@ -1,12 +1,12 @@
 package com.tqxd.jys.timeline;
 
 import com.tqxd.jys.common.payload.KlineTick;
-import com.tqxd.jys.common.payload.TemplatePayload;
 import com.tqxd.jys.constance.Period;
 import com.tqxd.jys.messagebus.payload.detail.MarketDetailTick;
-import com.tqxd.jys.timeline.cmd.ApplyTickResult;
-import com.tqxd.jys.timeline.cmd.KLineAggregateResult;
-import com.tqxd.jys.utils.HuoBiUtils;
+import com.tqxd.jys.openapi.payload.KlineSnapshot;
+import com.tqxd.jys.openapi.payload.KlineSnapshotMeta;
+import com.tqxd.jys.timeline.cmd.AppendTickResult;
+import com.tqxd.jys.timeline.cmd.AutoAggregateResult;
 import io.vertx.core.AsyncResult;
 import io.vertx.core.Future;
 import io.vertx.core.Handler;
@@ -82,7 +82,7 @@ public class KLine {
    * @param from 开始时间
    * @param to   结束时间
    */
-  public void poll(long from, long to, Handler<AsyncResult<List<KlineTick>>> handler) {
+  public void query(long from, long to, Handler<AsyncResult<List<KlineTick>>> handler) {
     int startIdx = calculateIdx(alignWithPeriod(from, period));
     int endIdx = calculateIdx(alignWithPeriod(to, period));
     if (startIdx >= 0 && startIdx < numOfPeriod && endIdx > startIdx) {
@@ -110,12 +110,12 @@ public class KLine {
    * @param commitIndex 消息索引
    * @param newObj      tick
    */
-  public void applyTick(long commitIndex, KlineTick newObj, Handler<AsyncResult<ApplyTickResult>> handler) {
+  public void append(long commitIndex, KlineTick newObj, Handler<AsyncResult<AppendTickResult>> handler) {
     if (commitIndex <= meta.getCommitIndex()) {
       handler.handle(Future.failedFuture("invalid commit index cur commitIndex: " + meta.getCommitIndex() + " cmd commitIndex: " + commitIndex));
       return;
     }
-    KlineTick updateTick = applyTick(newObj);
+    KlineTick updateTick = append(newObj);
     if (updateTick == null) {
       handler.handle(Future.failedFuture("apply tick fail! index outbound: " + calculateIdx(newObj.getTime())));
       return;
@@ -123,35 +123,51 @@ public class KLine {
     // aggregate the window
     doAggregate(newObj);
     // complete
-    handler.handle(Future.succeededFuture(new ApplyTickResult(meta.snapshot(), updateTick, snapAggregate())));
+    handler.handle(Future.succeededFuture(new AppendTickResult(meta.snapshot(), updateTick, snapAggregate())));
     // apply the committed index
     meta.applyCommittedIndex(commitIndex);
   }
 
+  public KlineSnapshot snapshot () {
+    KlineSnapshot snapshot = new KlineSnapshot();
+    KlineSnapshotMeta meta = new KlineSnapshotMeta();
+    meta.setTs(System.currentTimeMillis());
+    meta.setSymbol(meta.getSymbol());
+    meta.setCommittedIndex(meta.getCommittedIndex());
+    meta.setPeriod(meta.getPeriod());
+    snapshot.setMeta(meta);
+    List<KlineTick> copy = new ArrayList<>(data.length);
+    for (Object obj : data) {
+      if (obj != null) {
+        copy.add((KlineTick) obj);
+      }
+    }
+    snapshot.setTickList(copy);
+    return snapshot;
+  }
+
   /**
    * 应用快照
-   *
-   * @param commitIndex 消息索引
-   * @param ticks       tick列表
    */
-  public void applySnapshot(long commitIndex, List<KlineTick> ticks, Handler<AsyncResult<KLineAggregateResult>> handler) {
-    if (commitIndex < 0) {
-      handler.handle(Future.failedFuture("invalid commit index while apply the snapshot! commit index: " + commitIndex));
+  public void restoreWithSnapshot(KlineSnapshot snapshot, Handler<AsyncResult<AutoAggregateResult>> handler) {
+    KlineSnapshotMeta meta = snapshot.getMeta();
+    if (meta.getCommittedIndex() < 0) {
+      handler.handle(Future.failedFuture("invalid commit index while apply the snapshot! commit index: " + meta.getCommittedIndex()));
       return;
     }
-    for (KlineTick tick : ticks) {
-      KlineTick newObj = applyTick(tick);
+    for (KlineTick tick : snapshot.getTickList()) {
+      KlineTick newObj = append(tick);
       if (newObj != null) {
         doAggregate(newObj);
       }
     }
-    meta.applyCommittedIndex(commitIndex);
-    handler.handle(Future.succeededFuture(new KLineAggregateResult(meta.getSymbol(),snapAggregate())));
+    this.meta.applyCommittedIndex(meta.getCommittedIndex());
+    handler.handle(Future.succeededFuture(new AutoAggregateResult(this.meta.snapshot(),snapAggregate())));
   }
 
   public MarketDetailTick tick() {
     MarketDetailTick result = null;
-    if (execUpdateWindow()) {
+    if (updateWindow()) {
       if (autoAggregate) {
         result = snapAggregate();
       }
@@ -159,7 +175,7 @@ public class KLine {
     return result;
   }
 
-  private KlineTick applyTick(KlineTick newObj) {
+  private KlineTick append(KlineTick newObj) {
     int idx = calculateIdx(newObj.getTime());
     if (idx < 0 || idx >= numOfPeriod) {
       return null;
@@ -179,7 +195,7 @@ public class KLine {
     return (KlineTick) data[idx];
   }
 
-  private boolean execUpdateWindow() {
+  private boolean updateWindow() {
     long now = alignWithPeriod(System.currentTimeMillis(), period);
     int roteCount = Math.toIntExact((now - tt) / period);
     if (roteCount != 0) {
@@ -216,24 +232,29 @@ public class KLine {
   }
 
   private void doAggregate(KlineTick tick) {
-    if (!autoAggregate || tick == null)
+    if (!autoAggregate || tick == null) {
       return;
+    }
     count += tick.getCount();
     amount = amount.add(tick.getAmount());
     vol = vol.add(tick.getVol());
     close = tick.getClose();
-    if (open.compareTo(BigDecimal.ZERO) == 0)
+    if (open.compareTo(BigDecimal.ZERO) == 0) {
       open = tick.getOpen();
+    }
     close = tick.getClose();
-    if (tick.getHigh().compareTo(high) > 0)
+    if (tick.getHigh().compareTo(high) > 0) {
       high = tick.getHigh();
-    if (tick.getLow().compareTo(low) > 0)
+    }
+    if (tick.getLow().compareTo(low) > 0) {
       low = tick.getLow();
+    }
   }
 
   private void doRollbackAggregate(KlineTick oldTick) {
-    if (!autoAggregate || oldTick == null)
+    if (!autoAggregate || oldTick == null) {
       return;
+    }
     count -= oldTick.getCount();
     amount = amount.subtract(oldTick.getAmount());
     vol = vol.subtract(oldTick.getVol());

@@ -5,8 +5,8 @@ import com.tqxd.jys.common.payload.TemplatePayload;
 import com.tqxd.jys.messagebus.payload.detail.MarketDetailTick;
 import com.tqxd.jys.timeline.KLineManager;
 import com.tqxd.jys.timeline.KLineMeta;
-import com.tqxd.jys.timeline.cmd.ApplyTickResult;
-import com.tqxd.jys.timeline.cmd.KLineAggregateResult;
+import com.tqxd.jys.timeline.cmd.AppendTickResult;
+import com.tqxd.jys.timeline.cmd.AutoAggregateResult;
 import com.tqxd.jys.utils.ChannelUtil;
 import com.tqxd.jys.websocket.processor.ChannelProcessor;
 import com.tqxd.jys.websocket.processor.Context;
@@ -142,8 +142,8 @@ public class ServerEndpointVerticle extends AbstractVerticle {
   }
 
   private void onKLineManagerDataUpdate(Object data) {
-    if (data instanceof ApplyTickResult) {
-      ApplyTickResult result = (ApplyTickResult) data;
+    if (data instanceof AppendTickResult) {
+      AppendTickResult result = (AppendTickResult) data;
       KLineMeta meta = result.getMeta();
 
       // 推送k线
@@ -160,13 +160,13 @@ public class ServerEndpointVerticle extends AbstractVerticle {
         // 更新缓存
         context.cacheManager().updateMarketDetail(meta.getSymbol(), result.getDetail());
       }
-    } else if (data instanceof KLineAggregateResult) {
-      KLineAggregateResult aggregate = (KLineAggregateResult) data;
+    } else if (data instanceof AutoAggregateResult) {
+      AutoAggregateResult aggregate = (AutoAggregateResult) data;
       // 更新缓存
-      context.cacheManager().updateMarketDetail(aggregate.getSymbol(), aggregate.getTick());
+      context.cacheManager().updateMarketDetail(aggregate.getMeta().getSymbol(), aggregate.getTick());
 
       // 推送市场详情
-      String marketDetailCh = ChannelUtil.buildMarketDetailChannel(aggregate.getSymbol());
+      String marketDetailCh = ChannelUtil.buildMarketDetailChannel(aggregate.getMeta().getSymbol());
       TemplatePayload<MarketDetailTick> detail = TemplatePayload.of(marketDetailCh, aggregate.getTick());
       sessionMgr.foreachSessionByChannel(marketDetailCh, session -> session.writeText(Json.encode(detail)));
     }else {

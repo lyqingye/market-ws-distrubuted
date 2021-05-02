@@ -2,7 +2,7 @@ package com.tqxd.jys.repository.openapi;
 
 import com.tqxd.jys.openapi.RepositoryOpenApi;
 import com.tqxd.jys.openapi.ServiceAddress;
-import com.tqxd.jys.repository.KlineRepository;
+import com.tqxd.jys.repository.KlineRepositoryImpl;
 import io.vertx.core.AsyncResult;
 import io.vertx.core.Future;
 import io.vertx.core.Handler;
@@ -21,7 +21,7 @@ import java.util.Set;
  * @author lyqingye
  */
 public class RepositoryOpenApiImpl implements RepositoryOpenApi {
-  private KlineRepository repository;
+  private KlineRepositoryImpl repository;
   private Vertx vertx;
   private ServiceBinder serviceBinder;
   private MessageConsumer<JsonObject> serviceConsumer;
@@ -29,12 +29,12 @@ public class RepositoryOpenApiImpl implements RepositoryOpenApi {
   private RepositoryOpenApiImpl() {
   }
 
-  public RepositoryOpenApiImpl(Vertx vertx, KlineRepository repository) {
+  public RepositoryOpenApiImpl(Vertx vertx, KlineRepositoryImpl repository) {
     this.vertx = Objects.requireNonNull(vertx);
     this.repository = Objects.requireNonNull(repository);
   }
 
-  public static RepositoryOpenApi init(Vertx vertx, KlineRepository repository) {
+  public static RepositoryOpenApi init(Vertx vertx, KlineRepositoryImpl repository) {
     RepositoryOpenApiImpl api = new RepositoryOpenApiImpl(vertx, repository);
     api.serviceBinder = new ServiceBinder(vertx).setAddress(ServiceAddress.REPOSITORY.name());
     if (vertx.isClustered()) {

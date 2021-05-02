@@ -1,0 +1,219 @@
+package com.tqxd.jys.repository.impl;
+
+import com.tqxd.jys.common.payload.KlineTick;
+import com.tqxd.jys.constance.Period;
+import com.tqxd.jys.messagebus.payload.detail.MarketDetailTick;
+import com.tqxd.jys.openapi.payload.KlineSnapshot;
+import com.tqxd.jys.openapi.payload.KlineSnapshotMeta;
+import com.tqxd.jys.repository.redis.RedisHelper;
+import com.tqxd.jys.repository.redis.RedisKeyHelper;
+import com.tqxd.jys.utils.TimeUtils;
+import com.tqxd.jys.utils.VertxUtil;
+import io.vertx.core.*;
+import io.vertx.core.json.Json;
+import io.vertx.core.json.JsonObject;
+import io.vertx.redis.client.Command;
+import io.vertx.redis.client.Request;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+import java.util.Objects;
+
+/**
+ * k线redis仓库
+ *
+ * @author lyqingye
+ */
+public class RedisKLineRepository implements KLineRepository {
+  private static final Logger log = LoggerFactory.getLogger(RedisKLineRepository.class);
+  private RedisHelper redis;
+  private List<KLineRepositoryListener> listeners = new ArrayList<>();
+
+  @Override
+  public void open(Vertx vertx, JsonObject config, Handler<AsyncResult<Void>> handler) {
+    if (redis != null) {
+      handler.handle(Future.succeededFuture());
+    }
+    String redisConnString = "redis://localhost:6379/6";
+    if (config != null) {
+      redisConnString = VertxUtil.jsonGetValue(config, "market.repository.redis.connectionString", String.class, redisConnString);
+    }
+    RedisHelper.create(vertx, redisConnString)
+      .onSuccess(redis -> this.redis = redis)
+      .onFailure(throwable -> {
+        handler.handle(Future.failedFuture(throwable));
+      });
+  }
+
+  @Override
+  public void loadSnapshot(String symbol, Period period, Handler<AsyncResult<KlineSnapshot>> handler) {
+    if (!Period._1_MIN.equals(period)) {
+      handler.handle(Future.failedFuture("redis repository only support 1min kline data!"));
+      return;
+    }
+    loadSnapshotMeta(symbol)
+      .compose
+        (
+          meta -> sizeOfKlineTicks(symbol)
+            .compose(size -> {
+              KlineSnapshot snapshot = new KlineSnapshot();
+              snapshot.setMeta(meta);
+              if (size != null && size > 0) {
+                long start = 0;
+                if (size >= Period._1_MIN.getNumOfPeriod()) {
+                  start = size - Period._1_MIN.getNumOfPeriod();
+                }
+                return listKlineTicksLimit(symbol, start, -1)
+                  .compose(ticks -> {
+                    snapshot.setTickList(ticks);
+                    return Future.succeededFuture(snapshot);
+                  });
+              } else {
+                return Future.succeededFuture(snapshot);
+              }
+            })
+        )
+      .onSuccess(snapshot -> handler.handle(Future.succeededFuture(snapshot)))
+      .onFailure(throwable -> handler.handle(Future.failedFuture(throwable)));
+  }
+
+  private Future<List<KlineTick>> listKlineTicksLimit(String symbol, long start, int stop) {
+    Promise<List<KlineTick>> promise = Promise.promise();
+    redis.zRange(RedisKeyHelper.toKlineDataKey(symbol), start, stop, ar -> {
+      if (ar.succeeded()) {
+        List<String> ticks = ar.result();
+        if (!ticks.isEmpty()) {
+          try {
+            List<KlineTick> tickList = new ArrayList<>(ticks.size());
+            for (String tickJson : ticks) {
+              tickList.add(Json.decodeValue(tickJson, KlineTick.class));
+            }
+            promise.complete(tickList);
+          } catch (Exception ex) {
+            promise.fail(ex);
+          }
+        } else {
+          promise.complete(Collections.emptyList());
+        }
+      }
+    });
+    return promise.future();
+  }
+
+  private Future<KlineSnapshotMeta> loadSnapshotMeta(String symbol) {
+    Promise<KlineSnapshotMeta> promise = Promise.promise();
+    redis.get(RedisKeyHelper.toKlineMetaKey(symbol), ar -> {
+      if (ar.succeeded()) {
+        promise.complete(Json.decodeValue(ar.result(), KlineSnapshotMeta.class));
+      } else {
+        promise.fail(ar.cause());
+      }
+    });
+    return promise.future();
+  }
+
+  private Future<Long> sizeOfKlineTicks(String symbol) {
+    Promise<Long> promise = Promise.promise();
+    redis.zCard(RedisKeyHelper.toKlineDataKey(symbol), promise);
+    return promise.future();
+  }
+
+  @Override
+  public void restoreWithSnapshot(KlineSnapshot snapshot, Handler<AsyncResult<Void>> handler) {
+
+  }
+
+  @Override
+  public void append(long commitIndex, String symbol, Period period, KlineTick tick, Handler<AsyncResult<Long>> handler) {
+    String klineKey = RedisKeyHelper.toKlineDataKey(symbol);
+    // 构造redis命令
+    List<Request> batchCmd = new ArrayList<>(4);
+
+    // 更新key集合信息
+    batchCmd.add(
+      Request.cmd(Command.SADD)
+        .arg(RedisKeyHelper.getSymbolsKey())
+        .arg(symbol)
+    );
+
+    // 更新k线tick
+    long time = TimeUtils.alignWithPeriod(tick.getTime(), Period._1_MIN.getMill());
+    batchCmd.add(
+      Request.cmd(Command.ZREMRANGEBYSCORE)
+        .arg(klineKey)
+        .arg(time)
+        .arg(time)
+    );
+    batchCmd.add(
+      Request.cmd(Command.ZADD)
+        .arg(klineKey)
+        .arg(time)
+        .arg(Json.encode(tick))
+    );
+
+    // 更新快照元数据
+    KlineSnapshotMeta snapshotMeta = new KlineSnapshotMeta();
+    snapshotMeta.setTs(System.currentTimeMillis());
+    snapshotMeta.setCommittedIndex(commitIndex);
+    snapshotMeta.setPeriod(period);
+    snapshotMeta.setSymbol(symbol);
+    batchCmd.add(
+      Request.cmd(Command.SET)
+        .arg(RedisKeyHelper.toKlineMetaKey(symbol))
+        .arg(Json.encode(snapshotMeta))
+    );
+
+    // 批量执行
+    redis.batch(batchCmd, ar -> {
+      if (ar.succeeded()) {
+        handler.handle(Future.succeededFuture());
+      } else {
+        handler.handle(Future.failedFuture(ar.cause()));
+      }
+    });
+  }
+
+  @Override
+  public void close(Handler<AsyncResult<Void>> handler) {
+    try {
+      redis.close();
+      handler.handle(Future.succeededFuture());
+    } catch (Exception e) {
+      handler.handle(Future.failedFuture(e));
+    }
+  }
+
+  @Override
+  public void query(String symbol, Period period, long form, long to, Handler<AsyncResult<List<KlineTick>>> handler) {
+    if (!Period._1_MIN.equals(period)) {
+      handler.handle(Future.failedFuture("redis repository only support 1min kline data!"));
+      return;
+    }
+
+    // TODO
+  }
+
+  @Override
+  public void addListener(KLineRepositoryListener listener) {
+    listeners.add(Objects.requireNonNull(listener));
+  }
+
+  @Override
+  public void getAggregate(String symbol, Handler<AsyncResult<MarketDetailTick>> handler) {
+    redis.get(RedisKeyHelper.toMarketDetailKey(symbol), ar -> {
+      if (ar.succeeded()) {
+        handler.handle(Future.succeededFuture(Json.decodeValue(ar.result(),MarketDetailTick.class)));
+      }else {
+        handler.handle(Future.failedFuture(ar.cause()));
+      }
+    });
+  }
+
+  @Override
+  public void putAggregate(String symbol, MarketDetailTick tick, Handler<AsyncResult<Void>> handler) {
+    redis.set(RedisKeyHelper.toMarketDetailKey(symbol),Json.encode(tick),handler);
+  }
+}

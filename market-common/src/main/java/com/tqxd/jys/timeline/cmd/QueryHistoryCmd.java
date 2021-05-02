@@ -8,7 +8,7 @@ import io.vertx.core.Handler;
 
 import java.util.List;
 
-public class PollTicksCmd {
+public class QueryHistoryCmd {
   private String symbol;
   private Period period;
   private long from, to;

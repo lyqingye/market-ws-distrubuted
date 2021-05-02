@@ -1,27 +1,28 @@
 package com.tqxd.jys.timeline.cmd;
 
 import com.tqxd.jys.messagebus.payload.detail.MarketDetailTick;
+import com.tqxd.jys.timeline.KLineMeta;
 
 /**
  * k线聚合结果
  *
  * @author lyqingye
  */
-public class KLineAggregateResult {
-  private String symbol;
+public class AutoAggregateResult {
+  private KLineMeta meta;
   private MarketDetailTick tick;
 
-  public KLineAggregateResult(String symbol, MarketDetailTick tick) {
-    this.symbol = symbol;
+  public AutoAggregateResult(KLineMeta meta, MarketDetailTick tick) {
+    this.meta = meta;
     this.tick = tick;
   }
 
-  public String getSymbol() {
-    return symbol;
+  public KLineMeta getMeta() {
+    return meta;
   }
 
-  public void setSymbol(String symbol) {
-    this.symbol = symbol;
+  public void setMeta(KLineMeta meta) {
+    this.meta = meta;
   }
 
   public MarketDetailTick getTick() {
