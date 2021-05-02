@@ -107,7 +107,7 @@ public class ChannelUtil {
     }
     String[] split = ch.split(DOT);
     if (split.length >= 4) {
-      return "depth".equalsIgnoreCase(split[3]);
+      return "trade".equalsIgnoreCase(split[2]) && "detail".equalsIgnoreCase(split[3]);
     }
     return false;
   }

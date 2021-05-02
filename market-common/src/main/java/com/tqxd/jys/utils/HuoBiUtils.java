@@ -47,17 +47,6 @@ public final class HuoBiUtils {
     return false;
   }
 
-  public static boolean isKlineSubscribeReq(JsonObject obj) {
-    if (isSubscribeReq(obj)) {
-      String sub = obj.getString("sub");
-
-      if (sub != null) {
-        return sub.contains("kline");
-      }
-    }
-    return false;
-  }
-
   public static boolean isKlineUnSubscribeReq(JsonObject obj) {
     if (isUnSubscribeReq(obj)) {
       String sub = obj.getString("unsub");

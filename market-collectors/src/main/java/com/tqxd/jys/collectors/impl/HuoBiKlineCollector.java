@@ -1,8 +1,11 @@
 package com.tqxd.jys.collectors.impl;
 
 
+import com.tqxd.jys.collectors.CollectorsApplication;
 import com.tqxd.jys.constance.DataType;
+import com.tqxd.jys.constance.DepthLevel;
 import com.tqxd.jys.constance.Period;
+import com.tqxd.jys.utils.ChannelUtil;
 import com.tqxd.jys.utils.GZIPUtils;
 import com.tqxd.jys.utils.HuoBiUtils;
 import io.vertx.core.AsyncResult;
@@ -13,6 +16,8 @@ import io.vertx.core.http.HttpClient;
 import io.vertx.core.http.WebSocket;
 import io.vertx.core.json.Json;
 import io.vertx.core.json.JsonObject;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
@@ -24,7 +29,9 @@ import java.util.function.BiConsumer;
 /**
  * @author ex
  */
+@SuppressWarnings("Duplicates")
 public class HuoBiKlineCollector extends GenericWsCollector {
+  private static final Logger log = LoggerFactory.getLogger(HuoBiKlineCollector.class);
 
   /**
    * vertx 实例
@@ -200,19 +207,43 @@ public class HuoBiKlineCollector extends GenericWsCollector {
     }
 
     if (this.ws != null && !this.ws.isClosed()) {
-      JsonObject obj = new JsonObject();
+      String id = subIdPrefix + symbol;
+      String sub = null;
+      switch (dataType) {
+        case KLINE: {
+          // 只订阅 1min的交易
+          sub = HuoBiUtils.toKlineSub(toGenericSymbol(symbol), Period._1_MIN);
+          symbolDeMapping.put(sub, HuoBiUtils.toKlineSub(symbol, Period._1_MIN));
+          break;
+        }
+        case DEPTH: {
+          // 只订阅深度为0的
+          sub = HuoBiUtils.toDepthSub(toGenericSymbol(symbol), DepthLevel.step0);
+          symbolDeMapping.put(sub, HuoBiUtils.toDepthSub(symbol, DepthLevel.step0));
+          break;
+        }
+        case TRADE_DETAIL:{
+          sub = HuoBiUtils.toTradeDetailSub(toGenericSymbol(symbol));
+          symbolDeMapping.put(sub, HuoBiUtils.toTradeDetailSub(symbol));
+          break;
+        }
+        default: {
+          // ignored
+        }
+      }
+      if (sub != null) {
+        JsonObject json = new JsonObject();
+        json.put("id",id);
+        json.put("sub",sub);
 
-      //
-      // 这里只订阅 1min的交易, 其它的都由 1min 来进行计算得到
-      //
-      String sub = HuoBiUtils.toKlineSub(toGenericSymbol(symbol), Period._1_MIN);
-      obj.put("sub", sub);
-      obj.put("id", subIdPrefix + symbol);
-      symbolDeMapping.put(sub, HuoBiUtils.toKlineSub(symbol, Period._1_MIN));
-      try {
-        this.ws.writeTextMessage(obj.toString());
-        result = true;
-      } catch (Exception ex) {
+        try {
+          this.ws.writeTextMessage(json.toString());
+          log.info("[HuoBi]: subscribe: {}", sub);
+          result = true;
+        } catch (Exception ex) {
+          result = false;
+        }
+      }else {
         result = false;
       }
     } else {
@@ -231,22 +262,46 @@ public class HuoBiKlineCollector extends GenericWsCollector {
   @Override
   public boolean unSubscribe(DataType dataType, String symbol) {
     boolean result = super.unSubscribe(dataType, symbol);
-
     if (!result) {
       return false;
     }
     if (this.ws != null && !this.ws.isClosed()) {
-      JsonObject obj = new JsonObject();
-
-      //
-      // 这里只订阅 1min的交易, 其它的都由 1min 来进行计算得到
-      //
-      obj.put("unsub", HuoBiUtils.toKlineSub(toGenericSymbol(symbol), Period._1_MIN));
-      obj.put("id", subIdPrefix + symbol);
-      try {
-        this.ws.writeTextMessage(obj.toString());
-        result = true;
-      } catch (Exception ex) {
+      String id = subIdPrefix + symbol;
+      String unsub = null;
+      switch (dataType) {
+        case KLINE: {
+          // 只订阅 1min的交易
+          unsub = HuoBiUtils.toKlineSub(toGenericSymbol(symbol), Period._1_MIN);
+          symbolDeMapping.put(unsub, HuoBiUtils.toKlineSub(symbol, Period._1_MIN));
+          break;
+        }
+        case DEPTH: {
+          // 只订阅深度为0的
+          unsub = HuoBiUtils.toDepthSub(toGenericSymbol(symbol), DepthLevel.step0);
+          symbolDeMapping.put(unsub, HuoBiUtils.toDepthSub(symbol, DepthLevel.step0));
+          break;
+        }
+        case TRADE_DETAIL:{
+          unsub = HuoBiUtils.toTradeDetailSub(toGenericSymbol(symbol));
+          symbolDeMapping.put(unsub, HuoBiUtils.toTradeDetailSub(symbol));
+          break;
+        }
+        default: {
+          // ignored
+        }
+      }
+      if (unsub != null) {
+        JsonObject json = new JsonObject();
+        json.put("id",id);
+        json.put("unsub",unsub);
+        try {
+          log.info("[HuoBi]: unsubscribe: {}", unsub);
+          this.ws.writeTextMessage(json.toString());
+          result = true;
+        } catch (Exception ex) {
+          result = false;
+        }
+      }else {
         result = false;
       }
     } else {
@@ -285,12 +340,19 @@ public class HuoBiKlineCollector extends GenericWsCollector {
               // 如果是 ping 消息则需要回复 pong
               if (isPingMsg(obj)) {
                 this.writePong(ws);
-              } else if (isTickMsg(obj)) {
-                obj.put("ch", symbolDeMapping.get(obj.getString("ch")));
-                // 如果是交易 tick 则进行消费
-                consumer.accept(DataType.KLINE, obj);
+              } else {
+                String ch = obj.getString("ch");
+                // 取消交易对映射
+                obj.put("ch", symbolDeMapping.get(ch));
+                // k线主题
+                if (ChannelUtil.isKLineChannel(ch)) {
+                  consumer.accept(DataType.KLINE, obj);
+                }else if (ChannelUtil.isDepthChannel(ch)) {
+                  consumer.accept(DataType.DEPTH,obj);
+                }else if (ChannelUtil.isTradeDetailChannel(ch)) {
+                  consumer.accept(DataType.TRADE_DETAIL,obj);
+                }
               }
-              // TODO 其它类型的数据
             })
             .onFailure(Throwable::printStackTrace);
       }

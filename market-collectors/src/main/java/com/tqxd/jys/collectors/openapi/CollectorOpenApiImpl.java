@@ -125,6 +125,14 @@ public class CollectorOpenApiImpl implements CollectorOpenApi {
               topic = Topic.KLINE_TICK_TOPIC;
               break;
             }
+            case DEPTH: {
+              topic = Topic.DEPTH_CHART_TOPIC;
+              break;
+            }
+            case TRADE_DETAIL:{
+              topic = Topic.TRADE_DETAIL_TOPIC;
+              break;
+            }
             default:
               throw new IllegalStateException("Unexpected value: " + type);
           }

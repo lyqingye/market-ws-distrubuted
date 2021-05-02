@@ -112,17 +112,25 @@ public class CollectorsApplication extends AbstractVerticle {
     }
     JsonObject config = config();
     String collectorName = VertxUtil.jsonGetValue(config, "market.collector.name", String.class);
-    List<String> subscribe = VertxUtil.jsonListValue(config, "market.collector.subscribe", String.class);
+    List<String> klineSubscribe = VertxUtil.jsonListValue(config, "market.collector.subscribe.kline", String.class);
+    List<String> depthSubscribe = VertxUtil.jsonListValue(config, "market.collector.subscribe.depth", String.class);
+    List<String> tradeDetailSubscribe = VertxUtil.jsonListValue(config, "market.collector.subscribe.trade.detail", String.class);
     if (collectorName != null && !collectorName.isEmpty()) {
       Future<Boolean> future = openService.deployCollector(collectorName).compose(ignored -> openService.startCollector(collectorName));
-      for (String subscribeSymbol : subscribe) {
+      for (String subscribeSymbol : klineSubscribe) {
         future = future.compose(ignored -> openService.subscribe(collectorName, DataType.KLINE, subscribeSymbol));
+      }
+      for (String subscribeSymbol : depthSubscribe) {
+        future = future.compose(ignored -> openService.subscribe(collectorName, DataType.DEPTH, subscribeSymbol));
+      }
+      for (String subscribeSymbol : tradeDetailSubscribe) {
+        future = future.compose(ignored -> openService.subscribe(collectorName, DataType.TRADE_DETAIL, subscribeSymbol));
       }
       future.onFailure(promise::fail);
       future.onSuccess(ignored -> {
         log.info("[Market-KlineCollector]: start success!");
         log.info("[Market-KlineCollector]: deploy collector: " + collectorName);
-        log.info("[Market-KlineCollector]: subscribe: " + subscribe);
+        log.info("[Market-KlineCollector]: subscribe: " + klineSubscribe);
         promise.complete();
       });
     }
