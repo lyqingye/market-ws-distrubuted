@@ -6,6 +6,8 @@ import com.tqxd.jys.common.payload.TemplatePayload;
 import com.tqxd.jys.messagebus.MessageBusFactory;
 import com.tqxd.jys.messagebus.payload.Message;
 import com.tqxd.jys.messagebus.topic.Topic;
+import com.tqxd.jys.repository.impl.CacheableKLineRepositoryProxy;
+import com.tqxd.jys.repository.impl.RedisKLineRepository;
 import com.tqxd.jys.repository.openapi.RepositoryOpenApiImpl;
 import com.tqxd.jys.repository.redis.RedisHelper;
 import com.tqxd.jys.utils.VertxUtil;
@@ -65,6 +67,12 @@ public class RepositoryApplication extends AbstractVerticle {
 
   @Override
   public void start(Promise<Void> startPromise) throws Exception {
+
+    new CacheableKLineRepositoryProxy(new RedisKLineRepository())
+      .open(vertx,config())
+      .onSuccess(h -> System.out.println())
+      .onFailure(Throwable::printStackTrace);
+
     JsonObject config = config();
     String redisConnString = "redis://localhost:6379/6";
     if (config != null) {

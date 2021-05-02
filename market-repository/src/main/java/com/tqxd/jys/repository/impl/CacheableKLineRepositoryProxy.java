@@ -7,12 +7,10 @@ import com.tqxd.jys.openapi.payload.KlineSnapshot;
 import com.tqxd.jys.timeline.KLineMeta;
 import com.tqxd.jys.timeline.cmd.AppendTickResult;
 import com.tqxd.jys.timeline.cmd.AutoAggregateResult;
-import io.vertx.core.AsyncResult;
-import io.vertx.core.Future;
-import io.vertx.core.Handler;
-import io.vertx.core.Vertx;
+import io.vertx.core.*;
 import io.vertx.core.json.JsonObject;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 
@@ -30,20 +28,39 @@ public class CacheableKLineRepositoryProxy implements KLineRepository{
     this.persistRepository = Objects.requireNonNull(persistRepository);
   }
 
+  @SuppressWarnings("rawtypes")
   @Override
   public void open(Vertx vertx, JsonObject config, Handler<AsyncResult<Void>> handler) {
-    persistRepository.open(vertx,config, h -> {
-      if (h.succeeded()) {
-        cacheRepository.open(vertx,config, h1 -> {
-          if (h1.succeeded()) {
-            // TODO load snapshot to cache repository
-
+    persistRepository.open(vertx,config, persist -> {
+      if (persist.succeeded()) {
+        cacheRepository.open(vertx,config, cache -> {
+          if (cache.succeeded()) {
+            persistRepository.listSymbols()
+              .compose(symbols -> {
+                List<Future> allFutures = new ArrayList<>();
+                // process all symbols
+                for (String symbol : symbols) {
+                  allFutures.add(persistRepository.loadSnapshot(symbol,Period._1_MIN)
+                    .compose(snapshot -> {
+                      List<Future> restoreFutures = new ArrayList<>();
+                      // append all period
+                      for (Period p : Period.values()) {
+                        snapshot.getMeta().setPeriod(p);
+                        restoreFutures.add(cacheRepository.restoreWithSnapshot(snapshot));
+                      }
+                      return CompositeFuture.all(restoreFutures);
+                    }));
+                }
+                return CompositeFuture.all(allFutures);
+              })
+              .onSuccess(ignored -> handler.handle(Future.succeededFuture()))
+              .onFailure(throwable -> handler.handle(Future.failedFuture(throwable)));
           }else {
-            handler.handle(Future.failedFuture(h1.cause()));
+            handler.handle(Future.failedFuture(cache.cause()));
           }
         });
       }else {
-        handler.handle(Future.failedFuture(h.cause()));
+        handler.handle(Future.failedFuture(persist.cause()));
       }
     });
 
@@ -75,6 +92,11 @@ public class CacheableKLineRepositoryProxy implements KLineRepository{
           .onFailure(Throwable::printStackTrace);
       }
     });
+  }
+
+  @Override
+  public void listSymbols(Handler<AsyncResult<List<String>>> handler) {
+    cacheRepository.listSymbols(handler);
   }
 
   @Override

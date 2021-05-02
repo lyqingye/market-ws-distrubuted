@@ -37,6 +37,7 @@ public class InMemKLineRepository implements KLineRepository {
   private DisruptorQueue<Object> outQueue;
   private ConcurrentLinkedQueue<Object> cmdQueue = new ConcurrentLinkedQueue<>();
   private Map<String,MarketDetailTick> marketDetailCache = new HashMap<>();
+  private Set<String> symbols = new HashSet<>();
   private volatile boolean isRunning = false;
   /**
    * 名称 -> timeLine 映射的索引
@@ -59,6 +60,11 @@ public class InMemKLineRepository implements KLineRepository {
   }
 
   @Override
+  public void listSymbols(Handler<AsyncResult<List<String>>> handler) {
+    handler.handle(Future.succeededFuture(new ArrayList<>(symbols)));
+  }
+
+  @Override
   public void restoreWithSnapshot(KlineSnapshot snapshot, Handler<AsyncResult<Void>> handler) {
     RestoreSnapshotCmd cmd = new RestoreSnapshotCmd();
     cmd.setHandler(handler);
@@ -68,6 +74,7 @@ public class InMemKLineRepository implements KLineRepository {
 
   @Override
   public void append(long commitIndex, String symbol, Period period, KlineTick tick, Handler<AsyncResult<Long>> handler) {
+    symbols.add(symbol);
     AppendTickCmd cmd = new AppendTickCmd();
     cmd.setSymbol(symbol);
     cmd.setPeriod(period);

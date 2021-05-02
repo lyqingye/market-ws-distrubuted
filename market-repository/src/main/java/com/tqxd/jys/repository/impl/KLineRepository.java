@@ -26,6 +26,13 @@ public interface KLineRepository {
   void open (Vertx vertx, JsonObject config, Handler<AsyncResult<Void>> handler);
 
   /**
+   * 获取所有交易对
+   *
+   * @param handler 结果处理器
+   */
+  void listSymbols (Handler<AsyncResult<List<String>>> handler);
+
+  /**
    * 加载k线快照
    *
    * @param symbol 交易对
@@ -109,6 +116,12 @@ public interface KLineRepository {
   default Future<Void> open (Vertx vertx,JsonObject config) {
     Promise<Void> promise = Promise.promise();
     open(vertx,config,promise);
+    return promise.future();
+  }
+
+  default Future<List<String>> listSymbols () {
+    Promise<List<String>> promise = Promise.promise();
+    listSymbols(promise);
     return promise.future();
   }
 

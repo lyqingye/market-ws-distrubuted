@@ -42,10 +42,24 @@ public class RedisKLineRepository implements KLineRepository {
       redisConnString = VertxUtil.jsonGetValue(config, "market.repository.redis.connectionString", String.class, redisConnString);
     }
     RedisHelper.create(vertx, redisConnString)
-      .onSuccess(redis -> this.redis = redis)
+      .onSuccess(redis -> {
+        this.redis = redis;
+        handler.handle(Future.succeededFuture());
+      })
       .onFailure(throwable -> {
         handler.handle(Future.failedFuture(throwable));
       });
+  }
+
+  @Override
+  public void listSymbols(Handler<AsyncResult<List<String>>> handler) {
+    redis.sMembers(RedisKeyHelper.getSymbolsKey(), h -> {
+      if (h.succeeded()) {
+        handler.handle(Future.succeededFuture(new ArrayList<>(h.result())));
+      }else {
+        handler.handle(Future.failedFuture(h.cause()));
+      }
+    });
   }
 
   @Override
