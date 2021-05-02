@@ -6,11 +6,11 @@ import com.tqxd.jys.messagebus.MessageBusFactory;
 import com.tqxd.jys.openapi.CollectorOpenApi;
 import com.tqxd.jys.openapi.ServiceAddress;
 import com.tqxd.jys.openapi.payload.CollectorStatusDto;
+import com.tqxd.jys.utils.TimeUtils;
 import com.tqxd.jys.utils.VertxUtil;
 import io.vertx.core.*;
 import io.vertx.core.eventbus.MessageConsumer;
 import io.vertx.core.json.JsonObject;
-import io.vertx.core.spi.cluster.ClusterManager;
 import io.vertx.serviceproxy.ServiceBinder;
 import io.vertx.spi.cluster.zookeeper.ZookeeperClusterManager;
 import org.slf4j.Logger;
@@ -20,11 +20,13 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
 
 /**
  * @author yjt
  * @since 2020/10/10 下午3:45
  */
+@SuppressWarnings("unchecked")
 public class CollectorsApplication extends AbstractVerticle {
   private static final Logger log = LoggerFactory.getLogger(CollectorsApplication.class);
 
@@ -47,47 +49,36 @@ public class CollectorsApplication extends AbstractVerticle {
   }
 
   public static void main(String[] args) {
-    Map<String, String> kafkaConfig = new HashMap<>();
-    kafkaConfig.put("bootstrap.servers", "localhost:9092");
-    kafkaConfig.put("key.serializer", "com.tqxd.jys.messagebus.impl.kafka.KafkaJsonSerializer");
-    kafkaConfig.put("value.serializer", "com.tqxd.jys.messagebus.impl.kafka.KafkaJsonSerializer");
-    kafkaConfig.put("key.deserializer", "com.tqxd.jys.messagebus.impl.kafka.KafkaJsonDeSerializer");
-    kafkaConfig.put("value.deserializer", "com.tqxd.jys.messagebus.impl.kafka.KafkaJsonDeSerializer");
-    kafkaConfig.put("group.id", "collector");
-    kafkaConfig.put("auto.offset.reset", "earliest");
-    kafkaConfig.put("enable.auto.commit", "true");
-
-    JsonObject zkConfig = new JsonObject();
-    zkConfig.put("zookeeperHosts", "127.0.0.1");
-    zkConfig.put("rootPath", "io.vertx");
-    zkConfig.put("retry", new JsonObject()
-        .put("initialSleepTime", 3000)
-        .put("maxTimes", 3));
-    ClusterManager mgr = new ZookeeperClusterManager(zkConfig);
-    VertxOptions options = new VertxOptions().setClusterManager(mgr);
-    options.setClusterManager(mgr);
-    Vertx.clusteredVertx(options, ar -> {
-      if (ar.succeeded()) {
-        Vertx vertx = ar.result();
-
-        try {
-          VertxUtil.readYamlConfig(vertx, "config.yaml", h -> {
-            if (h.succeeded()) {
-              MessageBusFactory.init(MessageBusFactory.KAFKA_MESSAGE_BUS, vertx, kafkaConfig, kafkaConfig);
-              VertxUtil.deploy(vertx, new CollectorsApplication(), h.result())
-                  .onFailure(Throwable::printStackTrace);
-
-            } else {
-              h.cause().printStackTrace();
-            }
-          });
-        } catch (ExecutionException | InterruptedException e) {
-          e.printStackTrace();
+    long start = System.currentTimeMillis();
+    Vertx.clusteredVertx(new VertxOptions().setClusterManager(new ZookeeperClusterManager("zookeeper.json")),
+      clusteredAr -> {
+        if (clusteredAr.succeeded()) {
+          Vertx vertx = clusteredAr.result();
+          // 读取kafka配置
+          VertxUtil.readJsonFile(vertx, "kafka-consumer.json")
+            .compose(
+              consumerJson -> VertxUtil.readJsonFile(vertx, "kafka-producer.json")
+                .compose(producerJson -> {
+                  // 初始化消息队列
+                  MessageBusFactory.init(MessageBusFactory.KAFKA_MESSAGE_BUS, vertx, consumerJson.mapTo(Map.class), producerJson.mapTo(Map.class));
+                  Exception ex;
+                  try {
+                    // 读取yaml配置，然后部署 verticle
+                    return VertxUtil.readYamlConfig(vertx, "config.yaml")
+                      .compose(yamlConfig -> VertxUtil.deploy(vertx, new CollectorsApplication(), yamlConfig));
+                  } catch (ExecutionException | InterruptedException e) {
+                    ex = e;
+                  }
+                  return Future.failedFuture(ex);
+                })
+            )
+            .onSuccess(id -> log.info("[CollectorApplication]: start success! using: {}ms", System.currentTimeMillis() - start))
+            .onFailure(Throwable::printStackTrace);
+        } else {
+          clusteredAr.cause().printStackTrace();
+          System.exit(-1);
         }
-      } else {
-        ar.cause().printStackTrace();
-      }
-    });
+      });
   }
 
   @Override
@@ -112,7 +103,7 @@ public class CollectorsApplication extends AbstractVerticle {
   @Override
   public void start(Promise<Void> promise) throws Exception {
     // 暴露服务
-    serviceBinder = new ServiceBinder(vertx).setAddress(ServiceAddress.COLLECTOR.name());
+    serviceBinder = new ServiceBinder(vertx).setAddress(ServiceAddress.COLLECTOR.name()).setTimeoutSeconds(5);
     openService = new CollectorOpenApiImpl(vertx, MessageBusFactory.bus());
     if (vertx.isClustered()) {
       serviceConsumer = serviceBinder.register(CollectorOpenApi.class, openService);
