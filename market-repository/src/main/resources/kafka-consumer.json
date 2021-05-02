@@ -1,0 +1,8 @@
+{
+  "bootstrap.servers": "localhost:9092",
+  "key.deserializer": "com.tqxd.jys.messagebus.impl.kafka.KafkaJsonDeSerializer",
+  "value.deserializer": "com.tqxd.jys.messagebus.impl.kafka.KafkaJsonDeSerializer",
+  "group.id": "market.repository.consumer",
+  "auto.offset.reset": "earliest",
+  "enable.auto.commit": "true"
+}

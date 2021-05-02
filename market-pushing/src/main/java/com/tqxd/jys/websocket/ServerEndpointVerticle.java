@@ -13,6 +13,7 @@ import com.tqxd.jys.websocket.processor.Context;
 import com.tqxd.jys.websocket.processor.Response;
 import com.tqxd.jys.websocket.processor.impl.KLineChannelProcessor;
 import com.tqxd.jys.websocket.processor.impl.MarketDetailChannelProcessor;
+import com.tqxd.jys.websocket.processor.impl.TradeDetailChannelProcessor;
 import com.tqxd.jys.websocket.session.Session;
 import com.tqxd.jys.websocket.session.SessionManager;
 import io.vertx.core.AbstractVerticle;
@@ -32,9 +33,10 @@ import java.util.concurrent.TimeUnit;
  */
 public class ServerEndpointVerticle extends AbstractVerticle {
   private static final Logger log = LoggerFactory.getLogger(ServerEndpointVerticle.class);
-  private static final ChannelProcessor PROCESSORS[] = {
+  private static final ChannelProcessor[] PROCESSORS = {
       new KLineChannelProcessor(),
-      new MarketDetailChannelProcessor()
+      new MarketDetailChannelProcessor(),
+    new TradeDetailChannelProcessor()
   };
   /**
    * websocket 服务器
@@ -49,7 +51,7 @@ public class ServerEndpointVerticle extends AbstractVerticle {
   private long expire = -1;
 
   public ServerEndpointVerticle(KLineManager kLineManager) {
-    kLineManager.setOutResultConsumer(this::onUpdateData);
+    kLineManager.setOutResultConsumer(this::onKLineManagerDataUpdate);
     context = new Context(sessionMgr, kLineManager, new CacheManager(kLineManager));
   }
 
@@ -139,7 +141,7 @@ public class ServerEndpointVerticle extends AbstractVerticle {
     }
   }
 
-  private void onUpdateData(Object data) {
+  private void onKLineManagerDataUpdate(Object data) {
     if (data instanceof ApplyTickResult) {
       ApplyTickResult result = (ApplyTickResult) data;
       KLineMeta meta = result.getMeta();
@@ -170,6 +172,10 @@ public class ServerEndpointVerticle extends AbstractVerticle {
     }else {
       log.info("[ServerEndpoint]: unknown updated data: {}",Json.encode(data));
     }
+  }
+
+  private void onTradeDetailDataUpdate() {
+
   }
 
   /**

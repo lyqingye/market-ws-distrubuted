@@ -21,54 +21,47 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.ExecutionException;
 
+import static com.tqxd.jys.utils.VertxUtil.*;
+
 /**
  * @author lyqingye
  */
+@SuppressWarnings("unchecked")
 public class RepositoryApplication extends AbstractVerticle {
   private static final Logger log = LoggerFactory.getLogger(RepositoryApplication.class);
 
 
   public static void main(String[] args) {
-    Map<String, String> kafkaConfig = new HashMap<>();
-    kafkaConfig.put("bootstrap.servers", "localhost:9092");
-    kafkaConfig.put("key.serializer", "com.tqxd.jys.messagebus.impl.kafka.KafkaJsonSerializer");
-    kafkaConfig.put("value.serializer", "com.tqxd.jys.messagebus.impl.kafka.KafkaJsonSerializer");
-    kafkaConfig.put("key.deserializer", "com.tqxd.jys.messagebus.impl.kafka.KafkaJsonDeSerializer");
-    kafkaConfig.put("value.deserializer", "com.tqxd.jys.messagebus.impl.kafka.KafkaJsonDeSerializer");
-    kafkaConfig.put("group.id", "repository");
-    kafkaConfig.put("auto.offset.reset", "earliest");
-    kafkaConfig.put("enable.auto.commit", "true");
-
-    JsonObject zkConfig = new JsonObject();
-    zkConfig.put("zookeeperHosts", "127.0.0.1");
-    zkConfig.put("rootPath", "io.vertx");
-    zkConfig.put("retry", new JsonObject()
-        .put("initialSleepTime", 3000)
-        .put("maxTimes", 3));
-    ClusterManager mgr = new ZookeeperClusterManager(zkConfig);
-    VertxOptions options = new VertxOptions().setClusterManager(mgr);
-    options.setClusterManager(mgr);
-    Vertx.clusteredVertx(options, ar -> {
-      if (ar.succeeded()) {
-        Vertx vertx = ar.result();
-        try {
-          VertxUtil.readYamlConfig(vertx, "config.yaml", h -> {
-            if (h.succeeded()) {
-              MessageBusFactory.init(MessageBusFactory.KAFKA_MESSAGE_BUS, vertx, kafkaConfig, kafkaConfig);
-              VertxUtil.deploy(vertx, new RepositoryApplication(), new DeploymentOptions().setWorker(true).setConfig(h.result()))
-                  .onFailure(Throwable::printStackTrace);
-
-            } else {
-              h.cause().printStackTrace();
-            }
-          });
-        } catch (ExecutionException | InterruptedException e) {
-          e.printStackTrace();
+    long start = System.currentTimeMillis();
+    Vertx.clusteredVertx(new VertxOptions().setClusterManager(new ZookeeperClusterManager("zookeeper.json")),
+      clusteredAr -> {
+        if (clusteredAr.succeeded()) {
+          Vertx vertx = clusteredAr.result();
+          // 读取kafka配置
+          readJsonFile(vertx, "kafka-consumer.json")
+            .compose(
+              consumerJson -> readJsonFile(vertx, "kafka-producer.json")
+                .compose(producerJson -> {
+                  // 初始化消息队列
+                  MessageBusFactory.init(MessageBusFactory.KAFKA_MESSAGE_BUS, vertx, consumerJson.mapTo(Map.class), producerJson.mapTo(Map.class));
+                  Exception ex;
+                  try {
+                    // 读取yaml配置，然后部署 verticle
+                    return readYamlConfig(vertx, "config.yaml")
+                      .compose(yamlConfig -> deploy(vertx, new RepositoryApplication(), yamlConfig));
+                  } catch (ExecutionException | InterruptedException e) {
+                    ex = e;
+                  }
+                  return Future.failedFuture(ex);
+                })
+            )
+            .onSuccess(id -> log.info("[PushingApplication]: start success! using: {}ms", System.currentTimeMillis() - start))
+            .onFailure(Throwable::printStackTrace);
+        } else {
+          clusteredAr.cause().printStackTrace();
+          System.exit(-1);
         }
-      } else {
-        ar.cause().printStackTrace();
-      }
-    });
+      });
   }
 
 
