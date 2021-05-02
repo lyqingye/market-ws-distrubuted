@@ -6,7 +6,7 @@ import com.tqxd.jys.constance.Period;
 import io.vertx.core.AsyncResult;
 import io.vertx.core.Handler;
 
-public class ApplyTickCmd {
+public class AppendTickCmd {
   private String symbol;
   private Period period;
   private long commitIndex;
