@@ -18,6 +18,14 @@ import java.util.Set;
 public interface KLineRepository {
 
   /**
+   * 从另外一个仓库导入数据
+   *
+   * @param from 仓库
+   * @param handler 结果处理器
+   */
+  default void importFrom (KLineRepository from, Handler<AsyncResult<Void>> handler) {}
+
+  /**
    * 打开仓库
    *
    * @param vertx vertx
@@ -113,6 +121,12 @@ public interface KLineRepository {
   //
   // future apis
   //
+
+  default Future<Void> importFrom (KLineRepository from) {
+    Promise<Void> promise = Promise.promise();
+    importFrom(from,promise);
+    return promise.future();
+  }
 
   default Future<Void> open (Vertx vertx,JsonObject config) {
     Promise<Void> promise = Promise.promise();

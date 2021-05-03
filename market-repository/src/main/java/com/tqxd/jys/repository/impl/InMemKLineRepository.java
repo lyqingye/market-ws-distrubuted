@@ -12,10 +12,7 @@ import com.tqxd.jys.openapi.payload.KlineSnapshotMeta;
 import com.tqxd.jys.timeline.KLine;
 import com.tqxd.jys.timeline.KLineMeta;
 import com.tqxd.jys.timeline.cmd.*;
-import io.vertx.core.AsyncResult;
-import io.vertx.core.Future;
-import io.vertx.core.Handler;
-import io.vertx.core.Vertx;
+import io.vertx.core.*;
 import io.vertx.core.json.JsonObject;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.slf4j.Logger;
@@ -30,6 +27,7 @@ import java.util.concurrent.ThreadFactory;
  *
  * @author lyqingye
  */
+@SuppressWarnings("rawtypes")
 public class InMemKLineRepository implements KLineRepository {
   private static final long KLINE_TICK_MILLS = 10;
   private static final Logger log = LoggerFactory.getLogger(InMemKLineRepository.class);
@@ -38,6 +36,8 @@ public class InMemKLineRepository implements KLineRepository {
   private ConcurrentLinkedQueue<Object> cmdQueue = new ConcurrentLinkedQueue<>();
   private Map<String,MarketDetailTick> marketDetailCache = new HashMap<>();
   private Set<String> symbols = new HashSet<>();
+  private JsonObject config;
+  private Vertx vertx;
   private volatile boolean isRunning = false;
   /**
    * 名称 -> timeLine 映射的索引
@@ -48,7 +48,42 @@ public class InMemKLineRepository implements KLineRepository {
   private int size = 0;
 
   @Override
+  public void importFrom(KLineRepository from, Handler<AsyncResult<Void>> handler) {
+    long start = System.currentTimeMillis();
+    from.listSymbols()
+      .compose(symbols -> {
+        log.info("load symbols: {}",symbols);
+        List<Future> allFutures = new ArrayList<>();
+        // process all symbols
+        for (String symbol : symbols) {
+          allFutures.add(from.loadSnapshot(symbol,Period._1_MIN)
+            .compose(snapshot -> {
+              log.info("load {} snapshot! committed index {}, size: {}",symbol,snapshot.getMeta().getCommittedIndex(),snapshot.getTickList().size());
+              List<Future> restoreFutures = new ArrayList<>();
+              // append all period
+              for (Period p : Period.values()) {
+                snapshot.getMeta().setPeriod(p);
+                restoreFutures.add(
+                  this.restoreWithSnapshot(snapshot)
+                    .onSuccess(v -> log.info("restore {} {} snapshot success!",snapshot.getMeta().getSymbol(),p))
+                );
+              }
+              return CompositeFuture.all(restoreFutures);
+            }));
+        }
+        return CompositeFuture.all(allFutures);
+      })
+      .onSuccess(ignored -> {
+        handler.handle(Future.succeededFuture());
+        log.info("restore all snapshot success! using {}ms",System.currentTimeMillis() - start);
+      })
+      .onFailure(throwable -> handler.handle(Future.failedFuture(throwable)));
+  }
+
+  @Override
   public void open(Vertx vertx,JsonObject config, Handler<AsyncResult<Void>> handler) {
+    this.vertx = Objects.requireNonNull(vertx);
+    this.config = Objects.requireNonNull(config);
     ThreadFactory threadFactory = new ThreadFactoryBuilder()
       .setNameFormat("kline-listener-thread-%d")
       .setDaemon(false)
