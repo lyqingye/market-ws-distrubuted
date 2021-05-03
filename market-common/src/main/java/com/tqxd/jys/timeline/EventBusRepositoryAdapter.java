@@ -1,8 +1,6 @@
-package com.tqxd.jys.repository.impl;
+package com.tqxd.jys.timeline;
 
-import com.tqxd.jys.common.payload.KlineTick;
 import com.tqxd.jys.constance.Period;
-import com.tqxd.jys.messagebus.payload.detail.MarketDetailTick;
 import com.tqxd.jys.openapi.RepositoryOpenApi;
 import com.tqxd.jys.openapi.payload.KlineSnapshot;
 import io.vertx.core.AsyncResult;
@@ -12,7 +10,6 @@ import io.vertx.core.Vertx;
 import io.vertx.core.json.Json;
 import io.vertx.core.json.JsonObject;
 
-import java.util.List;
 import java.util.Set;
 
 /**

@@ -4,7 +4,10 @@ import com.tqxd.jys.common.payload.KlineTick;
 import com.tqxd.jys.constance.Period;
 import com.tqxd.jys.messagebus.payload.detail.MarketDetailTick;
 import com.tqxd.jys.openapi.payload.KlineSnapshot;
+import com.tqxd.jys.timeline.InMemKLineRepository;
 import com.tqxd.jys.timeline.KLineMeta;
+import com.tqxd.jys.timeline.KLineRepository;
+import com.tqxd.jys.timeline.KLineRepositoryListener;
 import com.tqxd.jys.timeline.cmd.AppendTickResult;
 import com.tqxd.jys.timeline.cmd.AutoAggregateResult;
 import io.vertx.core.*;
@@ -12,7 +15,6 @@ import io.vertx.core.json.JsonObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
@@ -22,7 +24,7 @@ import java.util.Set;
  *
  * @author lyqingye
  */
-public class CacheableKLineRepositoryProxy implements KLineRepository{
+public class CacheableKLineRepositoryProxy implements KLineRepository {
   private static final Logger log = LoggerFactory.getLogger(CacheableKLineRepositoryProxy.class);
   private KLineRepository cacheRepository;
   private KLineRepository persistRepository;

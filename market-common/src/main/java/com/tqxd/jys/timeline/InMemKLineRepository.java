@@ -1,4 +1,4 @@
-package com.tqxd.jys.repository.impl;
+package com.tqxd.jys.timeline;
 
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import com.tqxd.jys.common.payload.KlineTick;
@@ -9,8 +9,6 @@ import com.tqxd.jys.disruptor.DisruptorQueue;
 import com.tqxd.jys.messagebus.payload.detail.MarketDetailTick;
 import com.tqxd.jys.openapi.payload.KlineSnapshot;
 import com.tqxd.jys.openapi.payload.KlineSnapshotMeta;
-import com.tqxd.jys.timeline.KLine;
-import com.tqxd.jys.timeline.KLineMeta;
 import com.tqxd.jys.timeline.cmd.*;
 import io.vertx.core.*;
 import io.vertx.core.json.JsonObject;

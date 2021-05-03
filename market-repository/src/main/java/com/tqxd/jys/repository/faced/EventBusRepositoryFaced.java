@@ -3,7 +3,7 @@ package com.tqxd.jys.repository.faced;
 import com.tqxd.jys.constance.Period;
 import com.tqxd.jys.openapi.RepositoryOpenApi;
 import com.tqxd.jys.openapi.ServiceAddress;
-import com.tqxd.jys.repository.impl.KLineRepository;
+import com.tqxd.jys.timeline.KLineRepository;
 import io.vertx.core.AsyncResult;
 import io.vertx.core.Future;
 import io.vertx.core.Handler;

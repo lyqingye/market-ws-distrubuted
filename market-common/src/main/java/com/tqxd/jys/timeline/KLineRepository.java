@@ -1,4 +1,4 @@
-package com.tqxd.jys.repository.impl;
+package com.tqxd.jys.timeline;
 
 import com.tqxd.jys.common.payload.KlineTick;
 import com.tqxd.jys.constance.Period;

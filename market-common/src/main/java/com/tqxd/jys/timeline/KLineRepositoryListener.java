@@ -1,4 +1,4 @@
-package com.tqxd.jys.repository.impl;
+package com.tqxd.jys.timeline;
 
 import com.tqxd.jys.timeline.cmd.AppendTickResult;
 import com.tqxd.jys.timeline.cmd.AutoAggregateResult;

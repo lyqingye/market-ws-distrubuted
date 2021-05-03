@@ -8,7 +8,7 @@ import com.tqxd.jys.messagebus.MessageBusFactory;
 import com.tqxd.jys.messagebus.topic.Topic;
 import com.tqxd.jys.repository.faced.EventBusRepositoryFaced;
 import com.tqxd.jys.repository.impl.CacheableKLineRepositoryProxy;
-import com.tqxd.jys.repository.impl.KLineRepository;
+import com.tqxd.jys.timeline.KLineRepository;
 import com.tqxd.jys.repository.impl.RedisKLineRepository;
 import com.tqxd.jys.utils.ChannelUtil;
 import io.vertx.core.*;
