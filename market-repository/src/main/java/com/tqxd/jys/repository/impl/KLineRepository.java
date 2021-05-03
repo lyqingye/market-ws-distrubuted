@@ -23,7 +23,9 @@ public interface KLineRepository {
    * @param from 仓库
    * @param handler 结果处理器
    */
-  default void importFrom (KLineRepository from, Handler<AsyncResult<Void>> handler) {}
+  default void importFrom (KLineRepository from, Handler<AsyncResult<Void>> handler) {
+    handler.handle(Future.failedFuture("not implementation!"));
+  }
 
   /**
    * 打开仓库
@@ -32,14 +34,18 @@ public interface KLineRepository {
    * @param config 配置
    * @param handler 结果处理器
    */
-  void open (Vertx vertx, JsonObject config, Handler<AsyncResult<Void>> handler);
+  default void open (Vertx vertx, JsonObject config, Handler<AsyncResult<Void>> handler) {
+    handler.handle(Future.failedFuture("not implementation!"));
+  }
 
   /**
    * 获取所有交易对
    *
    * @param handler 结果处理器
    */
-  void listSymbols (Handler<AsyncResult<Set<String>>> handler);
+  default void listSymbols (Handler<AsyncResult<Set<String>>> handler) {
+    handler.handle(Future.failedFuture("not implementation!"));
+  }
 
   /**
    * 加载k线快照
@@ -48,7 +54,9 @@ public interface KLineRepository {
    * @param period {@link Period}
    * @param handler 结果处理器
    */
-  void loadSnapshot (String symbol, Period period, Handler<AsyncResult<KlineSnapshot>> handler);
+  default void loadSnapshot (String symbol, Period period, Handler<AsyncResult<KlineSnapshot>> handler) {
+    handler.handle(Future.failedFuture("not implementation!"));
+  }
 
   /**
    * 根据快照进行恢复
@@ -56,7 +64,9 @@ public interface KLineRepository {
    * @param snapshot 快照
    * @param handler 结果处理器
    */
-  void restoreWithSnapshot(KlineSnapshot snapshot, Handler<AsyncResult<Void>> handler);
+  default void restoreWithSnapshot(KlineSnapshot snapshot, Handler<AsyncResult<Void>> handler) {
+    handler.handle(Future.failedFuture("not implementation!"));
+  }
 
   /**
    * 附加k线tick
@@ -67,21 +77,27 @@ public interface KLineRepository {
    * @param tick k线tick
    * @param handler 结果处理器
    */
-  void append (long commitIndex, String symbol, Period period,KlineTick tick, Handler<AsyncResult<Long>> handler);
+  default void append (long commitIndex, String symbol, Period period,KlineTick tick, Handler<AsyncResult<Long>> handler) {
+    handler.handle(Future.failedFuture("not implementation!"));
+  }
 
   /**
    * 关闭与释放仓库资源
    *
    * @param handler 结果处理器
    */
-  void close (Handler<AsyncResult<Void>> handler);
+  default void close (Handler<AsyncResult<Void>> handler) {
+    handler.handle(Future.failedFuture("not implementation!"));
+  }
 
   /**
    * 将仓库缓存刷入持久化介质
    *
    * @param handler 结果处理器
    */
-  default void flush (Handler<AsyncResult<Void>> handler) {}
+  default void flush (Handler<AsyncResult<Void>> handler) {
+    handler.handle(Future.failedFuture("not implementation!"));
+  }
 
   /**
    * k线历史查询
@@ -92,14 +108,16 @@ public interface KLineRepository {
    * @param to 结束时间戳
    * @param handler 结果处理器
    */
-  void query(String symbol,Period period,long form,long to,Handler<AsyncResult<List<KlineTick>>> handler);
+  default void query(String symbol,Period period,long form,long to,Handler<AsyncResult<List<KlineTick>>> handler) {
+    handler.handle(Future.failedFuture("not implementation!"));
+  }
 
   /**
    * 添加仓库监听器
    *
    * @param listener 监听器对象
    */
-  void addListener(KLineRepositoryListener listener);
+  default void addListener(KLineRepositoryListener listener) {}
 
   /**
    * 查询24小时聚合数据
@@ -107,7 +125,9 @@ public interface KLineRepository {
    * @param symbol 交易对
    * @param handler 结果处理器
    */
-  void getAggregate(String symbol, Handler<AsyncResult<MarketDetailTick>> handler);
+  default void getAggregate(String symbol, Handler<AsyncResult<MarketDetailTick>> handler) {
+    handler.handle(Future.failedFuture("not implementation!"));
+  }
 
   /**
    * 更新24小时聚合数据
@@ -116,7 +136,9 @@ public interface KLineRepository {
    * @param tick tick
    * @param handler 结果处理器
    */
-  void putAggregate(String symbol, MarketDetailTick tick, Handler<AsyncResult<Void>> handler);
+  default void putAggregate(String symbol, MarketDetailTick tick, Handler<AsyncResult<Void>> handler) {
+    handler.handle(Future.failedFuture("not implementation!"));
+  }
 
   //
   // future apis
