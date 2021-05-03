@@ -60,8 +60,8 @@ public class InMemKLineRepository implements KLineRepository {
   }
 
   @Override
-  public void listSymbols(Handler<AsyncResult<List<String>>> handler) {
-    handler.handle(Future.succeededFuture(new ArrayList<>(symbols)));
+  public void listSymbols(Handler<AsyncResult<Set<String>>> handler) {
+    handler.handle(Future.succeededFuture(symbols));
   }
 
   @Override

@@ -8,6 +8,7 @@ import io.vertx.core.*;
 import io.vertx.core.json.JsonObject;
 
 import java.util.List;
+import java.util.Set;
 
 /**
  * k线数据存储仓库
@@ -30,7 +31,7 @@ public interface KLineRepository {
    *
    * @param handler 结果处理器
    */
-  void listSymbols (Handler<AsyncResult<List<String>>> handler);
+  void listSymbols (Handler<AsyncResult<Set<String>>> handler);
 
   /**
    * 加载k线快照
@@ -119,8 +120,8 @@ public interface KLineRepository {
     return promise.future();
   }
 
-  default Future<List<String>> listSymbols () {
-    Promise<List<String>> promise = Promise.promise();
+  default Future<Set<String>> listSymbols () {
+    Promise<Set<String>> promise = Promise.promise();
     listSymbols(promise);
     return promise.future();
   }

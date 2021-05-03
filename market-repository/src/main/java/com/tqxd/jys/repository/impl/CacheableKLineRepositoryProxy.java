@@ -13,6 +13,7 @@ import io.vertx.core.json.JsonObject;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
+import java.util.Set;
 
 /**
  * 可缓存的k线仓库代理
@@ -95,7 +96,7 @@ public class CacheableKLineRepositoryProxy implements KLineRepository{
   }
 
   @Override
-  public void listSymbols(Handler<AsyncResult<List<String>>> handler) {
+  public void listSymbols(Handler<AsyncResult<Set<String>>> handler) {
     cacheRepository.listSymbols(handler);
   }
 

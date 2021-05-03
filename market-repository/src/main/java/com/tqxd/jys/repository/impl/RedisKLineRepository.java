@@ -17,10 +17,7 @@ import io.vertx.redis.client.Request;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
-import java.util.Objects;
+import java.util.*;
 
 /**
  * k线redis仓库
@@ -52,10 +49,10 @@ public class RedisKLineRepository implements KLineRepository {
   }
 
   @Override
-  public void listSymbols(Handler<AsyncResult<List<String>>> handler) {
+  public void listSymbols(Handler<AsyncResult<Set<String>>> handler) {
     redis.sMembers(RedisKeyHelper.getSymbolsKey(), h -> {
       if (h.succeeded()) {
-        handler.handle(Future.succeededFuture(new ArrayList<>(h.result())));
+        handler.handle(Future.succeededFuture(h.result()));
       }else {
         handler.handle(Future.failedFuture(h.cause()));
       }
