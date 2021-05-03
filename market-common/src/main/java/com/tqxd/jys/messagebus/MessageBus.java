@@ -58,6 +58,16 @@ public interface MessageBus {
    */
   void subscribe(Topic topic, Consumer<Message<?>> consumer, Handler<AsyncResult<String>> handler);
 
+
+  /**
+   * 订阅主题
+   *
+   * @param topic    主题
+   * @param listener 消费者
+   * @param handler  异步处理器
+   */
+  void subscribe(Topic topic, MessageListener listener, Handler<AsyncResult<String>> handler);
+
   /**
    * 订阅主题
    *
@@ -68,6 +78,18 @@ public interface MessageBus {
   default Future<String> subscribe(Topic topic, Consumer<Message<?>> consumer) {
     Promise<String> promise = Promise.promise();
     subscribe(topic, consumer, promise);
+    return promise.future();
+  }
+
+  /**
+   * 订阅主题
+   *
+   * @param topic    主题
+   * @param listener 消费者
+   */
+  default Future<String> subscribe(Topic topic,MessageListener listener) {
+    Promise<String> promise = Promise.promise();
+    subscribe(topic,listener,promise);
     return promise.future();
   }
 

@@ -2,6 +2,7 @@ package com.tqxd.jys.messagebus.impl.kafka;
 
 
 import com.tqxd.jys.messagebus.MessageBus;
+import com.tqxd.jys.messagebus.MessageListener;
 import com.tqxd.jys.messagebus.payload.Message;
 import com.tqxd.jys.messagebus.topic.Topic;
 import io.vertx.core.AsyncResult;
@@ -93,6 +94,11 @@ public class KafkaMessageBusImpl implements MessageBus {
         }
       }
     }).exceptionHandler(Throwable::printStackTrace);
+  }
+
+  @Override
+  public void subscribe(Topic topic, MessageListener listener, Handler<AsyncResult<String>> handler) {
+    subscribe(topic, (Consumer<Message<?>>) listener::onMessage, handler);
   }
 
   @Override
