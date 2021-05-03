@@ -28,7 +28,9 @@ import static com.tqxd.jys.utils.VertxUtil.*;
 @SuppressWarnings("unchecked")
 public class RepositoryApplication extends AbstractVerticle {
   private static final Logger log = LoggerFactory.getLogger(RepositoryApplication.class);
-
+  private KLineRepository kLineRepository;
+  private EventBusRepositoryFaced ebRepositoryFaced;
+  private String msgBusRegistryId;
 
   public static void main(String[] args) {
     long start = System.currentTimeMillis();
@@ -66,8 +68,8 @@ public class RepositoryApplication extends AbstractVerticle {
 
   @Override
   public void start(Promise<Void> startPromise) throws Exception {
-    KLineRepository kLineRepository = new CacheableKLineRepositoryProxy(new RedisKLineRepository());
-    EventBusRepositoryFaced ebFaced = new EventBusRepositoryFaced(kLineRepository);
+    kLineRepository = new CacheableKLineRepositoryProxy(new RedisKLineRepository());
+    ebRepositoryFaced = new EventBusRepositoryFaced(kLineRepository);
     kLineRepository
       .open(vertx,config())
       .compose(h -> MessageBusFactory.bus()
@@ -85,10 +87,24 @@ public class RepositoryApplication extends AbstractVerticle {
           }
         }))
       // 注册 eventbus open api
-      .onSuccess(none -> {
-        ebFaced.register(vertx);
+      .onSuccess(registryId -> {
+        msgBusRegistryId = registryId;
+        ebRepositoryFaced.register(vertx);
         startPromise.complete();
       })
       .onFailure(startPromise::fail);
+  }
+
+  @Override
+  public void stop(Promise<Void> stopPromise) throws Exception {
+    ebRepositoryFaced.unregister();
+    MessageBusFactory.bus()
+      .unSubscribe(Topic.KLINE_TICK_TOPIC,msgBusRegistryId, ar -> {
+        if (ar.succeeded()) {
+          kLineRepository.close(stopPromise);
+        }else {
+          stopPromise.fail(ar.cause());
+        }
+      });
   }
 }
