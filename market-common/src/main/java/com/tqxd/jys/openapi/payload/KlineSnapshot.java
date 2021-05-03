@@ -38,4 +38,12 @@ public class KlineSnapshot {
   public void setTickList(List<KlineTick> tickJsonStrList) {
     this.tickList = tickJsonStrList;
   }
+
+  public KlineSnapshot copy () {
+    KlineSnapshot snapshot = new KlineSnapshot();
+    snapshot.meta = this.meta;
+    snapshot.tickList = this.tickList;
+    return snapshot;
+  }
+
 }

@@ -52,6 +52,9 @@ public class InMemKLineRepository implements KLineRepository {
     long start = System.currentTimeMillis();
     from.listSymbols()
       .compose(symbols -> {
+        if (!symbols.isEmpty()) {
+          this.symbols = new HashSet<>(symbols);
+        }
         log.info("load symbols: {}",symbols);
         List<Future> allFutures = new ArrayList<>();
         // process all symbols
@@ -62,10 +65,12 @@ public class InMemKLineRepository implements KLineRepository {
               List<Future> restoreFutures = new ArrayList<>();
               // append all period
               for (Period p : Period.values()) {
-                snapshot.getMeta().setPeriod(p);
+                KlineSnapshot copy = snapshot.copy();
+                copy.setMeta(snapshot.getMeta().copy());
+                copy.getMeta().setPeriod(p);
                 restoreFutures.add(
-                  this.restoreWithSnapshot(snapshot)
-                    .onSuccess(v -> log.info("restore {} {} snapshot success!",snapshot.getMeta().getSymbol(),p))
+                  this.restoreWithSnapshot(copy)
+                    .onSuccess(v -> log.info("restore {} {} snapshot success!",copy.getMeta().getSymbol(),p))
                 );
               }
               return CompositeFuture.all(restoreFutures);

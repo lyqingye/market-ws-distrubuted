@@ -49,4 +49,12 @@ public class KlineSnapshotMeta {
   public void setCommittedIndex(long committedIndex) {
     this.committedIndex = committedIndex;
   }
+  public KlineSnapshotMeta copy() {
+    KlineSnapshotMeta meta = new KlineSnapshotMeta();
+    meta.setPeriod(this.period);
+    meta.setSymbol(this.symbol);
+    meta.setCommittedIndex(this.committedIndex);
+    meta.setTs(this.ts);
+    return meta;
+  }
 }
