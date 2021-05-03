@@ -9,6 +9,8 @@ import com.tqxd.jys.timeline.cmd.AppendTickResult;
 import com.tqxd.jys.timeline.cmd.AutoAggregateResult;
 import io.vertx.core.*;
 import io.vertx.core.json.JsonObject;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -21,6 +23,7 @@ import java.util.Set;
  * @author lyqingye
  */
 public class CacheableKLineRepositoryProxy implements KLineRepository{
+  private static final Logger log = LoggerFactory.getLogger(CacheableKLineRepositoryProxy.class);
   private KLineRepository cacheRepository;
   private KLineRepository persistRepository;
 
@@ -32,29 +35,38 @@ public class CacheableKLineRepositoryProxy implements KLineRepository{
   @SuppressWarnings("rawtypes")
   @Override
   public void open(Vertx vertx, JsonObject config, Handler<AsyncResult<Void>> handler) {
+    long start = System.currentTimeMillis();
     persistRepository.open(vertx,config, persist -> {
       if (persist.succeeded()) {
         cacheRepository.open(vertx,config, cache -> {
           if (cache.succeeded()) {
             persistRepository.listSymbols()
               .compose(symbols -> {
+                log.info("load symbols: {}",symbols);
                 List<Future> allFutures = new ArrayList<>();
                 // process all symbols
                 for (String symbol : symbols) {
                   allFutures.add(persistRepository.loadSnapshot(symbol,Period._1_MIN)
                     .compose(snapshot -> {
+                      log.info("load {} snapshot! committed index {}, size: {}",symbol,snapshot.getMeta().getCommittedIndex(),snapshot.getTickList().size());
                       List<Future> restoreFutures = new ArrayList<>();
                       // append all period
                       for (Period p : Period.values()) {
                         snapshot.getMeta().setPeriod(p);
-                        restoreFutures.add(cacheRepository.restoreWithSnapshot(snapshot));
+                        restoreFutures.add(
+                          cacheRepository.restoreWithSnapshot(snapshot)
+                          .onSuccess(v -> log.info("restore {} {} snapshot success!",snapshot.getMeta().getSymbol(),p))
+                        );
                       }
                       return CompositeFuture.all(restoreFutures);
                     }));
                 }
                 return CompositeFuture.all(allFutures);
               })
-              .onSuccess(ignored -> handler.handle(Future.succeededFuture()))
+              .onSuccess(ignored -> {
+                handler.handle(Future.succeededFuture());
+                log.info("restore all snapshot success! using {}ms",System.currentTimeMillis() - start);
+              })
               .onFailure(throwable -> handler.handle(Future.failedFuture(throwable)));
           }else {
             handler.handle(Future.failedFuture(cache.cause()));

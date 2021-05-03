@@ -56,7 +56,7 @@ public class RepositoryApplication extends AbstractVerticle {
                   return Future.failedFuture(ex);
                 })
             )
-            .onSuccess(id -> log.info("[PushingApplication]: start success! using: {}ms", System.currentTimeMillis() - start))
+            .onSuccess(id -> log.info("[RepositoryApplication]: start success! using: {}ms", System.currentTimeMillis() - start))
             .onFailure(Throwable::printStackTrace);
         } else {
           clusteredAr.cause().printStackTrace();
@@ -83,13 +83,15 @@ public class RepositoryApplication extends AbstractVerticle {
               break;
             }
             default:
-              log.error("[Market-Repository]: invalid message type from Kline topic! message: {}", msg);
+              log.error("[RepositoryApplication]: invalid message type from Kline topic! message: {}", msg);
           }
         }))
       // 注册 eventbus open api
       .onSuccess(registryId -> {
         msgBusRegistryId = registryId;
+        log.info("[RepositoryApplication]: register message bus success! registryId: {}", msgBusRegistryId);
         ebRepositoryFaced.register(vertx);
+        log.info("[RepositoryApplication]: register eventbus faced success!");
         startPromise.complete();
       })
       .onFailure(startPromise::fail);
