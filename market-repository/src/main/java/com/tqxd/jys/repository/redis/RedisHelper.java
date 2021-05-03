@@ -162,6 +162,22 @@ public class RedisHelper {
     });
   }
 
+  public void zRangeByScore (String key,double start, double stop,
+                             Handler<AsyncResult<List<String>>> handler) {
+    final List<String> cmd = Arrays.asList(key, String.valueOf(start), String.valueOf(stop));
+    redisApi.zrangebyscore(cmd, ar -> {
+      if (ar.succeeded()) {
+        final Response response = ar.result();
+        final List<String> objects = response.stream()
+          .map(obj -> (String) this.responseToObj(obj))
+          .collect(Collectors.toList());
+        handler.handle(Future.succeededFuture(objects));
+      } else {
+        handler.handle(Future.failedFuture(ar.cause()));
+      }
+    });
+  }
+
   /**
    * Set sMembers
    *

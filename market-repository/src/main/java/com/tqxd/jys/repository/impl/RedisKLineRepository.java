@@ -198,13 +198,29 @@ public class RedisKLineRepository implements KLineRepository {
   }
 
   @Override
-  public void query(String symbol, Period period, long form, long to, Handler<AsyncResult<List<KlineTick>>> handler) {
+  public void query(String symbol, Period period, long from, long to, Handler<AsyncResult<List<KlineTick>>> handler) {
     if (!Period._1_MIN.equals(period)) {
       handler.handle(Future.failedFuture("redis repository only support 1min kline data!"));
       return;
     }
-
-    // TODO
+    redis.zRangeByScore(RedisKeyHelper.toKlineDataKey(symbol),from,to, ar -> {
+      if (ar.succeeded()) {
+        List<String> ticks = ar.result();
+        if (!ticks.isEmpty()) {
+          try {
+            List<KlineTick> tickList = new ArrayList<>(ticks.size());
+            for (String tickJson : ticks) {
+              tickList.add(Json.decodeValue(tickJson, KlineTick.class));
+            }
+            handler.handle(Future.succeededFuture(tickList));
+          } catch (Exception ex) {
+            handler.handle(Future.failedFuture(ex));
+          }
+        } else {
+          handler.handle(Future.succeededFuture(Collections.emptyList()));
+        }
+      }
+    });
   }
 
   @Override
