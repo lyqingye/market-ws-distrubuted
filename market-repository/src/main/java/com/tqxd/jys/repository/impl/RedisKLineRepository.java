@@ -7,8 +7,11 @@ import com.tqxd.jys.openapi.payload.KlineSnapshot;
 import com.tqxd.jys.openapi.payload.KlineSnapshotMeta;
 import com.tqxd.jys.repository.redis.RedisHelper;
 import com.tqxd.jys.repository.redis.RedisKeyHelper;
+import com.tqxd.jys.timeline.KLineMeta;
 import com.tqxd.jys.timeline.KLineRepository;
 import com.tqxd.jys.timeline.KLineRepositoryListener;
+import com.tqxd.jys.timeline.cmd.AppendTickResult;
+import com.tqxd.jys.timeline.cmd.AutoAggregateResult;
 import com.tqxd.jys.utils.TimeUtils;
 import com.tqxd.jys.utils.VertxUtil;
 import io.vertx.core.*;
@@ -235,7 +238,7 @@ public class RedisKLineRepository implements KLineRepository {
     redis.get(RedisKeyHelper.toMarketDetailKey(symbol), ar -> {
       if (ar.succeeded()) {
         handler.handle(Future.succeededFuture(Json.decodeValue(ar.result(),MarketDetailTick.class)));
-      }else {
+      } else {
         handler.handle(Future.failedFuture(ar.cause()));
       }
     });
@@ -243,6 +246,37 @@ public class RedisKLineRepository implements KLineRepository {
 
   @Override
   public void putAggregate(String symbol, MarketDetailTick tick, Handler<AsyncResult<Void>> handler) {
-    redis.set(RedisKeyHelper.toMarketDetailKey(symbol),Json.encode(tick),handler);
+    redis.set(RedisKeyHelper.toMarketDetailKey(symbol), Json.encode(tick), handler);
+  }
+
+  @Override
+  public void syncAppendedFrom(KLineRepository target, Handler<AsyncResult<Void>> handler) {
+    target.addListener(new KLineRepositoryListener() {
+      @Override
+      public void onAppendFinished(AppendTickResult rs) {
+        if (!rs.getMeta().getPeriod().equals(Period._1_MIN)) {
+          return;
+        }
+        KLineMeta meta = rs.getMeta();
+        append(meta.getCommitIndex(), meta.getSymbol(), meta.getPeriod(), rs.getTick(), h -> {
+          if (h.failed()) {
+            h.cause().printStackTrace();
+          }
+        });
+
+        if (rs.getDetail() != null) {
+          putAggregate(meta.getSymbol(), rs.getDetail())
+            .onFailure(Throwable::printStackTrace);
+        }
+      }
+
+      @Override
+      public void onAutoAggregate(AutoAggregateResult rs) {
+        KLineMeta meta = rs.getMeta();
+        putAggregate(meta.getSymbol(), rs.getTick())
+          .onFailure(Throwable::printStackTrace);
+      }
+    });
+    handler.handle(Future.succeededFuture());
   }
 }

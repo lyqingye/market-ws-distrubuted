@@ -1,20 +1,13 @@
 package com.tqxd.jys.repository;
 
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.tqxd.jys.common.payload.KlineTick;
-import com.tqxd.jys.common.payload.TemplatePayload;
-import com.tqxd.jys.constance.DataType;
-import com.tqxd.jys.constance.Period;
 import com.tqxd.jys.messagebus.MessageBusFactory;
-import com.tqxd.jys.messagebus.MessageListener;
 import com.tqxd.jys.messagebus.topic.Topic;
 import com.tqxd.jys.repository.faced.EventBusRepositoryFaced;
 import com.tqxd.jys.repository.impl.CacheableKLineRepositoryProxy;
-import com.tqxd.jys.timeline.KLineRepository;
 import com.tqxd.jys.repository.impl.RedisKLineRepository;
-import com.tqxd.jys.utils.ChannelUtil;
+import com.tqxd.jys.timeline.KLineRepository;
+import com.tqxd.jys.timeline.sync.MBKLineRepositoryAppendedSyncer;
 import io.vertx.core.*;
-import io.vertx.core.json.jackson.JacksonCodec;
 import io.vertx.spi.cluster.zookeeper.ZookeeperClusterManager;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -72,28 +65,20 @@ public class RepositoryApplication extends AbstractVerticle {
   public void start(Promise<Void> startPromise) throws Exception {
     kLineRepository = new CacheableKLineRepositoryProxy(new RedisKLineRepository());
     ebRepositoryFaced = new EventBusRepositoryFaced(kLineRepository);
+    MBKLineRepositoryAppendedSyncer syncer = new MBKLineRepositoryAppendedSyncer();
     kLineRepository
-      .open(vertx,config())
-      .compose(h -> MessageBusFactory.bus()
-        .subscribe(Topic.KLINE_TICK_TOPIC,(MessageListener) msg -> {
-          if (msg.getType() == DataType.KLINE) {
-            TemplatePayload<KlineTick> payload = JacksonCodec.decodeValue((String) msg.getPayload(), new TypeReference<TemplatePayload<KlineTick>>() {
-            });
-            kLineRepository.append(msg.getIndex(), ChannelUtil.getSymbol(payload.getCh()), Period._1_MIN, payload.getTick())
-              .onFailure(Throwable::printStackTrace);
-          } else {
-            log.error("[RepositoryApplication]: invalid message type from Kline topic! message: {}", msg);
-          }
-        }))
+      .open(vertx, config())
+      // 将k线数据注册到k线仓库同步器
+      .compose(none -> MessageBusFactory.bus().subscribe(Topic.KLINE_TICK_TOPIC, syncer))
       // 注册 eventbus open api
-      .onSuccess(registryId -> {
-        msgBusRegistryId = registryId;
+      .compose(registryId -> {
         log.info("[RepositoryApplication]: register message bus success! registryId: {}", msgBusRegistryId);
         ebRepositoryFaced.register(vertx);
         log.info("[RepositoryApplication]: register eventbus faced success!");
-        startPromise.complete();
+        // 同步数据到仓库
+        return syncer.syncAppendTo(kLineRepository);
       })
-      .onFailure(startPromise::fail);
+      .onComplete(startPromise);
   }
 
   @Override

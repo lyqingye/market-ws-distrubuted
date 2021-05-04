@@ -9,7 +9,6 @@ import com.tqxd.jys.timeline.cmd.AutoAggregateResult;
  * @author lyqingye
  */
 public interface KLineRepositoryListener {
-
   /**
    * 附加k线tick结束事件
    *

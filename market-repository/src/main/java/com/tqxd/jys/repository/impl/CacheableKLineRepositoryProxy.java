@@ -5,12 +5,12 @@ import com.tqxd.jys.constance.Period;
 import com.tqxd.jys.messagebus.payload.detail.MarketDetailTick;
 import com.tqxd.jys.openapi.payload.KlineSnapshot;
 import com.tqxd.jys.timeline.InMemKLineRepository;
-import com.tqxd.jys.timeline.KLineMeta;
 import com.tqxd.jys.timeline.KLineRepository;
 import com.tqxd.jys.timeline.KLineRepositoryListener;
-import com.tqxd.jys.timeline.cmd.AppendTickResult;
-import com.tqxd.jys.timeline.cmd.AutoAggregateResult;
-import io.vertx.core.*;
+import io.vertx.core.AsyncResult;
+import io.vertx.core.Future;
+import io.vertx.core.Handler;
+import io.vertx.core.Vertx;
 import io.vertx.core.json.JsonObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -41,42 +41,17 @@ public class CacheableKLineRepositoryProxy implements KLineRepository {
       if (persist.succeeded()) {
         cacheRepository.open(vertx,config, cache -> {
           if (cache.succeeded()) {
-            cacheRepository.importFrom(persistRepository,handler);
+            // cache从持久化库导入数据
+            cacheRepository.importFrom(persistRepository)
+              // 持久化仓库同步日志
+              .compose(none -> persistRepository.syncAppendedFrom(cacheRepository))
+              .onComplete(handler);
           }else {
             handler.handle(Future.failedFuture(cache.cause()));
           }
         });
       }else {
         handler.handle(Future.failedFuture(persist.cause()));
-      }
-    });
-
-    cacheRepository.addListener(new KLineRepositoryListener() {
-      @Override
-      public void onAppendFinished(AppendTickResult rs) {
-        if (!rs.getMeta().getPeriod().equals(Period._1_MIN)) {
-          return;
-        }
-        KLineMeta meta = rs.getMeta();
-        persistRepository.append(meta.getCommitIndex(), meta.getSymbol(),meta.getPeriod(),rs.getTick(), h -> {
-          if (h.failed()) {
-            h.cause().printStackTrace();
-          }
-        });
-
-        if (rs.getDetail() != null) {
-          persistRepository.putAggregate(meta.getSymbol(),rs.getDetail())
-            .compose(h -> cacheRepository.putAggregate(meta.getSymbol(),rs.getDetail()))
-            .onFailure(Throwable::printStackTrace);
-        }
-      }
-
-      @Override
-      public void onAutoAggregate(AutoAggregateResult rs) {
-        KLineMeta meta = rs.getMeta();
-        persistRepository.putAggregate(meta.getSymbol(),rs.getTick())
-          .compose(h -> cacheRepository.putAggregate(meta.getSymbol(),rs.getTick()))
-          .onFailure(Throwable::printStackTrace);
       }
     });
   }

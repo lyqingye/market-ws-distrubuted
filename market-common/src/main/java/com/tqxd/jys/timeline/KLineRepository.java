@@ -20,21 +20,31 @@ public interface KLineRepository {
   /**
    * 从另外一个仓库导入数据
    *
-   * @param from 仓库
+   * @param from    仓库
    * @param handler 结果处理器
    */
-  default void importFrom (KLineRepository from, Handler<AsyncResult<Void>> handler) {
+  default void importFrom(KLineRepository from, Handler<AsyncResult<Void>> handler) {
+    handler.handle(Future.failedFuture("not implementation!"));
+  }
+
+  /**
+   * 与指定库同步附加日志
+   *
+   * @param target  目标库
+   * @param handler 结果处理器
+   */
+  default void syncAppendedFrom(KLineRepository target, Handler<AsyncResult<Void>> handler) {
     handler.handle(Future.failedFuture("not implementation!"));
   }
 
   /**
    * 打开仓库
    *
-   * @param vertx vertx
-   * @param config 配置
+   * @param vertx   vertx
+   * @param config  配置
    * @param handler 结果处理器
    */
-  default void open (Vertx vertx, JsonObject config, Handler<AsyncResult<Void>> handler) {
+  default void open(Vertx vertx, JsonObject config, Handler<AsyncResult<Void>> handler) {
     handler.handle(Future.failedFuture("not implementation!"));
   }
 
@@ -200,13 +210,19 @@ public interface KLineRepository {
 
   default Future<MarketDetailTick> getAggregate(String symbol) {
     Promise<MarketDetailTick> promise = Promise.promise();
-    getAggregate(symbol,promise);
+    getAggregate(symbol, promise);
     return promise.future();
   }
 
-  default Future<Void> putAggregate(String symbol,MarketDetailTick tick) {
+  default Future<Void> putAggregate(String symbol, MarketDetailTick tick) {
     Promise<Void> promise = Promise.promise();
-    putAggregate(symbol, tick,promise);
+    putAggregate(symbol, tick, promise);
+    return promise.future();
+  }
+
+  default Future<Void> syncAppendedFrom(KLineRepository target) {
+    Promise<Void> promise = Promise.promise();
+    syncAppendedFrom(target, promise);
     return promise.future();
   }
 }

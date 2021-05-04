@@ -1,22 +1,14 @@
 package com.tqxd.jys.websocket;
 
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.tqxd.jys.common.payload.KlineTick;
-import com.tqxd.jys.common.payload.TemplatePayload;
-import com.tqxd.jys.constance.DataType;
-import com.tqxd.jys.constance.Period;
 import com.tqxd.jys.messagebus.MessageBusFactory;
-import com.tqxd.jys.messagebus.MessageListener;
 import com.tqxd.jys.messagebus.topic.Topic;
 import com.tqxd.jys.timeline.InMemKLineRepository;
 import com.tqxd.jys.timeline.KLineRepository;
 import com.tqxd.jys.timeline.KLineRepositoryAdapter;
-import com.tqxd.jys.utils.ChannelUtil;
-import com.tqxd.jys.utils.VertxUtil;
+import com.tqxd.jys.timeline.sync.MBKLineRepositoryAppendedSyncer;
 import com.tqxd.jys.websocket.cache.CacheManager;
 import com.tqxd.jys.websocket.transport.ServerEndpointVerticle;
 import io.vertx.core.*;
-import io.vertx.core.json.jackson.JacksonCodec;
 import io.vertx.spi.cluster.zookeeper.ZookeeperClusterManager;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -83,23 +75,14 @@ public class PushingApplication extends AbstractVerticle {
   private Future<Void> initKLineRepository () {
     KLineRepositoryAdapter remote = new KLineRepositoryAdapter();
     kLineRepository = new InMemKLineRepository();
+    MBKLineRepositoryAppendedSyncer syncer = new MBKLineRepositoryAppendedSyncer();
     return remote.open(vertx, config())
       .compose(none -> kLineRepository.open(vertx, config()))
       .compose(none -> kLineRepository.importFrom(remote))
-      .compose(none ->
-         MessageBusFactory.bus()
-          .subscribe(Topic.KLINE_TICK_TOPIC, (MessageListener) msg -> {
-            if (msg.getType() == DataType.KLINE) {
-              TemplatePayload<KlineTick> payload = JacksonCodec.decodeValue((String) msg.getPayload(), new TypeReference<TemplatePayload<KlineTick>>() {
-              });
-              this.kLineRepository.append(msg.getIndex(), ChannelUtil.getSymbol(payload.getCh()), Period._1_MIN, payload.getTick())
-                .onFailure(Throwable::printStackTrace);
-            } else {
-              log.error("[RepositoryApplication]: invalid message type from Kline topic! message: {}", msg);
-            }
-          })
-          .map(toVoid -> null)
-      );
+      // 将k线数据注册到k线仓库同步器
+      .compose(none -> MessageBusFactory.bus().subscribe(Topic.KLINE_TICK_TOPIC, syncer))
+      // 同步数据到k线仓库
+      .compose(none -> syncer.syncAppendTo(kLineRepository));
   }
 
   private Future<Void> initCacheManager () {
