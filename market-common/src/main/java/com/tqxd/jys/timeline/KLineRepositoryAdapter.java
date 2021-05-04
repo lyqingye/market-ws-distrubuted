@@ -17,12 +17,13 @@ import java.util.Set;
  *
  * @author lyqingye
  */
-public class EventBusRepositoryAdapter implements KLineRepository{
+public class KLineRepositoryAdapter implements KLineRepository{
 
   private RepositoryOpenApi openApi;
 
   public void open(Vertx vertx, JsonObject config, Handler<AsyncResult<Void>> handler) {
     openApi = RepositoryOpenApi.createProxy(vertx);
+    handler.handle(Future.succeededFuture());
   }
 
   @Override

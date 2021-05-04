@@ -1,17 +1,26 @@
 package com.tqxd.jys.websocket;
 
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.tqxd.jys.common.payload.KlineTick;
+import com.tqxd.jys.common.payload.TemplatePayload;
+import com.tqxd.jys.constance.Period;
 import com.tqxd.jys.messagebus.MessageBusFactory;
+import com.tqxd.jys.messagebus.MessageListener;
+import com.tqxd.jys.messagebus.topic.Topic;
+import com.tqxd.jys.timeline.InMemKLineRepository;
 import com.tqxd.jys.timeline.KLineManager;
+import com.tqxd.jys.timeline.KLineRepository;
+import com.tqxd.jys.timeline.KLineRepositoryAdapter;
+import com.tqxd.jys.utils.ChannelUtil;
 import com.tqxd.jys.utils.VertxUtil;
+import com.tqxd.jys.websocket.cache.CacheManager;
+import com.tqxd.jys.websocket.transport.ServerEndpointVerticle;
 import io.vertx.core.*;
-import io.vertx.core.eventbus.EventBusOptions;
-import io.vertx.core.json.JsonObject;
-import io.vertx.core.spi.cluster.ClusterManager;
+import io.vertx.core.json.jackson.JacksonCodec;
 import io.vertx.spi.cluster.zookeeper.ZookeeperClusterManager;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.ExecutionException;
 
@@ -19,6 +28,9 @@ import static com.tqxd.jys.utils.VertxUtil.*;
 @SuppressWarnings("unchecked")
 public class PushingApplication extends AbstractVerticle {
   private static final Logger log = LoggerFactory.getLogger(PushingApplication.class);
+  private KLineRepository kLineRepository;
+  private CacheManager cacheManager;
+  private ServerEndpointVerticle serverEndpointVerticle;
 
   public static void main(String[] args) {
     long start = System.currentTimeMillis();
@@ -55,16 +67,55 @@ public class PushingApplication extends AbstractVerticle {
 
   @Override
   public void start(Promise<Void> startPromise) throws Exception {
-    KLineManager klineManager;
-    // 初始化k线管理器
-    klineManager = KLineManager.create();
-    vertx.deployVerticle(new KLineWorkerVerticle(klineManager), new DeploymentOptions().setWorker(true))
-        .compose(c -> vertx.deployVerticle(new ServerEndpointVerticle(klineManager), new DeploymentOptions().setWorker(true))
-    ).onFailure(throwable -> {
-      log.error("[PushingApplication]: start fail! system will be exit! cause by: {}",throwable.getMessage());
-      throwable.printStackTrace();
-      System.exit(-1);
-    });
+    long start = System.currentTimeMillis();
+    CompositeFuture.join(initKLineRepository(),initCacheManager(),initTransport())
+      .onSuccess(none -> {
+        log.info("[PushingApplication]: start success! using {}ms",System.currentTimeMillis() - start);
+      })
+      .onFailure(throwable -> {
+        log.error("[PushingApplication]: start fail! system will be exit! cause by: {}", throwable.getMessage());
+        throwable.printStackTrace();
+        System.exit(-1);
+      }
+    );
+  }
+
+  private Future<Void> initKLineRepository () {
+    KLineRepositoryAdapter remote = new KLineRepositoryAdapter();
+    kLineRepository = new InMemKLineRepository();
+    return remote.open(vertx, config())
+      .compose(none -> kLineRepository.open(vertx, config()))
+      .compose(none -> kLineRepository.importFrom(remote))
+      .compose(none ->
+         MessageBusFactory.bus()
+          .subscribe(Topic.KLINE_TICK_TOPIC, (MessageListener) msg -> {
+            switch (msg.getType()) {
+              case KLINE: {
+                TemplatePayload<KlineTick> payload = JacksonCodec.decodeValue((String) msg.getPayload(), new TypeReference<TemplatePayload<KlineTick>>() {
+                });
+                this.kLineRepository.append(msg.getIndex(), ChannelUtil.getSymbol(payload.getCh()), Period._1_MIN, payload.getTick())
+                  .onFailure(Throwable::printStackTrace);
+                break;
+              }
+              default:
+                log.error("[RepositoryApplication]: invalid message type from Kline topic! message: {}", msg);
+            }
+          })
+          .map(toVoid -> null)
+      );
+  }
+
+  private Future<Void> initCacheManager () {
+    cacheManager = new CacheManager(kLineRepository);
+    return MessageBusFactory.bus().subscribe(Topic.TRADE_DETAIL_TOPIC, cacheManager)
+      .compose(none -> MessageBusFactory.bus().subscribe(Topic.DEPTH_CHART_TOPIC, cacheManager))
+      .map(toVoid -> null);
+  }
+
+  private Future<Void> initTransport () {
+    this.serverEndpointVerticle = new ServerEndpointVerticle(cacheManager);
+    return deploy(vertx,serverEndpointVerticle , new DeploymentOptions().setWorker(true))
+      .map(toVoid -> null);
   }
 
   @Override

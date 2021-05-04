@@ -1,12 +1,13 @@
 package com.tqxd.jys.websocket.processor;
 
+import com.tqxd.jys.websocket.cache.CacheUpdateListener;
 import com.tqxd.jys.websocket.session.Session;
 import io.vertx.core.json.JsonObject;
 
 /**
  * 主题处理器
  */
-public interface ChannelProcessor {
+public interface ChannelProcessor extends CacheUpdateListener {
 
   /**
    * 如果主题匹配那么直接处理Request请求
@@ -16,7 +17,7 @@ public interface ChannelProcessor {
    * @param json    消息
    * @return 是否主题匹配
    */
-  boolean doReqIfChannelMatched(Context ctx, String ch, Session session, JsonObject json);
+  boolean doReqIfChannelMatched(String ch, Session session, JsonObject json);
 
   /**
    * 如果主题匹配那么直接处理Subscribe请求
@@ -26,7 +27,7 @@ public interface ChannelProcessor {
    * @param json    消息
    * @return 是否主题匹配
    */
-  boolean doSubIfChannelMatched(Context ctx, String sub, Session session, JsonObject json);
+  boolean doSubIfChannelMatched(String sub, Session session, JsonObject json);
 
   /**
    * 如果主题匹配那么直接处理UnSubscribe请求
@@ -36,5 +37,5 @@ public interface ChannelProcessor {
    * @param json    消息
    * @return 是否主题匹配
    */
-  boolean doUnSubIfChannelMatched(Context ctx, String unsub, Session session, JsonObject json);
+  boolean doUnSubIfChannelMatched(String unsub, Session session, JsonObject json);
 }

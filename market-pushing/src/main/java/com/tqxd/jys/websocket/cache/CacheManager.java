@@ -1,34 +1,37 @@
-package com.tqxd.jys.websocket;
+package com.tqxd.jys.websocket.cache;
 
 import com.tqxd.jys.common.payload.KlineTick;
 import com.tqxd.jys.constance.DepthLevel;
 import com.tqxd.jys.constance.Period;
+import com.tqxd.jys.messagebus.MessageBusFactory;
+import com.tqxd.jys.messagebus.MessageListener;
+import com.tqxd.jys.messagebus.payload.Message;
 import com.tqxd.jys.messagebus.payload.depth.DepthTick;
 import com.tqxd.jys.messagebus.payload.detail.MarketDetailTick;
-import com.tqxd.jys.messagebus.payload.trade.TradeDetailTick;
 import com.tqxd.jys.messagebus.payload.trade.TradeDetailTickData;
-import com.tqxd.jys.timeline.KLineManager;
+import com.tqxd.jys.messagebus.topic.Topic;
+import com.tqxd.jys.timeline.KLineMeta;
+import com.tqxd.jys.timeline.KLineRepository;
+import com.tqxd.jys.timeline.KLineRepositoryListener;
+import com.tqxd.jys.timeline.cmd.AppendTickResult;
+import com.tqxd.jys.timeline.cmd.AutoAggregateResult;
 import com.tqxd.jys.utils.ChannelUtil;
-import com.tqxd.jys.websocket.processor.Response;
+import com.tqxd.jys.websocket.processor.ChannelProcessor;
 import io.vertx.core.AsyncResult;
 import io.vertx.core.Future;
 import io.vertx.core.Handler;
 import io.vertx.core.buffer.Buffer;
-import io.vertx.core.json.Json;
-import org.apache.curator.framework.imps.GzipCompressionProvider;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 import java.util.*;
-import java.util.concurrent.ConcurrentLinkedDeque;
-import java.util.concurrent.ConcurrentLinkedQueue;
 
 /**
  * 缓存管理器, 直接面向用户数据
  *
  * @author lyqingye
  */
-public class CacheManager {
+public class CacheManager implements KLineRepositoryListener,MessageListener {
   /**
    * 市场概括缓存
    */
@@ -48,10 +51,21 @@ public class CacheManager {
   /**
    * k线管理器
    */
-  private KLineManager kLineManager;
+  private KLineRepository kLineRepository;
+  private int numOfListener = 0;
+  private static CacheUpdateListener[] LISTENERS = new CacheUpdateListener[255];
 
-  public CacheManager (KLineManager kLineManager) {
-    this.kLineManager = Objects.requireNonNull(kLineManager);
+  public CacheManager (KLineRepository kLineRepository) {
+    this.kLineRepository = Objects.requireNonNull(kLineRepository);
+    this.kLineRepository.addListener(this);
+  }
+  public synchronized void addListener (CacheUpdateListener listener) {
+    if (numOfListener >= LISTENERS.length) {
+      ChannelProcessor[] newProcessor = new ChannelProcessor[numOfListener << 1];
+      System.arraycopy(LISTENERS,0,newProcessor,0,numOfListener);
+      LISTENERS = newProcessor;
+    }
+    LISTENERS[numOfListener++] = Objects.requireNonNull(listener);
   }
 
   /**
@@ -122,7 +136,7 @@ public class CacheManager {
    */
   public void reqKlineHistory(@NonNull String symbol, Period period, long from, long to,
                               @NonNull Handler<AsyncResult<List<KlineTick>>> handler) {
-    kLineManager.pollTicks(symbol,period,from,to, ar -> {
+    kLineRepository.query(symbol,period,from,to, ar -> {
       if (ar.succeeded()) {
         handler.handle(Future.succeededFuture(ar.result()));
       }else {
@@ -168,9 +182,48 @@ public class CacheManager {
   /**
    * 更新市场深度缓存
    *
+   * @param symbol 交易对
+   * @param level {@link DepthLevel}
    * @param depthTick 深度
    */
-  protected void updateMarketDepth (DepthTick depthTick) {
+  protected void updateMarketDepth (String symbol,DepthLevel level, DepthTick depthTick) {
 
   }
+
+  //
+  // 监听k线仓库变动
+  //
+
+  @Override
+  public void onAppendFinished(AppendTickResult rs) {
+    KLineMeta meta = rs.getMeta();
+    for (int i = 0; i < numOfListener; i++) {
+      LISTENERS[i].onKLineUpdate(meta.getSymbol(),meta.getPeriod(),rs.getTick());
+    }
+    if (rs.getDetail() != null) {
+      updateMarketDetail(meta.getSymbol(), rs.getDetail());
+      for (int i = 0; i < numOfListener; i++) {
+        LISTENERS[i].onMarketDetailUpdate(meta.getSymbol(),rs.getDetail());
+      }
+    }
+  }
+
+  @Override
+  public void onAutoAggregate(AutoAggregateResult aggregate) {
+    KLineMeta meta = aggregate.getMeta();
+    updateMarketDetail(aggregate.getMeta().getSymbol(), aggregate.getTick());
+    for (int i = 0; i < numOfListener; i++) {
+      LISTENERS[i].onMarketDetailUpdate(meta.getSymbol(),aggregate.getTick());
+    }
+  }
+
+  //
+  // 监听消息队列消息
+  //
+
+  @Override
+  public void onMessage(Message<?> message) {
+
+  }
+
 }

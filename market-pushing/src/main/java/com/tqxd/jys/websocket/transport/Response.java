@@ -1,4 +1,4 @@
-package com.tqxd.jys.websocket.processor;
+package com.tqxd.jys.websocket.transport;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 

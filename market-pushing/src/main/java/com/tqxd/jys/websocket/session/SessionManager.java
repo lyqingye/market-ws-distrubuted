@@ -1,6 +1,6 @@
 package com.tqxd.jys.websocket.session;
 
-import com.tqxd.jys.websocket.ServerEndpointVerticle;
+import com.tqxd.jys.websocket.transport.ServerEndpointVerticle;
 import io.netty.util.internal.shaded.org.jctools.queues.atomic.MpscAtomicArrayQueue;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.http.ServerWebSocket;

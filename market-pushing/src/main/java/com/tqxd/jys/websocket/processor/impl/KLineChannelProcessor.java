@@ -1,12 +1,18 @@
 package com.tqxd.jys.websocket.processor.impl;
 
+import com.tqxd.jys.common.payload.KlineTick;
+import com.tqxd.jys.common.payload.TemplatePayload;
+import com.tqxd.jys.constance.Period;
 import com.tqxd.jys.utils.ChannelUtil;
+import com.tqxd.jys.websocket.cache.CacheManager;
 import com.tqxd.jys.websocket.processor.ChannelProcessor;
-import com.tqxd.jys.websocket.processor.Context;
-import com.tqxd.jys.websocket.processor.Response;
+import com.tqxd.jys.websocket.transport.Response;
 import com.tqxd.jys.websocket.session.Session;
+import com.tqxd.jys.websocket.session.SessionManager;
 import io.vertx.core.json.Json;
 import io.vertx.core.json.JsonObject;
+
+import java.util.Objects;
 
 /**
  * k线主题处理器
@@ -14,9 +20,16 @@ import io.vertx.core.json.JsonObject;
 @SuppressWarnings("Duplicates")
 public class KLineChannelProcessor implements ChannelProcessor {
   private static final String KLINE_TOPIC = "kline";
+  private SessionManager sessionManager;
+  private CacheManager cacheManager;
+
+  public KLineChannelProcessor (CacheManager cacheManager,SessionManager sessionManager) {
+    this.sessionManager = Objects.requireNonNull(sessionManager);
+    this.cacheManager = Objects.requireNonNull(cacheManager);
+  }
 
   @Override
-  public boolean doReqIfChannelMatched(Context ctx, String req, Session session, JsonObject json) {
+  public boolean doReqIfChannelMatched(String req, Session session, JsonObject json) {
     if (isTopicNotMatch(req)) {
       return false;
     }
@@ -39,7 +52,7 @@ public class KLineChannelProcessor implements ChannelProcessor {
       return true;
     }
     // unix 时间戳转换是为了适配火币
-    ctx.klineManager().pollTicks(channel.getSymbol(), channel.getPeriod(), from * 1000, to * 1000, h -> {
+     cacheManager.reqKlineHistory(channel.getSymbol(), channel.getPeriod(), from * 1000, to * 1000, h -> {
       if (h.succeeded()) {
         session.writeText(Json.encode(Response.reqOk(id, req, h.result())));
       } else {
@@ -51,7 +64,7 @@ public class KLineChannelProcessor implements ChannelProcessor {
   }
 
   @Override
-  public boolean doSubIfChannelMatched(Context ctx, String sub, Session session, JsonObject json) {
+  public boolean doSubIfChannelMatched(String sub, Session session, JsonObject json) {
     if (isTopicNotMatch(sub)) {
       return false;
     }
@@ -62,7 +75,7 @@ public class KLineChannelProcessor implements ChannelProcessor {
       return true;
     }
     // set subscribe
-    if (ctx.sessionManager().subscribeChannel(session,sub)) {
+    if (sessionManager.subscribeChannel(session,sub)) {
       session.writeText(Json.encode(Response.subOK(id, sub)));
     }else{
       session.writeText(Json.encode(Response.err(id,sub,"invalid channel of: " + sub + " server not support!")));
@@ -71,7 +84,7 @@ public class KLineChannelProcessor implements ChannelProcessor {
   }
 
   @Override
-  public boolean doUnSubIfChannelMatched(Context ctx, String ch, Session session, JsonObject json) {
+  public boolean doUnSubIfChannelMatched(String ch, Session session, JsonObject json) {
     if (isTopicNotMatch(ch)) {
       return false;
     }
@@ -82,12 +95,20 @@ public class KLineChannelProcessor implements ChannelProcessor {
       return true;
     }
     // set subscribe
-    if (ctx.sessionManager().unsubScribeChannel(session,ch)) {
+    if (sessionManager.unsubScribeChannel(session,ch)) {
       session.writeText(Json.encode(Response.unSubOK(id, ch)));
     }else {
       session.writeText(Json.encode(Response.err(id,ch,"server internal error!")));
     }
     return false;
+  }
+
+  @Override
+  public void onKLineUpdate(String symbol, Period period, KlineTick tick) {
+    // 广播消息
+    String kLineTickCh = ChannelUtil.buildKLineTickChannel(symbol, period);
+    TemplatePayload<KlineTick> data = TemplatePayload.of(kLineTickCh, tick);
+    sessionManager.foreachSessionByChannel(kLineTickCh, session -> session.writeText(Json.encode(data)));
   }
 
   private boolean isTopicNotMatch(String ch) {
