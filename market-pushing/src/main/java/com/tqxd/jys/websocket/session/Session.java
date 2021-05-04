@@ -25,8 +25,8 @@ public class Session {
   public static final int EXPIRED = -1;
   public static final AttributeKey<Integer> SESSION_ID_IN_CLIENT = AttributeKey.valueOf("_session_id");
   private static final Unsafe UNSAFE = UnsafeAccess.UNSAFE;
-  private static long STATE_OFFSET, CLIENT_OFFSET, CTX_OFFSET, TTL_OFFSET;
-  private static long CTX_OFFSET_OF_CLIENT;
+  private static final long STATE_OFFSET, CLIENT_OFFSET, CTX_OFFSET, TTL_OFFSET;
+  private static final long CTX_OFFSET_OF_CLIENT;
 
   static {
     STATE_OFFSET = UnsafeAccess.fieldOffset(Session.class, "state");
