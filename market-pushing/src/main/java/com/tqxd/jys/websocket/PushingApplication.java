@@ -3,12 +3,12 @@ package com.tqxd.jys.websocket;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.tqxd.jys.common.payload.KlineTick;
 import com.tqxd.jys.common.payload.TemplatePayload;
+import com.tqxd.jys.constance.DataType;
 import com.tqxd.jys.constance.Period;
 import com.tqxd.jys.messagebus.MessageBusFactory;
 import com.tqxd.jys.messagebus.MessageListener;
 import com.tqxd.jys.messagebus.topic.Topic;
 import com.tqxd.jys.timeline.InMemKLineRepository;
-import com.tqxd.jys.timeline.KLineManager;
 import com.tqxd.jys.timeline.KLineRepository;
 import com.tqxd.jys.timeline.KLineRepositoryAdapter;
 import com.tqxd.jys.utils.ChannelUtil;
@@ -89,16 +89,13 @@ public class PushingApplication extends AbstractVerticle {
       .compose(none ->
          MessageBusFactory.bus()
           .subscribe(Topic.KLINE_TICK_TOPIC, (MessageListener) msg -> {
-            switch (msg.getType()) {
-              case KLINE: {
-                TemplatePayload<KlineTick> payload = JacksonCodec.decodeValue((String) msg.getPayload(), new TypeReference<TemplatePayload<KlineTick>>() {
-                });
-                this.kLineRepository.append(msg.getIndex(), ChannelUtil.getSymbol(payload.getCh()), Period._1_MIN, payload.getTick())
-                  .onFailure(Throwable::printStackTrace);
-                break;
-              }
-              default:
-                log.error("[RepositoryApplication]: invalid message type from Kline topic! message: {}", msg);
+            if (msg.getType() == DataType.KLINE) {
+              TemplatePayload<KlineTick> payload = JacksonCodec.decodeValue((String) msg.getPayload(), new TypeReference<TemplatePayload<KlineTick>>() {
+              });
+              this.kLineRepository.append(msg.getIndex(), ChannelUtil.getSymbol(payload.getCh()), Period._1_MIN, payload.getTick())
+                .onFailure(Throwable::printStackTrace);
+            } else {
+              log.error("[RepositoryApplication]: invalid message type from Kline topic! message: {}", msg);
             }
           })
           .map(toVoid -> null)

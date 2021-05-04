@@ -1,14 +1,13 @@
 package com.tqxd.jys.common.payload;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
-import com.tqxd.jys.timeline.TimeLineShotData;
 import io.vertx.codegen.annotations.DataObject;
 import io.vertx.core.json.JsonObject;
 
 import java.math.BigDecimal;
 
 @DataObject
-public class KlineTick implements TimeLineShotData {
+public class KlineTick{
   private Long id;
 
   private BigDecimal amount;
@@ -45,7 +44,6 @@ public class KlineTick implements TimeLineShotData {
    *
    * @return 单位 mill
    */
-  @Override
   @JsonIgnore
   public long getTime() {
     return id * 1000;
@@ -72,20 +70,17 @@ public class KlineTick implements TimeLineShotData {
    * @param target 目标
    * @return 合并后的数据
    */
-  @Override
-  public TimeLineShotData merge(TimeLineShotData target) {
-    KlineTick tick = (KlineTick) target;
+  public KlineTick merge(KlineTick target) {
+    this.count = target.getCount();
+    this.amount = target.getAmount();
+    this.vol = target.getVol();
+    this.close = target.close;
 
-    this.count = tick.getCount();
-    this.amount = tick.getAmount();
-    this.vol = tick.getVol();
-    this.close = tick.close;
-
-    if (tick.high.compareTo(this.high) > 0) {
-      this.high = tick.high;
+    if (target.high.compareTo(this.high) > 0) {
+      this.high = target.high;
     }
-    if (tick.low.compareTo(this.low) < 0) {
-      this.low = tick.low;
+    if (target.low.compareTo(this.low) < 0) {
+      this.low = target.low;
     }
     return this;
   }
