@@ -6,6 +6,7 @@ import io.vertx.core.json.Json;
 import io.vertx.core.json.JsonObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
 import java.util.Objects;
 
 /**
@@ -49,20 +50,21 @@ public class RequestDispatcher {
     String sub = jsonObj.getString("sub");
     String unsub = jsonObj.getString("unsub");
     if (req != null) {
-      for (ChannelProcessor processor : PROCESSORS) {
-        if (processor.doReqIfChannelMatched(req, session, jsonObj)) {
+      for (int i = 0; i < numOfProcessor; i++) {
+        if (PROCESSORS[i].doReqIfChannelMatched(req, session, jsonObj)) {
           return;
         }
       }
+
     } else if (sub != null) {
-      for (ChannelProcessor processor : PROCESSORS) {
-        if (processor.doSubIfChannelMatched(sub, session, jsonObj)) {
+      for (int i = 0; i < numOfProcessor; i++) {
+        if (PROCESSORS[i].doSubIfChannelMatched(sub, session, jsonObj)) {
           return;
         }
       }
     } else if (unsub != null) {
-      for (ChannelProcessor processor : PROCESSORS) {
-        if (processor.doUnSubIfChannelMatched(unsub, session, jsonObj)) {
+      for (int i = 0; i < numOfProcessor; i++) {
+        if (PROCESSORS[i].doUnSubIfChannelMatched(unsub, session, jsonObj)) {
           return;
         }
       }

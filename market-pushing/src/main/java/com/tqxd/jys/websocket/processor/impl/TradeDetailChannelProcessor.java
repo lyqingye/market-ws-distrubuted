@@ -6,9 +6,9 @@ import com.tqxd.jys.messagebus.payload.trade.TradeDetailTickData;
 import com.tqxd.jys.utils.ChannelUtil;
 import com.tqxd.jys.websocket.cache.CacheManager;
 import com.tqxd.jys.websocket.processor.ChannelProcessor;
-import com.tqxd.jys.websocket.transport.Response;
 import com.tqxd.jys.websocket.session.Session;
 import com.tqxd.jys.websocket.session.SessionManager;
+import com.tqxd.jys.websocket.transport.Response;
 import io.vertx.core.json.Json;
 import io.vertx.core.json.JsonObject;
 
@@ -32,7 +32,7 @@ public class TradeDetailChannelProcessor implements ChannelProcessor {
 
   @Override
   public boolean doReqIfChannelMatched(String ch, Session session, JsonObject json) {
-    if (!ChannelUtil.isMarketDetailChannel(ch)) {
+    if (!ChannelUtil.isTradeDetailChannel(ch)) {
       return false;
     }
     String id = json.getString("id");
