@@ -1,28 +1,26 @@
 package com.tqxd.jys.collectors;
 
+import com.tqxd.jys.bootstrap.Bootstrap;
 import com.tqxd.jys.collectors.openapi.CollectorOpenApiImpl;
 import com.tqxd.jys.constance.DataType;
 import com.tqxd.jys.messagebus.MessageBusFactory;
 import com.tqxd.jys.openapi.CollectorOpenApi;
 import com.tqxd.jys.openapi.ServiceAddress;
 import com.tqxd.jys.openapi.payload.CollectorStatusDto;
-import com.tqxd.jys.utils.TimeUtils;
-import com.tqxd.jys.utils.VertxUtil;
-import io.vertx.core.*;
+import io.vertx.core.AbstractVerticle;
+import io.vertx.core.DeploymentOptions;
+import io.vertx.core.Future;
+import io.vertx.core.Promise;
 import io.vertx.core.eventbus.MessageConsumer;
 import io.vertx.core.json.JsonObject;
 import io.vertx.serviceproxy.ServiceBinder;
-import io.vertx.spi.cluster.zookeeper.ZookeeperClusterManager;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.TimeUnit;
 
-import static com.tqxd.jys.utils.VertxUtil.*;
+import static com.tqxd.jys.utils.VertxUtil.jsonGetValue;
+import static com.tqxd.jys.utils.VertxUtil.jsonListValue;
 
 /**
  * @author yjt
@@ -51,36 +49,7 @@ public class CollectorsApplication extends AbstractVerticle {
   }
 
   public static void main(String[] args) {
-    long start = System.currentTimeMillis();
-    Vertx.clusteredVertx(new VertxOptions().setClusterManager(new ZookeeperClusterManager("zookeeper.json")),
-      clusteredAr -> {
-        if (clusteredAr.succeeded()) {
-          Vertx vertx = clusteredAr.result();
-          // 读取kafka配置
-          readJsonFile(vertx, "kafka-consumer.json")
-            .compose(
-              consumerJson -> readJsonFile(vertx, "kafka-producer.json")
-                .compose(producerJson -> {
-                  // 初始化消息队列
-                  MessageBusFactory.init(MessageBusFactory.KAFKA_MESSAGE_BUS, vertx, consumerJson.mapTo(Map.class), producerJson.mapTo(Map.class));
-                  Exception ex;
-                  try {
-                    // 读取yaml配置，然后部署 verticle
-                    return readYamlConfig(vertx, "config.yaml")
-                      .compose(yamlConfig -> deploy(vertx, new CollectorsApplication(), yamlConfig));
-                  } catch (ExecutionException | InterruptedException e) {
-                    ex = e;
-                  }
-                  return Future.failedFuture(ex);
-                })
-            )
-            .onSuccess(id -> log.info("[CollectorApplication]: start success! using: {}ms", System.currentTimeMillis() - start))
-            .onFailure(Throwable::printStackTrace);
-        } else {
-          clusteredAr.cause().printStackTrace();
-          System.exit(-1);
-        }
-      });
+    Bootstrap.run(new CollectorsApplication(), new DeploymentOptions().setWorker(true));
   }
 
   @Override
