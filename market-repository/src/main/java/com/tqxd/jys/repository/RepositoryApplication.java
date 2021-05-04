@@ -5,6 +5,7 @@ import com.tqxd.jys.common.payload.KlineTick;
 import com.tqxd.jys.common.payload.TemplatePayload;
 import com.tqxd.jys.constance.Period;
 import com.tqxd.jys.messagebus.MessageBusFactory;
+import com.tqxd.jys.messagebus.MessageListener;
 import com.tqxd.jys.messagebus.topic.Topic;
 import com.tqxd.jys.repository.faced.EventBusRepositoryFaced;
 import com.tqxd.jys.repository.impl.CacheableKLineRepositoryProxy;
@@ -73,7 +74,7 @@ public class RepositoryApplication extends AbstractVerticle {
     kLineRepository
       .open(vertx,config())
       .compose(h -> MessageBusFactory.bus()
-        .subscribe(Topic.KLINE_TICK_TOPIC, msg -> {
+        .subscribe(Topic.KLINE_TICK_TOPIC,(MessageListener) msg -> {
           switch (msg.getType()) {
             case KLINE: {
               TemplatePayload<KlineTick> payload = JacksonCodec.decodeValue((String) msg.getPayload(), new TypeReference<TemplatePayload<KlineTick>>() {
