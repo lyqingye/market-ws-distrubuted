@@ -61,9 +61,9 @@ public class CacheManager implements KLineRepositoryListener,MessageListener {
   }
   public synchronized void addListener (CacheUpdateListener listener) {
     if (numOfListener >= LISTENERS.length) {
-      ChannelProcessor[] newProcessor = new ChannelProcessor[numOfListener << 1];
-      System.arraycopy(LISTENERS,0,newProcessor,0,numOfListener);
-      LISTENERS = newProcessor;
+      CacheUpdateListener[] newListeners = new CacheUpdateListener[numOfListener << 1];
+      System.arraycopy(LISTENERS,0,newListeners,0,numOfListener);
+      LISTENERS = newListeners;
     }
     LISTENERS[numOfListener++] = Objects.requireNonNull(listener);
   }
