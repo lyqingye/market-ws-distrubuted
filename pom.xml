@@ -17,9 +17,8 @@
     </modules>
 
     <properties>
-        <vertx.version>4.0.0</vertx.version>
+        <vertx.version>4.0.3</vertx.version>
         <jackson.version>2.11.2</jackson.version>
-        <caffeine.version>2.8.5</caffeine.version>
 
         <slf4j-api.version>1.7.25</slf4j-api.version>
         <logback.version>1.1.7</logback.version>
@@ -92,14 +91,6 @@
             <version>${jackson.version}</version>
         </dependency>
         <!--jackson end-->
-
-        <!--caffeine begin-->
-        <dependency>
-            <groupId>com.github.ben-manes.caffeine</groupId>
-            <artifactId>caffeine</artifactId>
-            <version>${caffeine.version}</version>
-        </dependency>
-        <!--caffeine end-->
 
         <!--log begin-->
         <dependency>
