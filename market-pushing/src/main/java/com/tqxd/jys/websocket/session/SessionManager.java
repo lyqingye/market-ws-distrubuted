@@ -195,7 +195,7 @@ public class SessionManager {
         if (isSet) {
           Session session = (Session) objects[(i << ADDRESS_BITS_PER_WORD) + j];
           if (session != null & consumer != null) {
-            consumer.accept(getById(i));
+            consumer.accept(session);
           }
         }
       }
