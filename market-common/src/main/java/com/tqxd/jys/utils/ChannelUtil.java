@@ -1,6 +1,7 @@
 package com.tqxd.jys.utils;
 
 import com.tqxd.jys.common.payload.TemplatePayload;
+import com.tqxd.jys.constance.DepthLevel;
 import com.tqxd.jys.constance.Period;
 
 import java.util.HashMap;
@@ -60,6 +61,23 @@ public class ChannelUtil {
     String[] split = ch.split(DOT);
     if (split.length >= 2) {
       return split[2];
+    }
+    return null;
+  }
+
+  /**
+   * 获取深度主题的深度
+   *
+   * @param ch 深度主题 market.BTC-USDT.depth.step0
+   * @return 深度
+   */
+  public static DepthLevel getDepthLevel(String ch) {
+    if (ch == null || ch.isEmpty()) {
+      return null;
+    }
+    String[] split = ch.split(DOT);
+    if (split.length >= 2) {
+      return DepthLevel.ofName(split[3]);
     }
     return null;
   }
@@ -147,12 +165,22 @@ public class ChannelUtil {
   }
 
   /**
+   * 生成市场深度channel
+   *
+   * @param symbol 交易对
+   * @param level  {@link DepthLevel}
+   */
+  public static String buildMarketDepthChannel(String symbol, DepthLevel level) {
+    return "market." + symbol + ".depth." + level.name();
+  }
+
+  /**
    * 生成k线tick channel
    *
    * @param symbol 交易对
    * @param period 时间级别
    */
-  public static String buildKLineTickChannel(String symbol,Period period) {
+  public static String buildKLineTickChannel(String symbol, Period period) {
     return "market." + symbol + ".kline." + period.getSymbol();
   }
 

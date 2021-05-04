@@ -7,6 +7,8 @@ package com.tqxd.jys.messagebus.payload.trade;
  * @since 2020/10/15 下午6:49
  */
 public class TradeDetailTickData {
+  private String id;
+  private String tradeId;
   private String amount;
 
   private String price;
@@ -14,6 +16,22 @@ public class TradeDetailTickData {
   private Long ts;
 
   private String direction;
+
+  public String getTradeId() {
+    return tradeId;
+  }
+
+  public void setTradeId(String tradeId) {
+    this.tradeId = tradeId;
+  }
+
+  public String getId() {
+    return id;
+  }
+
+  public void setId(String id) {
+    this.id = id;
+  }
 
   public TradeDetailTickData() {
   }

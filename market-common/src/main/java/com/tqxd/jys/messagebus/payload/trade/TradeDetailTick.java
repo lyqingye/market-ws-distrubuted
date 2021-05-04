@@ -8,13 +8,22 @@ import java.util.List;
  */
 public class TradeDetailTick {
 
-  private final Long id = System.currentTimeMillis() / 1000;
-  private final Long ts = System.currentTimeMillis() / 1000;
+  private Long id = System.currentTimeMillis() / 1000;
+  private Long ts = System.currentTimeMillis() / 1000;
+
+  public void setId(Long id) {
+    this.id = id;
+  }
+
+  public void setTs(Long ts) {
+    this.ts = ts;
+  }
 
   private List<TradeDetailTickData> data;
 
   public TradeDetailTick() {
   }
+
 
   public Long getId() {
     return this.id;

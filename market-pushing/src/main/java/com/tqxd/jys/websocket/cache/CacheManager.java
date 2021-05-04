@@ -1,26 +1,27 @@
 package com.tqxd.jys.websocket.cache;
 
 import com.tqxd.jys.common.payload.KlineTick;
+import com.tqxd.jys.constance.DataType;
 import com.tqxd.jys.constance.DepthLevel;
 import com.tqxd.jys.constance.Period;
-import com.tqxd.jys.messagebus.MessageBusFactory;
 import com.tqxd.jys.messagebus.MessageListener;
 import com.tqxd.jys.messagebus.payload.Message;
 import com.tqxd.jys.messagebus.payload.depth.DepthTick;
 import com.tqxd.jys.messagebus.payload.detail.MarketDetailTick;
+import com.tqxd.jys.messagebus.payload.trade.TradeDetailTick;
 import com.tqxd.jys.messagebus.payload.trade.TradeDetailTickData;
-import com.tqxd.jys.messagebus.topic.Topic;
 import com.tqxd.jys.timeline.KLineMeta;
 import com.tqxd.jys.timeline.KLineRepository;
 import com.tqxd.jys.timeline.KLineRepositoryListener;
 import com.tqxd.jys.timeline.cmd.AppendTickResult;
 import com.tqxd.jys.timeline.cmd.AutoAggregateResult;
 import com.tqxd.jys.utils.ChannelUtil;
-import com.tqxd.jys.websocket.processor.ChannelProcessor;
 import io.vertx.core.AsyncResult;
 import io.vertx.core.Future;
 import io.vertx.core.Handler;
 import io.vertx.core.buffer.Buffer;
+import io.vertx.core.json.Json;
+import io.vertx.core.json.JsonObject;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
@@ -75,10 +76,8 @@ public class CacheManager implements KLineRepositoryListener,MessageListener {
    * @param level  深度等级 {@link DepthLevel}
    * @return null or 深度数据
    */
-  public @Nullable Buffer reqDepth(@NonNull String symbol, @NonNull DepthLevel level,int size) {
-
-
-    return null;
+  public @Nullable DepthTick reqDepth(@NonNull String symbol, @NonNull DepthLevel level, int size) {
+    return marketDepthData.get(symbol + ":" + level);
   }
 
   /**
@@ -187,7 +186,7 @@ public class CacheManager implements KLineRepositoryListener,MessageListener {
    * @param depthTick 深度
    */
   protected void updateMarketDepth (String symbol,DepthLevel level, DepthTick depthTick) {
-
+    marketDepthData.put(symbol + ":" + level, depthTick);
   }
 
   //
@@ -223,7 +222,26 @@ public class CacheManager implements KLineRepositoryListener,MessageListener {
 
   @Override
   public void onMessage(Message<?> message) {
-
+    JsonObject json = (JsonObject) Json.decodeValue((String) message.getPayload());
+    String ch = json.getString("ch");
+    String symbol = ChannelUtil.getSymbol(ch);
+    JsonObject tick = json.getJsonObject("tick");
+    if (tick == null) {
+      return;
+    }
+    if (DataType.TRADE_DETAIL.equals(message.getType())) {
+      TradeDetailTick tradeDetail = tick.mapTo(TradeDetailTick.class);
+      updateTradeDetail(symbol, tradeDetail.getData());
+      for (int i = 0; i < numOfListener; i++) {
+        LISTENERS[i].onTradeDetailUpdate(symbol, tradeDetail);
+      }
+    } else if (DataType.DEPTH.equals(message.getType())) {
+      DepthLevel depthLevel = ChannelUtil.getDepthLevel(ch);
+      DepthTick depthTick = tick.mapTo(DepthTick.class);
+      updateMarketDepth(symbol, depthLevel, depthTick);
+      for (int i = 0; i < numOfListener; i++) {
+        LISTENERS[i].onDepthUpdate(symbol, depthLevel, depthTick);
+      }
+    }
   }
-
 }

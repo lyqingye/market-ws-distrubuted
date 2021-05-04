@@ -13,7 +13,17 @@ public class DepthTick {
 
   private String[][] asks = EMPTY;
 
+  private String version;
+
   private Long ts;
+
+  public String getVersion() {
+    return version;
+  }
+
+  public void setVersion(String version) {
+    this.version = version;
+  }
 
   public static String[][] getEMPTY() {
     return EMPTY;

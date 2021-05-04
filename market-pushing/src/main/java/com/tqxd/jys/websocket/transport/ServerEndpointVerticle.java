@@ -2,6 +2,7 @@ package com.tqxd.jys.websocket.transport;
 
 import com.tqxd.jys.websocket.cache.CacheManager;
 import com.tqxd.jys.websocket.processor.impl.KLineChannelProcessor;
+import com.tqxd.jys.websocket.processor.impl.MarketDepthChannelProcessor;
 import com.tqxd.jys.websocket.processor.impl.MarketDetailChannelProcessor;
 import com.tqxd.jys.websocket.processor.impl.TradeDetailChannelProcessor;
 import com.tqxd.jys.websocket.session.Session;
@@ -50,6 +51,11 @@ public class ServerEndpointVerticle extends AbstractVerticle {
     MarketDetailChannelProcessor marketDetailChannelProcessor = new MarketDetailChannelProcessor(cacheManager, sessionMgr);
     cacheManager.addListener(marketDetailChannelProcessor);
     dispatcher.addProcessor(marketDetailChannelProcessor);
+
+    // 市场深度主题处理器
+    MarketDepthChannelProcessor marketDepthChannelProcessor = new MarketDepthChannelProcessor(cacheManager, sessionMgr);
+    cacheManager.addListener(marketDepthChannelProcessor);
+    dispatcher.addProcessor(marketDepthChannelProcessor);
   }
 
   @Override

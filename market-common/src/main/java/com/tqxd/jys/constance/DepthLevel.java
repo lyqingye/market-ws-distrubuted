@@ -20,4 +20,13 @@ public enum DepthLevel {
     }
     return null;
   }
+
+  public static DepthLevel ofName(String name) {
+    for (DepthLevel level : values()) {
+      if (name.equalsIgnoreCase(level.name())) {
+        return level;
+      }
+    }
+    return null;
+  }
 }
