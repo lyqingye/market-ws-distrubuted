@@ -2,17 +2,14 @@ package com.tqxd.jys.messagebus;
 
 import com.tqxd.jys.messagebus.payload.Message;
 import com.tqxd.jys.messagebus.topic.Topic;
-import io.vertx.core.AsyncResult;
-import io.vertx.core.Future;
-import io.vertx.core.Handler;
-import io.vertx.core.Promise;
+import io.vertx.core.*;
 
 import java.util.function.Consumer;
 
 /**
  * 消息总线接口
  */
-public interface MessageBus {
+public interface MessageBus extends Verticle {
   /**
    * 发送消息
    *

@@ -5,10 +5,10 @@ import com.tqxd.jys.messagebus.MessageBus;
 import com.tqxd.jys.messagebus.MessageListener;
 import com.tqxd.jys.messagebus.payload.Message;
 import com.tqxd.jys.messagebus.topic.Topic;
+import io.vertx.core.AbstractVerticle;
 import io.vertx.core.AsyncResult;
 import io.vertx.core.Future;
 import io.vertx.core.Handler;
-import io.vertx.core.Vertx;
 import io.vertx.core.json.Json;
 import io.vertx.core.shareddata.Counter;
 import io.vertx.kafka.client.consumer.KafkaConsumer;
@@ -26,24 +26,26 @@ import java.util.function.Consumer;
 /**
  * kafka 事件总线实现
  */
-public class KafkaMessageBusImpl implements MessageBus {
+public class KafkaMessageBusImpl extends AbstractVerticle implements MessageBus {
   public static final String MESSAGE_INDEX_COUNTER_NAME = "kafka_message_index_counter";
   private static final Logger log = LoggerFactory.getLogger(KafkaMessageBusImpl.class);
   private Map<String, KafkaConsumer<String, Object>> consumerMap = new ConcurrentHashMap<>();
   private KafkaProducer<String, Object> producer;
-  private Vertx vertx;
   private Counter messageIndexCounter;
   private Map<String, String> consumerConfig, producerConfig;
 
-  public KafkaMessageBusImpl(Vertx vertx, Map<String, String> consumerConfig, Map<String, String> producerConfig) {
-    this.vertx = Objects.requireNonNull(vertx);
+  public KafkaMessageBusImpl(Map<String, String> consumerConfig, Map<String, String> producerConfig) {
     this.consumerConfig = Objects.requireNonNull(consumerConfig);
     this.producerConfig = Objects.requireNonNull(producerConfig);
+  }
+
+  @Override
+  public void start() throws Exception {
     producer = KafkaProducer.create(vertx, producerConfig);
     vertx.sharedData()
-        .getCounter(MESSAGE_INDEX_COUNTER_NAME)
-        .onSuccess(h -> messageIndexCounter = h)
-        .onFailure(Throwable::printStackTrace);
+      .getCounter(MESSAGE_INDEX_COUNTER_NAME)
+      .onSuccess(h -> messageIndexCounter = h)
+      .onFailure(Throwable::printStackTrace);
   }
 
   @Override
@@ -56,17 +58,17 @@ public class KafkaMessageBusImpl implements MessageBus {
       }
     }
     messageIndexCounter.addAndGet(1)
-        .compose(idx -> {
-          message.setIndex(idx);
-          KafkaProducerRecord<String, Object> record = KafkaProducerRecord.create(topic.name(), message);
-          return producer.write(record);
-        })
-        .onSuccess(h -> {
-          handler.handle(Future.succeededFuture());
-        })
-        .onFailure(throwable -> {
-          handler.handle(Future.failedFuture(throwable));
-        });
+      .compose(idx -> {
+        message.setIndex(idx);
+        KafkaProducerRecord<String, Object> record = KafkaProducerRecord.create(topic.name(), message);
+        return producer.write(record);
+      })
+      .onSuccess(h -> {
+        handler.handle(Future.succeededFuture());
+      })
+      .onFailure(throwable -> {
+        handler.handle(Future.failedFuture(throwable));
+      });
   }
 
   @Override

@@ -2,6 +2,8 @@ package com.tqxd.jys.messagebus;
 
 import com.tqxd.jys.messagebus.impl.kafka.KafkaMessageBusImpl;
 import io.vertx.core.Vertx;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.Map;
 
@@ -9,6 +11,7 @@ import java.util.Map;
  * 消息总线工厂
  */
 public final class MessageBusFactory {
+  private static final Logger log = LoggerFactory.getLogger(MessageBusFactory.class);
   public static final String KAFKA_MESSAGE_BUS = "kafka_message_bus";
   /**
    * instance
@@ -29,7 +32,8 @@ public final class MessageBusFactory {
    */
   public static void init(String implName, Vertx vertx, Map<String, String> consumerConfig, Map<String, String> producerConfig) {
     if (KAFKA_MESSAGE_BUS.equals(implName)) {
-      INSTANCE = new KafkaMessageBusImpl(vertx, consumerConfig, producerConfig);
+      INSTANCE = new KafkaMessageBusImpl(consumerConfig, producerConfig);
+      log.info("start kafka verticle: {}", vertx.deployVerticle(INSTANCE).result());
     } else {
       throw new UnsupportedOperationException("unSupported " + implName + " implementation");
     }
