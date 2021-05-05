@@ -209,9 +209,13 @@ public final class VertxUtil {
    * @param path  path
    * @return json对象
    */
-  public static Future<JsonObject> readYamlConfig (Vertx vertx,String path) throws ExecutionException, InterruptedException {
+  public static Future<JsonObject> readYamlConfig(Vertx vertx, String path) {
     Promise<JsonObject> promise = Promise.promise();
-    readYamlConfig(vertx,path,promise);
+    try {
+      readYamlConfig(vertx, path, promise);
+    } catch (ExecutionException | InterruptedException e) {
+      promise.fail(e);
+    }
     return promise.future();
   }
 
@@ -222,24 +226,51 @@ public final class VertxUtil {
    * @param path path
    * @param handler 结果处理器
    */
-  public static void readJsonFile(Vertx vert,String path,Handler<AsyncResult<JsonObject>> handler) {
-    vert.fileSystem().readFile(path,ar -> {
+  public static void readJsonFile(Vertx vert, String path, Handler<AsyncResult<JsonObject>> handler) {
+    vert.fileSystem().readFile(path, ar -> {
       if (ar.succeeded()) {
         handler.handle(Future.succeededFuture(ar.result().toJsonObject()));
-      }else {
+      } else {
         handler.handle(Future.failedFuture(ar.cause()));
       }
     });
   }
 
   /**
+   * 批量读取json文件
+   *
+   * @param vertx vertx
+   * @param files json文件路径
+   * @return future
+   */
+  public static Future<JsonObject[]> readJsonFiles(Vertx vertx, String[] files) {
+    Promise<JsonObject[]> promise = Promise.promise();
+    JsonObject[] result = new JsonObject[files.length];
+    List<Future> futures = new ArrayList<>(files.length);
+    for (int i = 0; i < files.length; i++) {
+      String file = files[i];
+      int movedIndex = i;
+      futures.add(readJsonFile(vertx, file)
+        .onSuccess(json -> {
+          result[movedIndex] = json;
+        }));
+    }
+    CompositeFuture.all(futures)
+      .onSuccess(ar -> {
+        promise.complete(result);
+      })
+      .onFailure(promise::fail);
+    return promise.future();
+  }
+
+  /**
    * 读取json文件
    *
    * @param vertx vertx
-   * @param path path
+   * @param path  path
    * @return json对象
    */
-  public static Future<JsonObject> readJsonFile(Vertx vertx,String path) {
+  public static Future<JsonObject> readJsonFile(Vertx vertx, String path) {
     Promise<JsonObject> promise = Promise.promise();
     readJsonFile(vertx,path,promise);
     return promise.future();

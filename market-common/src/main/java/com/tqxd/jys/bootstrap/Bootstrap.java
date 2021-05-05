@@ -7,6 +7,7 @@ import org.slf4j.LoggerFactory;
 
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
 
 /**
  * 启动器
@@ -22,13 +23,13 @@ public interface Bootstrap {
       Class<Bootstrap> zookeeper = (Class<Bootstrap>) Class.forName("com.tqxd.jys.bootstrap.impl.ZookeeperBootstrap");
       for (Constructor<?> constructor : zookeeper.getConstructors()) {
         if (constructor.getParameterCount() == 0) {
-          Bootstrap bootstrap = (Bootstrap) constructor.newInstance();
-          log.info("bootstrap using {}", "com.tqxd.jys.ZookeeperBootstrap");
-          bootstrap.start(verticle, options);
+          Object bootstrap = constructor.newInstance();
+          Method startMethod = zookeeper.getDeclaredMethod("start", Verticle.class, DeploymentOptions.class);
+          startMethod.invoke(bootstrap, verticle, options);
           return;
         }
       }
-    } catch (ClassNotFoundException | InvocationTargetException | InstantiationException | IllegalAccessException ignored) {
+    } catch (ClassNotFoundException | InvocationTargetException | InstantiationException | IllegalAccessException | NoSuchMethodException ignored) {
 
     }
     log.error("bootstrap fail! not provider! system will be exit!");
