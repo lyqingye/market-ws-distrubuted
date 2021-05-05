@@ -5,10 +5,7 @@ import com.tqxd.jys.messagebus.MessageBus;
 import com.tqxd.jys.messagebus.MessageListener;
 import com.tqxd.jys.messagebus.payload.Message;
 import com.tqxd.jys.messagebus.topic.Topic;
-import io.vertx.core.AbstractVerticle;
-import io.vertx.core.AsyncResult;
-import io.vertx.core.Future;
-import io.vertx.core.Handler;
+import io.vertx.core.*;
 import io.vertx.core.json.Json;
 import io.vertx.core.shareddata.Counter;
 import io.vertx.kafka.client.consumer.KafkaConsumer;
@@ -40,23 +37,19 @@ public class KafkaMessageBusImpl extends AbstractVerticle implements MessageBus 
   }
 
   @Override
-  public void start() throws Exception {
+  public void start(Promise<Void> startPromise) throws Exception {
     producer = KafkaProducer.create(vertx, producerConfig);
     vertx.sharedData()
       .getCounter(MESSAGE_INDEX_COUNTER_NAME)
-      .onSuccess(h -> messageIndexCounter = h)
-      .onFailure(Throwable::printStackTrace);
+      .onSuccess(counter -> {
+        messageIndexCounter = counter;
+        startPromise.complete();
+      })
+      .onFailure(startPromise::fail);
   }
 
   @Override
   public void publish(Topic topic, Message<?> message, Handler<AsyncResult<Void>> handler) {
-    while (messageIndexCounter == null) {
-      try {
-        Thread.sleep(0);
-      } catch (InterruptedException e) {
-        e.printStackTrace();
-      }
-    }
     messageIndexCounter.addAndGet(1)
       .compose(idx -> {
         message.setIndex(idx);
