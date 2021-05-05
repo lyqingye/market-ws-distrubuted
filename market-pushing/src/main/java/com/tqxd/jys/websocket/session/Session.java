@@ -134,21 +134,31 @@ public class Session {
     return id;
   }
 
+  //
+  // TODO 水位得做策略，目前临时策略是直接丢弃消息
+  //
+
   public void writeText(String text) {
     if (state == USED) {
-      client.writeTextMessage(text);
+      if (!client.writeQueueFull()) {
+        client.writeTextMessage(text);
+      }
     }
   }
 
   public void write(Buffer buffer) {
     if (state == USED) {
-      client.write(buffer);
+      if (!client.writeQueueFull()) {
+        client.write(buffer);
+      }
     }
   }
 
   public void writeBinary(Buffer buffer) {
     if (state == USED) {
-      client.writeBinaryMessage(buffer);
+      if (!client.writeQueueFull()) {
+        client.writeBinaryMessage(buffer);
+      }
     }
   }
 }

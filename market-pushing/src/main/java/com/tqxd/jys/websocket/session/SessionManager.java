@@ -21,6 +21,7 @@ import java.util.function.Predicate;
  */
 public class SessionManager {
   private static final Logger log = LoggerFactory.getLogger(ServerEndpointVerticle.class);
+  private static final long SESSION_CLEAR_TIMER = 1000;
   private final int capacity;
   private final Object[] objects; // must have exact type Object[]
   private MpscAtomicArrayQueue<Integer> freeQueue;
@@ -66,22 +67,24 @@ public class SessionManager {
   }
 
   private void startClearExpiredSessionThread() {
-    new Thread(() -> {
+    Thread thread = new Thread(() -> {
       while (true) {
         for (Object obj : objects) {
           Session session = (Session) obj;
           if (session.tryToExpired()) {
             freeQueue.offer(session.id());
-            log.info("[SessionMgr]: clear expired session at id: {}! current number of online session is: {}", session.id(),usedCounter.decrementAndGet());
+            log.info("[SessionMgr]: clear expired session at id: {}! current number of online session is: {}", session.id(), usedCounter.decrementAndGet());
           }
         }
         try {
-          Thread.sleep(1000);
+          Thread.sleep(SESSION_CLEAR_TIMER);
         } catch (InterruptedException e) {
           e.printStackTrace();
         }
       }
-    }).start();
+    });
+    thread.setName("session-manager-cleaner-thread");
+    thread.start();
   }
 
   public Session allocate() {

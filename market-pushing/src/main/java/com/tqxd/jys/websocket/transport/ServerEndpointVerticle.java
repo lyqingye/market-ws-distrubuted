@@ -10,6 +10,7 @@ import com.tqxd.jys.websocket.session.SessionManager;
 import io.vertx.core.AbstractVerticle;
 import io.vertx.core.Promise;
 import io.vertx.core.http.HttpServer;
+import io.vertx.core.http.HttpServerOptions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -30,7 +31,7 @@ public class ServerEndpointVerticle extends AbstractVerticle {
   /**
    * 会话管理器
    */
-  private SessionManager sessionMgr = new SessionManager(1 << 16);
+  private SessionManager sessionMgr = new SessionManager(1 << 14);
   private TimeUnit timeUnit = TimeUnit.SECONDS;
   private long expire = -1;
   private RequestDispatcher dispatcher;
@@ -68,13 +69,18 @@ public class ServerEndpointVerticle extends AbstractVerticle {
 
   @Override
   public void start(Promise<Void> startPromise) throws Exception {
-    wsServer = vertx.createHttpServer().webSocketHandler(client -> {
+    HttpServerOptions options = new HttpServerOptions();
+    options.setTcpNoDelay(true);
+    options.setSendBufferSize(4096);
+    wsServer = vertx.createHttpServer(options).webSocketHandler(client -> {
       Session session = sessionMgr.allocate();
       session.initSession(client, expire, timeUnit);
       client.frameHandler(frame -> {
         sessionMgr.refreshTTL(client, expire, timeUnit);
         if (frame.isText() && frame.isFinal()) {
-          dispatcher.onReceiveTextMsg(session, frame.textData());
+          vertx.executeBlocking(prom -> {
+            dispatcher.onReceiveTextMsg(session, frame.textData());
+          }, false);
         } else {
           if (!frame.isClose()) {
             log.warn("[KlineWorker]: binary frame is not supported!");
