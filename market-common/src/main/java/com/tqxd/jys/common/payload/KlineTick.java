@@ -85,6 +85,21 @@ public class KlineTick{
     return this;
   }
 
+  public KlineTick sum(KlineTick target) {
+    this.count += target.getCount();
+    this.amount = this.amount.add(target.getAmount());
+    this.vol = this.vol.add(target.getVol());
+    this.close = target.getClose();
+
+    if (target.high.compareTo(this.high) > 0) {
+      this.high = target.high;
+    }
+    if (target.low.compareTo(this.low) < 0) {
+      this.low = target.low;
+    }
+    return this;
+  }
+
   public JsonObject toJson() {
     return JsonObject.mapFrom(this);
   }

@@ -182,12 +182,18 @@ public class KLine {
     }
     KlineTick oldObj = (KlineTick) data[idx];
     if (oldObj != null) {
-      if (alignWithPeriod(newObj.getTime(), period) != alignWithPeriod(oldObj.getTime(), period)) {
-        data[idx] = newObj;
+      boolean isInSamePeriod = alignWithPeriod(newObj.getTime(), period) == alignWithPeriod(oldObj.getTime(), period);
+      if (isInSamePeriod) {
+        if (oldObj.getId().equals(newObj.getId())) {
+          // same period
+          // rollback Aggregate before merge
+          doRollbackAggregate(oldObj);
+          data[idx] = oldObj.merge(newObj);
+        } else {
+          data[idx] = oldObj.sum(newObj);
+        }
       } else {
-        // rollback Aggregate before merge
-        doRollbackAggregate(oldObj);
-        data[idx] = oldObj.merge(newObj);
+        data[idx] = newObj;
       }
     } else {
       data[idx] = newObj;
