@@ -55,13 +55,7 @@ public class RedisKLineRepository implements KLineRepository {
 
   @Override
   public void listSymbols(Handler<AsyncResult<Set<String>>> handler) {
-    redis.sMembers(RedisKeyHelper.getSymbolsKey(), h -> {
-      if (h.succeeded()) {
-        handler.handle(Future.succeededFuture(h.result()));
-      }else {
-        handler.handle(Future.failedFuture(h.cause()));
-      }
-    });
+    redis.sMembers(RedisKeyHelper.getSymbolsKey(), handler);
   }
 
   @Override
