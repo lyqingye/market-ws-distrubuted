@@ -6,9 +6,9 @@ import com.tqxd.jys.constance.Period;
 import com.tqxd.jys.utils.ChannelUtil;
 import com.tqxd.jys.websocket.cache.CacheManager;
 import com.tqxd.jys.websocket.processor.ChannelProcessor;
-import com.tqxd.jys.websocket.transport.Response;
 import com.tqxd.jys.websocket.session.Session;
 import com.tqxd.jys.websocket.session.SessionManager;
+import com.tqxd.jys.websocket.transport.Response;
 import io.vertx.core.json.Json;
 import io.vertx.core.json.JsonObject;
 
@@ -95,10 +95,10 @@ public class KLineChannelProcessor implements ChannelProcessor {
       return true;
     }
     // set subscribe
-    if (sessionManager.unsubScribeChannel(session,ch)) {
+    if (sessionManager.unSubscribeChannel(session, ch)) {
       session.writeText(Json.encode(Response.unSubOK(id, ch)));
-    }else {
-      session.writeText(Json.encode(Response.err(id,ch,"server internal error!")));
+    } else {
+      session.writeText(Json.encode(Response.err(id, ch, "server internal error!")));
     }
     return false;
   }

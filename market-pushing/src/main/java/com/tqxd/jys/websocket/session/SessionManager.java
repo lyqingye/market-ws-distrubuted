@@ -224,7 +224,7 @@ public class SessionManager {
     return true;
   }
 
-  public boolean unsubScribeChannel(Session session,String ch) {
+  public boolean unSubscribeChannel(Session session, String ch) {
     long[] bitmap = partition.get(ch);
     if (bitmap == null) {
       return false;

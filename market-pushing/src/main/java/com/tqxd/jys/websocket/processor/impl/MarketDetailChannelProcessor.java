@@ -63,10 +63,10 @@ public class MarketDetailChannelProcessor implements ChannelProcessor {
     String id = json.getString("id");
 
     // set unsubscribe
-    if (sessionManager.unsubScribeChannel(session,unsub)) {
+    if (sessionManager.unSubscribeChannel(session, unsub)) {
       session.writeText(Json.encode(Response.unSubOK(id, unsub)));
-    }else{
-      session.writeText(Json.encode(Response.err(id,unsub,"invalid channel of: " + unsub + " server not support!")));
+    } else {
+      session.writeText(Json.encode(Response.err(id, unsub, "invalid channel of: " + unsub + " server not support!")));
     }
     return true;
   }
