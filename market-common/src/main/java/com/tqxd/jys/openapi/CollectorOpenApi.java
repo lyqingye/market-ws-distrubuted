@@ -2,6 +2,7 @@ package com.tqxd.jys.openapi;
 
 import com.tqxd.jys.constance.DataType;
 import com.tqxd.jys.openapi.payload.CollectorStatusDto;
+import io.vertx.codegen.annotations.GenIgnore;
 import io.vertx.codegen.annotations.ProxyGen;
 import io.vertx.core.AsyncResult;
 import io.vertx.core.Handler;
@@ -12,7 +13,7 @@ import java.util.List;
 
 @ProxyGen
 public interface CollectorOpenApi {
-
+  @GenIgnore
   static CollectorOpenApi createProxy(Vertx vertx) {
     return new CollectorOpenApiVertxEBProxy(vertx, ServiceAddress.COLLECTOR.name());
   }

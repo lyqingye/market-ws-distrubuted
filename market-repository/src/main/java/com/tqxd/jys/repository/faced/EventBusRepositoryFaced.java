@@ -44,16 +44,17 @@ public class EventBusRepositoryFaced implements RepositoryOpenApi {
   }
 
   @Override
-  public void listKlineKeys(Handler<AsyncResult<Set<String>>> handler) {
-    repository.listSymbols(handler);
+  public void listKlineKeys(Handler<AsyncResult<Set<JsonObject>>> handler) {
+    repository.listSymbols(ar -> ar.map(set -> set.stream().map(Json::decodeValue)));
   }
 
   @Override
-  public void getKlineSnapshot(String symbol, Handler<AsyncResult<String>> handler) {
-    repository.loadSnapshot(symbol, Period._1_MIN,ar -> {
+  public void getKlineSnapshot(String symbol, Handler<AsyncResult<JsonObject>> handler) {
+    repository.loadSnapshot(symbol, Period._1_MIN, ar -> {
       if (ar.succeeded()) {
-        handler.handle(Future.succeededFuture(Json.encode(ar.result())));
-      }else {
+
+        handler.handle(Future.succeededFuture(JsonObject.mapFrom(ar.result())));
+      } else {
         handler.handle(Future.failedFuture(ar.cause()));
       }
     });

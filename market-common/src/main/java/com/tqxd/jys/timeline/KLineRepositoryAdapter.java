@@ -7,7 +7,6 @@ import io.vertx.core.AsyncResult;
 import io.vertx.core.Future;
 import io.vertx.core.Handler;
 import io.vertx.core.Vertx;
-import io.vertx.core.json.Json;
 import io.vertx.core.json.JsonObject;
 
 import java.util.Set;
@@ -28,14 +27,14 @@ public class KLineRepositoryAdapter implements KLineRepository{
 
   @Override
   public void listSymbols(Handler<AsyncResult<Set<String>>> handler) {
-    openApi.listKlineKeys(handler);
+    openApi.listKlineKeys(ar -> ar.map(v -> v.stream().map(JsonObject::toString)));
   }
 
   @Override
   public void loadSnapshot(String symbol, Period period, Handler<AsyncResult<KlineSnapshot>> handler) {
     openApi.getKlineSnapshot(symbol, ar -> {
       if (ar.succeeded()) {
-        handler.handle(Future.succeededFuture(Json.decodeValue(ar.result(),KlineSnapshot.class)));
+        handler.handle(Future.succeededFuture(ar.result().mapTo(KlineSnapshot.class)));
       }else {
         handler.handle(Future.failedFuture(ar.cause()));
       }
