@@ -8,7 +8,6 @@ import com.tqxd.jys.core.message.kline.KlineTick;
 import com.tqxd.jys.core.message.kline.Period;
 import io.vertx.core.*;
 import io.vertx.core.json.JsonObject;
-import org.checkerframework.checker.nullness.qual.NonNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -227,7 +226,7 @@ public class InMemKLineRepository implements KLineRepository {
       });
   }
 
-  private @NonNull KLine getOrCreate(String symbol, Period period) {
+  private KLine getOrCreate(String symbol, Period period) {
     String key = symbol + ":" + period;
     Integer index = indexMap.computeIfAbsent(key, k -> {
       int newSize = ++size;

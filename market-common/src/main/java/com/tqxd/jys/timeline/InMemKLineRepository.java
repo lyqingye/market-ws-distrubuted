@@ -1,6 +1,5 @@
 package com.tqxd.jys.timeline;
 
-import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import com.tqxd.jys.common.payload.KlineTick;
 import com.tqxd.jys.constance.Period;
 import com.tqxd.jys.disruptor.AbstractDisruptorConsumer;
@@ -12,7 +11,6 @@ import com.tqxd.jys.openapi.payload.KlineSnapshotMeta;
 import com.tqxd.jys.timeline.cmd.*;
 import io.vertx.core.*;
 import io.vertx.core.json.JsonObject;
-import org.checkerframework.checker.nullness.qual.NonNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -87,11 +85,13 @@ public class InMemKLineRepository implements KLineRepository {
   public void open(Vertx vertx,JsonObject config, Handler<AsyncResult<Void>> handler) {
     this.vertx = Objects.requireNonNull(vertx);
     this.config = Objects.requireNonNull(config);
-    ThreadFactory threadFactory = new ThreadFactoryBuilder()
-      .setNameFormat("kline-listener-thread-%d")
-      .setDaemon(false)
-      .setUncaughtExceptionHandler(((t, e) -> e.printStackTrace()))
-      .build();
+
+    ThreadFactory threadFactory = new ThreadFactory() {
+      @Override
+      public Thread newThread(Runnable r) {
+        return new Thread(r, "kline-listener-thread");
+      }
+    };
     outQueue = DisruptorFactory.createQueue(1 << 16, threadFactory, disruptorConsumer());
     startJob();
     handler.handle(Future.succeededFuture());
@@ -259,7 +259,7 @@ public class InMemKLineRepository implements KLineRepository {
       });
   }
 
-  private @NonNull KLine getOrCreate(String symbol, Period period) {
+  private KLine getOrCreate(String symbol, Period period) {
     String key = symbol + ":" + period;
     Integer index = indexMap.computeIfAbsent(key, k -> {
       int newSize = ++size;
