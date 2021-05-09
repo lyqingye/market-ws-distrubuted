@@ -24,7 +24,7 @@
             <version>1.0-SNAPSHOT</version>
         </dependency>
         <dependency>
-            <artifactId>messagebus</artifactId>
+            <artifactId>message-bus</artifactId>
             <groupId>com.tqxd.jys</groupId>
             <version>1.0-SNAPSHOT</version>
         </dependency>

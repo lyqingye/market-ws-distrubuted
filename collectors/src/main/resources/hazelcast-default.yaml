@@ -1,0 +1,19 @@
+hazelcast:
+  cluster-name: dev
+  network:
+    port:
+      port: 5701
+    outbound-ports:
+      - 0
+    join:
+      multicast:
+        enabled: false
+      tcp-ip:
+        enabled: true
+        interface: 127.0.0.1
+        member-list:
+          - 127.0.0.1
+
+  map:
+    default:
+      time-to-live-seconds: 0
