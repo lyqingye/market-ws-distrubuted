@@ -1,7 +1,7 @@
-package com.tqxd.jys.collectos.impl;
+package com.tqxd.jys.collectors.impl;
 
 
-import com.tqxd.jys.collectos.utils.HuoBiUtils;
+import com.tqxd.jys.collectors.utils.HuoBiUtils;
 import com.tqxd.jys.core.message.channel.ChannelUtil;
 import com.tqxd.jys.core.message.depth.DepthLevel;
 import com.tqxd.jys.core.message.kline.Period;

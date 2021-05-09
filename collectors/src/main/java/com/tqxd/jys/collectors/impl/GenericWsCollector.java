@@ -1,4 +1,4 @@
-package com.tqxd.jys.collectos.impl;
+package com.tqxd.jys.collectors.impl;
 
 import com.tqxd.jys.core.spi.DataType;
 import io.vertx.core.AsyncResult;

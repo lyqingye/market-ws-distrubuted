@@ -1,4 +1,4 @@
-package com.tqxd.jys.collectos.utils;
+package com.tqxd.jys.collectors.utils;
 
 import com.tqxd.jys.core.message.depth.DepthLevel;
 import com.tqxd.jys.core.message.kline.Period;

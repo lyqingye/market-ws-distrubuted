@@ -1,9 +1,9 @@
-package com.tqxd.jys.collectos;
+package com.tqxd.jys.collectors;
 
 import com.tqxd.jys.api.collectors.CollectorOpenApi;
 import com.tqxd.jys.api.collectors.ServiceAddress;
 import com.tqxd.jys.api.collectors.payload.CollectorStatusDto;
-import com.tqxd.jys.collectos.api.CollectorOpenApiImpl;
+import com.tqxd.jys.collectors.api.CollectorOpenApiImpl;
 import com.tqxd.jys.core.spi.BootstrapFactory;
 import com.tqxd.jys.core.spi.DataType;
 import com.tqxd.jys.core.spi.MessageBusFactory;

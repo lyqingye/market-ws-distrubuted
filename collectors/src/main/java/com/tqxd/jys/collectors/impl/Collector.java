@@ -1,4 +1,4 @@
-package com.tqxd.jys.collectos.impl;
+package com.tqxd.jys.collectors.impl;
 
 import com.tqxd.jys.api.collectors.payload.CollectorStatusDto;
 import com.tqxd.jys.core.spi.DataType;

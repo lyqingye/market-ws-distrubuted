@@ -1,9 +1,9 @@
-package com.tqxd.jys.collectos.api;
+package com.tqxd.jys.collectors.api;
 
 import com.tqxd.jys.api.collectors.CollectorOpenApi;
 import com.tqxd.jys.api.collectors.payload.CollectorStatusDto;
-import com.tqxd.jys.collectos.impl.Collector;
-import com.tqxd.jys.collectos.impl.HuoBiKlineCollector;
+import com.tqxd.jys.collectors.impl.Collector;
+import com.tqxd.jys.collectors.impl.HuoBiKlineCollector;
 import com.tqxd.jys.core.spi.DataType;
 import com.tqxd.jys.core.spi.Message;
 import com.tqxd.jys.core.spi.MessageBus;
