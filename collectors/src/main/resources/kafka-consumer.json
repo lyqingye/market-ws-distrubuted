@@ -1,0 +1,8 @@
+{
+  "bootstrap.servers": "localhost:9092",
+  "key.deserializer": "com.tqxd.jys.core.spi.kafka.KafkaJsonDeSerializer",
+  "value.deserializer": "com.tqxd.jys.core.spi.kafka.KafkaJsonDeSerializer",
+  "group.id": "market.collector.consumer",
+  "auto.offset.reset": "earliest",
+  "enable.auto.commit": "true"
+}

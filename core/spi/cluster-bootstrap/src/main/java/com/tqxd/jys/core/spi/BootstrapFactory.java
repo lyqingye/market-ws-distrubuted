@@ -20,4 +20,8 @@ public final class BootstrapFactory {
     }
     return INSTANCE;
   }
+
+  public static void main(String[] args) {
+
+  }
 }

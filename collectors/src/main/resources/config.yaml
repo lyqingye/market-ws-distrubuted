@@ -1,0 +1,11 @@
+market:
+  collector:
+    name: com.tqxd.jys.collectos.impl.HuoBiKlineCollector
+    subscribe:
+      depth:
+        - BTC-USDT
+      kline:
+        - BTC-USDT
+      trade:
+        detail:
+          - BTC-USDT

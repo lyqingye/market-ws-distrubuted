@@ -16,6 +16,7 @@
         <module>market-dispatcher</module>
         <module>pressure-testing</module>
         <module>core</module>
+        <module>collectors</module>
     </modules>
 
     <properties>
@@ -53,18 +54,7 @@
         <!--            <artifactId>vertx-hazelcast</artifactId>-->
         <!--            <version>${vertx.version}</version>-->
         <!--        </dependency>-->
-        <dependency>
-            <groupId>io.vertx</groupId>
-            <artifactId>vertx-zookeeper</artifactId>
-            <version>${vertx.version}</version>
-            <!--已经采用了logback 所以剔除掉-->
-            <exclusions>
-                <exclusion>
-                    <groupId>org.slf4j</groupId>
-                    <artifactId>slf4j-log4j12</artifactId>
-                </exclusion>
-            </exclusions>
-        </dependency>
+
 
         <dependency>
             <groupId>io.vertx</groupId>
