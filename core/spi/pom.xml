@@ -16,6 +16,7 @@
         <module>kafka-message-bus</module>
         <module>cluster-bootstrap</module>
         <module>zookeeper-cluster-bootstrap</module>
+        <module>hazelcast-cluster-bootstrap</module>
     </modules>
 
     <properties>
