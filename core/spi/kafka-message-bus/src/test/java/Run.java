@@ -1,10 +1,13 @@
-import com.tqxd.jys.core.spi.MessageBus;
-
-import java.util.ServiceLoader;
+import com.tqxd.jys.core.spi.MessageBusFactory;
+import io.vertx.core.Vertx;
 
 public class Run {
   public static void main(String[] args) {
-    ServiceLoader<MessageBus> bootstraps = ServiceLoader.load(MessageBus.class);
+    MessageBusFactory.create(Vertx.vertx())
+      .onFailure(Throwable::printStackTrace)
+      .onSuccess(none -> {
+        System.out.println();
+      });
     System.out.println();
   }
 }

@@ -14,8 +14,8 @@
     <modules>
         <module>message-bus</module>
         <module>kafka-message-bus</module>
-        <module>cluster-manager</module>
-        <module>zookeeper-cluster-manager</module>
+        <module>cluster-bootstrap</module>
+        <module>zookeeper-cluster-bootstrap</module>
     </modules>
 
     <properties>
