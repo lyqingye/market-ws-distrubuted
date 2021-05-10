@@ -196,11 +196,14 @@ public class CollectorOpenApiImpl implements CollectorOpenApi {
       handler.handle(Future.failedFuture("collector not found"));
       return;
     }
-    if (collector.stop()) {
-      handler.handle(Future.succeededFuture(true));
-    } else {
-      handler.handle(Future.failedFuture("fail to stop"));
-    }
+    collector.stop(ar -> {
+      if (ar.succeeded()) {
+        handler.handle(Future.succeededFuture(true));
+      } else {
+        handler.handle(Future.failedFuture("fail to stop"));
+        ar.cause().printStackTrace();
+      }
+    });
   }
 
   /**

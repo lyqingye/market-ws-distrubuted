@@ -1,5 +1,7 @@
 package com.tqxd.jys.repository.redis;
 
+import com.tqxd.jys.constance.Period;
+
 /**
  * redis key管理器
  * <p>
@@ -38,8 +40,8 @@ public class RedisKeyHelper {
    *
    * @param symbol 交易对
    */
-  public static String toKlineDataKey(String symbol) {
-    return "market:" + symbol + ":kline:data";
+  public static String toKlineDataKey(String symbol, Period period) {
+    return "market:" + symbol + ":kline:data:" + period;
   }
 
   /**

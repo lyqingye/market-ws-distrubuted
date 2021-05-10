@@ -4,7 +4,6 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.tqxd.jys.common.payload.KlineTick;
 import com.tqxd.jys.common.payload.TemplatePayload;
 import com.tqxd.jys.constance.DataType;
-import com.tqxd.jys.constance.Period;
 import com.tqxd.jys.messagebus.MessageListener;
 import com.tqxd.jys.messagebus.payload.Message;
 import com.tqxd.jys.timeline.KLineRepository;
@@ -38,10 +37,15 @@ public class MBKLineRepositoryAppendedSyncer implements KLineRepositoryAppendedS
     if (msg.getType() == DataType.KLINE) {
       TemplatePayload<KlineTick> payload = JacksonCodec.decodeValue((String) msg.getPayload(), new TypeReference<TemplatePayload<KlineTick>>() {
       });
-      kLineRepository.append(msg.getIndex(), ChannelUtil.getSymbol(payload.getCh()), Period._1_MIN, payload.getTick())
-        .onFailure(Throwable::printStackTrace);
+      ChannelUtil.KLineChannel ch = ChannelUtil.resolveKLineCh(payload.getCh());
+      if (ch == null) {
+        log.error("invalid message from Kline topic, invalid channel string! message: {}", msg);
+      } else {
+        kLineRepository.append(msg.getIndex(), ChannelUtil.getSymbol(payload.getCh()), ch.getPeriod(), payload.getTick())
+            .onFailure(Throwable::printStackTrace);
+      }
     } else {
-      log.error("[RepositoryApplication]: invalid message type from Kline topic! message: {}", msg);
+      log.error("invalid message type from Kline topic! message: {}", msg);
     }
   }
 }

@@ -198,19 +198,17 @@ public abstract class GenericWsCollector implements Collector {
    * @return 是否停止成功
    */
   @Override
-  public boolean stop() {
+  public void stop(Handler<AsyncResult<Void>> handler) {
     if (isRunning()) {
       try {
-        if (!this.ws().isClosed()) {
-          this.ws().close();
-        }
         this.isRunning = false;
-        return true;
+        if (!this.ws().isClosed()) {
+          this.ws().close().onComplete(handler);
+        }
       } catch (Exception ex) {
-        ex.printStackTrace();
+        handler.handle(Future.failedFuture(ex));
       }
     }
-    return true;
   }
 
   /**
@@ -246,21 +244,23 @@ public abstract class GenericWsCollector implements Collector {
   public void startIdleChecker() {
     idleCheckerTimerId = vertx.setPeriodic(TimeUnit.SECONDS.toMillis(1), timeId -> {
       if (isRunning()) {
-
         if (System.currentTimeMillis() - lastReceiveTimestamp >= idleTime) {
           log.info("[Collectors]: collector {} idle detected, try to restart! ", this.name());
-          if (stop()) {
-            log.info("[Collectors]: stop collector: {} success!", this.name());
-            start(startAr -> {
-              if (startAr.succeeded()) {
-                log.info("[Collectors]: start collector: {} success!", this.name());
-              } else {
-                startAr.cause().printStackTrace();
-              }
-            });
-          } else {
-            log.error("[Collectors]: stop collector: {}  fail!", this.name());
-          }
+          stop(ar -> {
+            if (ar.succeeded()) {
+              log.info("[Collectors]: stop collector: {} success!", this.name());
+              start(startAr -> {
+                if (startAr.succeeded()) {
+                  log.info("[Collectors]: start collector: {} success!", this.name());
+                } else {
+                  startAr.cause().printStackTrace();
+                }
+              });
+            } else {
+              ar.cause().printStackTrace();
+              log.error("[Collectors]: stop collector: {}  fail!", this.name());
+            }
+          });
         }
       }
     });

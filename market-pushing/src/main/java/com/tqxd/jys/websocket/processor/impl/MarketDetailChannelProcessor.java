@@ -1,7 +1,7 @@
 package com.tqxd.jys.websocket.processor.impl;
 
+import com.tqxd.jys.common.payload.KlineTick;
 import com.tqxd.jys.common.payload.TemplatePayload;
-import com.tqxd.jys.messagebus.payload.detail.MarketDetailTick;
 import com.tqxd.jys.utils.ChannelUtil;
 import com.tqxd.jys.websocket.cache.CacheManager;
 import com.tqxd.jys.websocket.processor.ChannelProcessor;
@@ -34,7 +34,7 @@ public class MarketDetailChannelProcessor implements ChannelProcessor {
       return false;
     }
     String id = json.getString("id");
-    MarketDetailTick tick = cacheManager.reqMarketDetail(ChannelUtil.getSymbol(ch));
+    KlineTick tick = cacheManager.reqMarketDetail(ChannelUtil.getSymbol(ch));
     session.writeText(Json.encode(Response.reqOk(id, ch, tick)));
     return true;
   }
@@ -72,9 +72,9 @@ public class MarketDetailChannelProcessor implements ChannelProcessor {
   }
 
   @Override
-  public void onMarketDetailUpdate(String symbol, MarketDetailTick tick) {
+  public void onMarketDetailUpdate(String symbol, KlineTick tick) {
     String marketDetailCh = ChannelUtil.buildMarketDetailChannel(symbol);
-    TemplatePayload<MarketDetailTick> detail = TemplatePayload.of(marketDetailCh,tick);
+    TemplatePayload<KlineTick> detail = TemplatePayload.of(marketDetailCh, tick);
     sessionManager.foreachSessionByChannel(marketDetailCh, session -> session.writeText(Json.encode(detail)));
   }
 }

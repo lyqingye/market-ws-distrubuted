@@ -5,6 +5,7 @@ import io.vertx.codegen.annotations.DataObject;
 import io.vertx.core.json.JsonObject;
 
 import java.math.BigDecimal;
+import java.util.concurrent.TimeUnit;
 
 @DataObject
 public class KlineTick{
@@ -46,7 +47,7 @@ public class KlineTick{
    */
   @JsonIgnore
   public long getTime() {
-    return id * 1000;
+    return id + TimeUnit.HOURS.toSeconds(8);
   }
 
 
@@ -86,6 +87,7 @@ public class KlineTick{
   }
 
   public KlineTick sum(KlineTick target) {
+    this.id = target.id;
     this.count += target.getCount();
     this.amount = this.amount.add(target.getAmount());
     this.vol = this.vol.add(target.getVol());
@@ -98,6 +100,19 @@ public class KlineTick{
       this.low = target.low;
     }
     return this;
+  }
+
+  public KlineTick deepClone() {
+    KlineTick tick = new KlineTick();
+    tick.id = this.id;
+    tick.open = BigDecimal.valueOf(this.open.doubleValue());
+    tick.close = BigDecimal.valueOf(this.close.doubleValue());
+    tick.high = BigDecimal.valueOf(this.high.doubleValue());
+    tick.low = BigDecimal.valueOf(this.low.doubleValue());
+    tick.vol = BigDecimal.valueOf(this.vol.doubleValue());
+    tick.amount = BigDecimal.valueOf(this.amount.doubleValue());
+    tick.count = this.count;
+    return tick;
   }
 
   public JsonObject toJson() {

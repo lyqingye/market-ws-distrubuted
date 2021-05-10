@@ -4,10 +4,7 @@ import com.tqxd.jys.common.payload.KlineTick;
 import com.tqxd.jys.constance.DepthLevel;
 import com.tqxd.jys.constance.Period;
 import com.tqxd.jys.messagebus.payload.depth.DepthTick;
-import com.tqxd.jys.messagebus.payload.detail.MarketDetailTick;
 import com.tqxd.jys.messagebus.payload.trade.TradeDetailTick;
-
-import java.util.List;
 
 /**
  * 缓存监听者
@@ -46,7 +43,8 @@ public interface CacheUpdateListener {
    * 市场概括变动事件
    *
    * @param symbol 交易对
-   * @param tick tick
+   * @param tick   tick
    */
-  default void onMarketDetailUpdate (String symbol, MarketDetailTick tick) {}
+  default void onMarketDetailUpdate(String symbol, KlineTick tick) {
+  }
 }

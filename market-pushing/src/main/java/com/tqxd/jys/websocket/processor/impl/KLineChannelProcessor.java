@@ -52,14 +52,14 @@ public class KLineChannelProcessor implements ChannelProcessor {
       return true;
     }
     // unix 时间戳转换是为了适配火币
-     cacheManager.reqKlineHistory(channel.getSymbol(), channel.getPeriod(), from * 1000, to * 1000, h -> {
-      if (h.succeeded()) {
-        session.writeText(Json.encode(Response.reqOk(id, req, h.result())));
-      } else {
-        session.writeText(Json.encode(Response.err(id, req, "server internal error!")));
-        h.cause().printStackTrace();
-      }
-    });
+     cacheManager.reqKlineHistory(channel.getSymbol(), channel.getPeriod(), from, to, h -> {
+       if (h.succeeded()) {
+         session.writeText(Json.encode(Response.reqOk(id, req, h.result())));
+       } else {
+         session.writeText(Json.encode(Response.err(id, req, "server internal error!")));
+         h.cause().printStackTrace();
+       }
+     });
     return true;
   }
 

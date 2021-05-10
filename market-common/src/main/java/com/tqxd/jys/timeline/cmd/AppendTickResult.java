@@ -2,15 +2,14 @@ package com.tqxd.jys.timeline.cmd;
 
 
 import com.tqxd.jys.common.payload.KlineTick;
-import com.tqxd.jys.messagebus.payload.detail.MarketDetailTick;
 import com.tqxd.jys.timeline.KLineMeta;
 
 public class AppendTickResult {
   private KLineMeta meta;
   private KlineTick tick;
-  private MarketDetailTick detail;
+  private KlineTick detail;
 
-  public AppendTickResult(KLineMeta meta, KlineTick tick, MarketDetailTick detail) {
+  public AppendTickResult(KLineMeta meta, KlineTick tick, KlineTick detail) {
     this.meta = meta;
     this.tick = tick;
     this.detail = detail;
@@ -32,11 +31,11 @@ public class AppendTickResult {
     this.tick = tick;
   }
 
-  public MarketDetailTick getDetail() {
+  public KlineTick getDetail() {
     return detail;
   }
 
-  public void setDetail(MarketDetailTick detail) {
+  public void setDetail(KlineTick detail) {
     this.detail = detail;
   }
 }

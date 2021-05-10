@@ -1,7 +1,7 @@
 package com.tqxd.jys.timeline;
 
 import com.tqxd.jys.timeline.cmd.AppendTickResult;
-import com.tqxd.jys.timeline.cmd.AutoAggregateResult;
+import com.tqxd.jys.timeline.cmd.Auto24HourStatisticsResult;
 
 /**
  * k线仓库事件监听
@@ -21,5 +21,6 @@ public interface KLineRepositoryListener {
    *
    * @param rs 结果
    */
-  default void onAutoAggregate(AutoAggregateResult rs) {}
+  default void onAutoAggregate(Auto24HourStatisticsResult rs) {
+  }
 }

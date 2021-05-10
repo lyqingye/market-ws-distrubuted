@@ -2,7 +2,6 @@ package com.tqxd.jys.timeline;
 
 import com.tqxd.jys.common.payload.KlineTick;
 import com.tqxd.jys.constance.Period;
-import com.tqxd.jys.messagebus.payload.detail.MarketDetailTick;
 import com.tqxd.jys.openapi.payload.KlineSnapshot;
 import io.vertx.core.*;
 import io.vertx.core.json.JsonObject;
@@ -132,21 +131,21 @@ public interface KLineRepository {
   /**
    * 查询24小时聚合数据
    *
-   * @param symbol 交易对
+   * @param symbol  交易对
    * @param handler 结果处理器
    */
-  default void getAggregate(String symbol, Handler<AsyncResult<MarketDetailTick>> handler) {
+  default void getAggregate(String symbol, Handler<AsyncResult<KlineTick>> handler) {
     handler.handle(Future.failedFuture("not implementation!"));
   }
 
   /**
    * 更新24小时聚合数据
    *
-   * @param symbol 交易对
-   * @param tick tick
+   * @param symbol  交易对
+   * @param tick    tick
    * @param handler 结果处理器
    */
-  default void putAggregate(String symbol, MarketDetailTick tick, Handler<AsyncResult<Void>> handler) {
+  default void putAggregate(String symbol, KlineTick tick, Handler<AsyncResult<Void>> handler) {
     handler.handle(Future.failedFuture("not implementation!"));
   }
 
@@ -202,19 +201,19 @@ public interface KLineRepository {
     return promise.future();
   }
 
-  default Future<List<KlineTick>> query (String symbol,Period period, long from, long to) {
+  default Future<List<KlineTick>> query(String symbol, Period period, long from, long to) {
     Promise<List<KlineTick>> promise = Promise.promise();
-    query(symbol, period, from, to,promise);
+    query(symbol, period, from, to, promise);
     return promise.future();
   }
 
-  default Future<MarketDetailTick> getAggregate(String symbol) {
-    Promise<MarketDetailTick> promise = Promise.promise();
+  default Future<KlineTick> getAggregate(String symbol) {
+    Promise<KlineTick> promise = Promise.promise();
     getAggregate(symbol, promise);
     return promise.future();
   }
 
-  default Future<Void> putAggregate(String symbol, MarketDetailTick tick) {
+  default Future<Void> putAggregate(String symbol, KlineTick tick) {
     Promise<Void> promise = Promise.promise();
     putAggregate(symbol, tick, promise);
     return promise.future();

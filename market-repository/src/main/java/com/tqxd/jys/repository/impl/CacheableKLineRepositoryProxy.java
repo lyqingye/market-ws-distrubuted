@@ -2,7 +2,6 @@ package com.tqxd.jys.repository.impl;
 
 import com.tqxd.jys.common.payload.KlineTick;
 import com.tqxd.jys.constance.Period;
-import com.tqxd.jys.messagebus.payload.detail.MarketDetailTick;
 import com.tqxd.jys.openapi.payload.KlineSnapshot;
 import com.tqxd.jys.timeline.InMemKLineRepository;
 import com.tqxd.jys.timeline.KLineRepository;
@@ -73,14 +72,7 @@ public class CacheableKLineRepositoryProxy implements KLineRepository {
 
   @Override
   public void append(long commitIndex, String symbol, Period period, KlineTick tick, Handler<AsyncResult<Long>> handler) {
-    if (!Period._1_MIN.equals(period)) {
-      handler.handle(Future.failedFuture("redis repository only support 1min kline data!"));
-      return;
-    }
-    // append all period
-    for (Period p : Period.values()) {
-      cacheRepository.append(commitIndex, symbol, p, tick, handler);
-    }
+    cacheRepository.append(commitIndex, symbol, period, tick, handler);
   }
 
   @Override
@@ -101,12 +93,12 @@ public class CacheableKLineRepositoryProxy implements KLineRepository {
   }
 
   @Override
-  public void getAggregate(String symbol, Handler<AsyncResult<MarketDetailTick>> handler) {
+  public void getAggregate(String symbol, Handler<AsyncResult<KlineTick>> handler) {
     cacheRepository.getAggregate(symbol, handler);
   }
 
   @Override
-  public void putAggregate(String symbol, MarketDetailTick tick, Handler<AsyncResult<Void>> handler) {
+  public void putAggregate(String symbol, KlineTick tick, Handler<AsyncResult<Void>> handler) {
     cacheRepository.putAggregate(symbol, tick);
   }
 }

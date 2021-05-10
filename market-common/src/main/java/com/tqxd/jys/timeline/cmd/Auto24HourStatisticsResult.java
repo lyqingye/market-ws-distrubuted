@@ -1,6 +1,6 @@
 package com.tqxd.jys.timeline.cmd;
 
-import com.tqxd.jys.messagebus.payload.detail.MarketDetailTick;
+import com.tqxd.jys.common.payload.KlineTick;
 import com.tqxd.jys.timeline.KLineMeta;
 
 /**
@@ -8,11 +8,11 @@ import com.tqxd.jys.timeline.KLineMeta;
  *
  * @author lyqingye
  */
-public class AutoAggregateResult {
+public class Auto24HourStatisticsResult {
   private KLineMeta meta;
-  private MarketDetailTick tick;
+  private KlineTick tick;
 
-  public AutoAggregateResult(KLineMeta meta, MarketDetailTick tick) {
+  public Auto24HourStatisticsResult(KLineMeta meta, KlineTick tick) {
     this.meta = meta;
     this.tick = tick;
   }
@@ -25,11 +25,11 @@ public class AutoAggregateResult {
     this.meta = meta;
   }
 
-  public MarketDetailTick getTick() {
+  public KlineTick getTick() {
     return tick;
   }
 
-  public void setTick(MarketDetailTick tick) {
+  public void setTick(KlineTick tick) {
     this.tick = tick;
   }
 }

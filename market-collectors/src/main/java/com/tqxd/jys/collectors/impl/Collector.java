@@ -96,7 +96,7 @@ public interface Collector {
    *
    * @return 是否停止成功
    */
-  boolean stop();
+  void stop(Handler<AsyncResult<Void>> handler);
 
   /**
    * 是否正在收集

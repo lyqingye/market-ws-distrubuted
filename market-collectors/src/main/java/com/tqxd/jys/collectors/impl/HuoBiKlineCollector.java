@@ -171,20 +171,23 @@ public class HuoBiKlineCollector extends GenericWsCollector {
    * @return 是否停止成功
    */
   @Override
-  public boolean stop() {
-    boolean result = super.stop();
-    if (this.hc != null) {
-      try {
-        this.hc.close();
-        this.hc = null;
-        // 停止空闲链路检测
-        stopIdleChecker();
-        return result;
-      } catch (Exception e) {
-        result = false;
+  public void stop(Handler<AsyncResult<Void>> handler) {
+    super.stop(ar -> {
+      if (ar.succeeded()) {
+        if (this.hc != null) {
+          try {
+            this.hc.close().onComplete(handler);
+            this.hc = null;
+            // 停止空闲链路检测
+            stopIdleChecker();
+          } catch (Exception e) {
+            handler.handle(Future.failedFuture(e));
+          }
+        }
+      } else {
+        handler.handle(Future.failedFuture(ar.cause()));
       }
-    }
-    return result;
+    });
   }
 
   /**
@@ -214,43 +217,42 @@ public class HuoBiKlineCollector extends GenericWsCollector {
     if (this.ws != null && !this.ws.isClosed()) {
       String id = subIdPrefix + symbol;
       String sub = null;
+      JsonObject json = new JsonObject();
+      json.put("id", id);
       switch (dataType) {
         case KLINE: {
           // 只订阅 1min的交易
-          sub = HuoBiUtils.toKlineSub(toGenericSymbol(symbol), Period._1_MIN);
-          symbolDeMapping.put(sub, HuoBiUtils.toKlineSub(symbol, Period._1_MIN));
+          for (Period period : Period.values()) {
+            sub = HuoBiUtils.toKlineSub(toGenericSymbol(symbol), period);
+            symbolDeMapping.put(sub, HuoBiUtils.toKlineSub(symbol, period));
+            json.put("sub", sub);
+            this.ws.writeTextMessage(json.toString());
+            log.info("[HuoBi]: subscribe: {}", sub);
+          }
           break;
         }
         case DEPTH: {
           // 只订阅深度为0的
           sub = HuoBiUtils.toDepthSub(toGenericSymbol(symbol), DepthLevel.step0);
           symbolDeMapping.put(sub, HuoBiUtils.toDepthSub(symbol, DepthLevel.step0));
+          json.put("sub", sub);
+          this.ws.writeTextMessage(json.toString());
+          log.info("[HuoBi]: subscribe: {}", sub);
           break;
         }
-        case TRADE_DETAIL:{
+        case TRADE_DETAIL: {
           sub = HuoBiUtils.toTradeDetailSub(toGenericSymbol(symbol));
           symbolDeMapping.put(sub, HuoBiUtils.toTradeDetailSub(symbol));
+          json.put("sub", sub);
+          this.ws.writeTextMessage(json.toString());
+          log.info("[HuoBi]: subscribe: {}", sub);
           break;
         }
         default: {
-          // ignored
-        }
-      }
-      if (sub != null) {
-        JsonObject json = new JsonObject();
-        json.put("id",id);
-        json.put("sub",sub);
-
-        try {
-          this.ws.writeTextMessage(json.toString());
-          log.info("[HuoBi]: subscribe: {}", sub);
-          result = true;
-        } catch (Exception ex) {
           result = false;
         }
-      }else {
-        result = false;
       }
+
     } else {
       result = false;
     }
@@ -273,41 +275,40 @@ public class HuoBiKlineCollector extends GenericWsCollector {
     if (this.ws != null && !this.ws.isClosed()) {
       String id = subIdPrefix + symbol;
       String unsub = null;
+      JsonObject json = new JsonObject();
+      json.put("id", id);
       switch (dataType) {
         case KLINE: {
           // 只订阅 1min的交易
-          unsub = HuoBiUtils.toKlineSub(toGenericSymbol(symbol), Period._1_MIN);
-          symbolDeMapping.put(unsub, HuoBiUtils.toKlineSub(symbol, Period._1_MIN));
+          for (Period period : Period.values()) {
+            unsub = HuoBiUtils.toKlineSub(toGenericSymbol(symbol), period);
+            symbolDeMapping.put(unsub, HuoBiUtils.toKlineSub(symbol, period));
+            json.put("unsub", unsub);
+            log.info("[HuoBi]: unsubscribe: {}", unsub);
+            this.ws.writeTextMessage(json.toString());
+          }
           break;
         }
         case DEPTH: {
           // 只订阅深度为0的
           unsub = HuoBiUtils.toDepthSub(toGenericSymbol(symbol), DepthLevel.step0);
           symbolDeMapping.put(unsub, HuoBiUtils.toDepthSub(symbol, DepthLevel.step0));
+          json.put("unsub", unsub);
+          log.info("[HuoBi]: unsubscribe: {}", unsub);
+          this.ws.writeTextMessage(json.toString());
           break;
         }
-        case TRADE_DETAIL:{
+        case TRADE_DETAIL: {
           unsub = HuoBiUtils.toTradeDetailSub(toGenericSymbol(symbol));
           symbolDeMapping.put(unsub, HuoBiUtils.toTradeDetailSub(symbol));
+          json.put("unsub", unsub);
+          log.info("[HuoBi]: unsubscribe: {}", unsub);
+          this.ws.writeTextMessage(json.toString());
           break;
         }
         default: {
-          // ignored
-        }
-      }
-      if (unsub != null) {
-        JsonObject json = new JsonObject();
-        json.put("id",id);
-        json.put("unsub",unsub);
-        try {
-          log.info("[HuoBi]: unsubscribe: {}", unsub);
-          this.ws.writeTextMessage(json.toString());
-          result = true;
-        } catch (Exception ex) {
           result = false;
         }
-      }else {
-        result = false;
       }
     } else {
       result = false;
