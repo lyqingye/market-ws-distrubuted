@@ -7,8 +7,11 @@ import io.vertx.core.Handler;
 import io.vertx.core.Vertx;
 import io.vertx.core.http.WebSocket;
 import io.vertx.core.json.JsonObject;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.*;
+import java.util.concurrent.TimeUnit;
 import java.util.function.BiConsumer;
 
 /**
@@ -16,10 +19,17 @@ import java.util.function.BiConsumer;
  * @since 2020/10/10 上午9:54
  */
 public abstract class GenericWsCollector implements Collector {
+  Logger log = LoggerFactory.getLogger(GenericWsCollector.class);
+
   /**
    * 已经订阅的信息
    */
   private Map<DataType, List<String>> subscribed = new HashMap<>(16);
+
+  /**
+   * vertx 实例
+   */
+  private Vertx vertx;
 
   /**
    * 是否正在运行
@@ -31,10 +41,20 @@ public abstract class GenericWsCollector implements Collector {
    */
   private volatile boolean isDeployed;
 
-  @Override
-  public String name() {
-    return HuoBiKlineCollector.class.getSimpleName();
-  }
+  /**
+   * 上一次收到消息的时间，用于空闲链路检测
+   */
+  private long lastReceiveTimestamp;
+
+  /**
+   * 空闲链路判定时间 （超过这个时间就会被判定为空闲链路）
+   */
+  private long idleTime = TimeUnit.SECONDS.toMillis(5);
+
+  /**
+   * 空闲链路检测定时器
+   */
+  private long idleCheckerTimerId;
 
   /**
    * 部署一个收集器
@@ -52,6 +72,7 @@ public abstract class GenericWsCollector implements Collector {
     if (vertx == null) {
       return false;
     }
+    this.vertx = vertx;
 
     if (this.isDeployed) {
       return true;
@@ -218,4 +239,47 @@ public abstract class GenericWsCollector implements Collector {
    * @return 实例
    */
   public abstract WebSocket ws();
+
+  /**
+   * 启动空闲检测
+   */
+  public void startIdleChecker() {
+    idleCheckerTimerId = vertx.setPeriodic(TimeUnit.SECONDS.toMillis(1), timeId -> {
+      if (isRunning()) {
+
+        if (System.currentTimeMillis() - lastReceiveTimestamp >= idleTime) {
+          log.info("[Collectors]: collector {} idle detected, try to restart! ", this.name());
+          if (stop()) {
+            log.info("[Collectors]: stop collector: {} success!", this.name());
+            start(startAr -> {
+              if (startAr.succeeded()) {
+                log.info("[Collectors]: start collector: {} success!", this.name());
+              } else {
+                startAr.cause().printStackTrace();
+              }
+            });
+          } else {
+            log.error("[Collectors]: stop collector: {}  fail!", this.name());
+          }
+        }
+      }
+    });
+  }
+
+  /**
+   * 刷新上一次收到消息的时间, 用于空闲链路检测
+   */
+  public void refreshLastReceiveTime() {
+    lastReceiveTimestamp = System.currentTimeMillis();
+  }
+
+  /**
+   * 停止空闲检测
+   */
+  public void stopIdleChecker() {
+    if (idleCheckerTimerId != -1) {
+      vertx.cancelTimer(idleCheckerTimerId);
+      idleCheckerTimerId = -1;
+    }
+  }
 }

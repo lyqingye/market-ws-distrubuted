@@ -1,7 +1,6 @@
 package com.tqxd.jys.collectors.impl;
 
 
-import com.tqxd.jys.collectors.CollectorsApplication;
 import com.tqxd.jys.constance.DataType;
 import com.tqxd.jys.constance.DepthLevel;
 import com.tqxd.jys.constance.Period;
@@ -67,7 +66,7 @@ public class HuoBiKlineCollector extends GenericWsCollector {
   /**
    * 订阅ID
    */
-  private String subIdPrefix = UUID.randomUUID().toString();
+  private String subIdPrefix;
 
   /**
    * 部署一个收集器
@@ -110,7 +109,7 @@ public class HuoBiKlineCollector extends GenericWsCollector {
    */
   @Override
   public void start(Handler<AsyncResult<Boolean>> handler) {
-
+    subIdPrefix = UUID.randomUUID().toString();
     super.start(ar -> {
       if (ar.succeeded()) {
         this.hc = this.vertx.createHttpClient();
@@ -118,6 +117,7 @@ public class HuoBiKlineCollector extends GenericWsCollector {
         // 创建websocket 链接
         hc.webSocket(this.config.host, this.config.reqUrl, wsAr -> {
           if (wsAr.succeeded()) {
+            refreshLastReceiveTime();
             that.ws = wsAr.result();
             this.registerMsgHandler(that.ws);
             // 重新订阅
@@ -128,6 +128,8 @@ public class HuoBiKlineCollector extends GenericWsCollector {
                 }
               }
             }));
+            // 启用空闲链路检测
+            startIdleChecker();
             handler.handle(Future.succeededFuture(true));
           } else {
             handler.handle(Future.failedFuture(wsAr.cause()));
@@ -139,6 +141,7 @@ public class HuoBiKlineCollector extends GenericWsCollector {
     });
 
   }
+
 
   /**
    * 取消部署收集器
@@ -174,6 +177,8 @@ public class HuoBiKlineCollector extends GenericWsCollector {
       try {
         this.hc.close();
         this.hc = null;
+        // 停止空闲链路检测
+        stopIdleChecker();
         return result;
       } catch (Exception e) {
         result = false;
@@ -332,6 +337,7 @@ public class HuoBiKlineCollector extends GenericWsCollector {
    */
   private void registerMsgHandler(WebSocket ws) {
     ws.frameHandler(frame -> {
+      refreshLastReceiveTime();
       // 处理二进制帧并且确保是最终帧
       if (frame.isBinary() && frame.isFinal()) {
         GZIPUtils.decompressAsync(vertx, frame.binaryData().getBytes())
