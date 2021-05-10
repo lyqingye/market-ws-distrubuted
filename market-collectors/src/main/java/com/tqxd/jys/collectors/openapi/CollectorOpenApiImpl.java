@@ -20,7 +20,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 /**
@@ -56,24 +55,6 @@ public class CollectorOpenApiImpl implements CollectorOpenApi {
     // 注册支持的收集器
     HuoBiKlineCollector huoBi = new HuoBiKlineCollector();
     collectorMap.put(huoBi.name(), huoBi);
-
-    // 定时重启收集器免得被踢掉
-    vertx.setPeriodic(TimeUnit.MINUTES.toMillis(10), timeId -> {
-      deployMap.values().forEach(collector -> {
-        if (collector.stop()) {
-          log.info("[Collectors]: stop collector: {} success!", collector.name());
-          collector.start(ar -> {
-            if (ar.succeeded()) {
-              log.info("[Collectors]: start collector: {} success!", collector.name());
-            } else {
-              ar.cause().printStackTrace();
-            }
-          });
-        } else {
-          log.error("[Collectors]: stop collector: {}  fail!", collector.name());
-        }
-      });
-    });
   }
 
   /**
