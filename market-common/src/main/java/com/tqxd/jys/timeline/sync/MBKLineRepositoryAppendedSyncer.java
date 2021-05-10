@@ -39,13 +39,13 @@ public class MBKLineRepositoryAppendedSyncer implements KLineRepositoryAppendedS
       });
       ChannelUtil.KLineChannel ch = ChannelUtil.resolveKLineCh(payload.getCh());
       if (ch == null) {
-        log.error("invalid message from Kline topic, invalid channel string! message: {}", msg);
+        log.error("invalid message from Kline topic, invalid channel string! message: {}", msg.getPayload());
       } else {
         kLineRepository.append(msg.getIndex(), ChannelUtil.getSymbol(payload.getCh()), ch.getPeriod(), payload.getTick())
             .onFailure(Throwable::printStackTrace);
       }
     } else {
-      log.error("invalid message type from Kline topic! message: {}", msg);
+      log.error("invalid message type from Kline topic! message: {}", msg.getPayload());
     }
   }
 }

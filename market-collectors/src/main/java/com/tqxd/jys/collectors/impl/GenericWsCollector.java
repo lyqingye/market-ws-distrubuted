@@ -209,6 +209,7 @@ public abstract class GenericWsCollector implements Collector {
         handler.handle(Future.failedFuture(ex));
       }
     }
+    handler.handle(Future.succeededFuture());
   }
 
   /**

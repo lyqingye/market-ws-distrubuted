@@ -180,6 +180,7 @@ public class HuoBiKlineCollector extends GenericWsCollector {
             this.hc = null;
             // 停止空闲链路检测
             stopIdleChecker();
+            handler.handle(Future.succeededFuture());
           } catch (Exception e) {
             handler.handle(Future.failedFuture(e));
           }
