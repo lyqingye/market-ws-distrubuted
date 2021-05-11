@@ -1,11 +1,18 @@
 market:
-  collector:
-    name: com.tqxd.jys.collectors.impl.HuoBiKlineCollector
-    subscribe:
-      depth:
-        - BTC-USDT
-      kline:
-        - BTC-USDT
-      trade:
-        detail:
+  collectors:
+    enabled:
+      - huobi
+    huobi:
+      clazz: com.tqxd.jys.collectors.impl.HuoBiKlineCollector
+      net:
+        host: api.huobiasia.vip
+        path: /ws
+      subscribe:
+        depth:
           - BTC-USDT
+        kline:
+          - BTC-USDT
+        trade:
+          detail:
+            - BTC-USDT
+

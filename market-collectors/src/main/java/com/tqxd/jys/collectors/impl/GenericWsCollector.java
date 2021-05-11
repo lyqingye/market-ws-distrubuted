@@ -1,134 +1,125 @@
 package com.tqxd.jys.collectors.impl;
 
 import com.tqxd.jys.constance.DataType;
-import io.vertx.core.AsyncResult;
 import io.vertx.core.Future;
-import io.vertx.core.Handler;
-import io.vertx.core.Vertx;
+import io.vertx.core.*;
+import io.vertx.core.buffer.Buffer;
+import io.vertx.core.http.HttpClient;
+import io.vertx.core.http.HttpClientOptions;
 import io.vertx.core.http.WebSocket;
+import io.vertx.core.http.WebSocketFrame;
 import io.vertx.core.json.JsonObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.*;
-import java.util.concurrent.TimeUnit;
-import java.util.function.BiConsumer;
+import java.util.concurrent.*;
 
 /**
  * @author yjt
  * @since 2020/10/10 上午9:54
  */
-public abstract class GenericWsCollector implements Collector {
+public abstract class GenericWsCollector extends AbstractVerticle implements Collector {
+  public static final String HTTP_CLIENT_OPTIONS_PARAM = "http_client_options_param";
+  public static final String WS_REQUEST_PATH_PARAM = "ws_request_path_param";
+
+  static final ScheduledExecutorService idleCheckerExecutor;
+
+  static {
+    idleCheckerExecutor = Executors.newSingleThreadScheduledExecutor();
+  }
+
   Logger log = LoggerFactory.getLogger(GenericWsCollector.class);
-
-  /**
-   * 已经订阅的信息
-   */
   private Map<DataType, List<String>> subscribed = new HashMap<>(16);
-
-  /**
-   * vertx 实例
-   */
-  private Vertx vertx;
-
-  /**
-   * 是否正在运行
-   */
+  private DataReceiver[] receivers = new DataReceiver[16];
+  private int numOfReceives = 0;
   private volatile boolean isRunning;
-
-  /**
-   * 是否已经部署
-   */
-  private volatile boolean isDeployed;
-
-  /**
-   * 上一次收到消息的时间，用于空闲链路检测
-   */
+  private volatile WebSocket webSocket;
   private long lastReceiveTimestamp;
-
-  /**
-   * 空闲链路判定时间 （超过这个时间就会被判定为空闲链路）
-   */
   private long idleTime = TimeUnit.SECONDS.toMillis(5);
+  private long checkTime = TimeUnit.SECONDS.toMillis(5);
+  private long lastCheckTime = 0;
+  private volatile boolean restarting = false;
+  private volatile boolean idleCheckEnable = true;
 
-  /**
-   * 空闲链路检测定时器
-   */
-  private long idleCheckerTimerId;
-
-  /**
-   * 部署一个收集器
-   *
-   * @param vertx    vertx 实例
-   * @param consumer 数据消费器
-   * @param args     附加参数 (可以为空)
-   * @return 是否部署成功
-   * @throws Exception 如果部署失败
-   */
   @Override
-  public boolean deploy(Vertx vertx,
-                        BiConsumer<DataType, JsonObject> consumer,
-                        JsonObject args) {
-    if (vertx == null) {
-      return false;
+  public synchronized void start(Promise<Void> startPromise) throws Exception {
+    if (isRunning()) {
+      startPromise.fail("collector is running!");
+    } else {
+      HttpClientOptions httpClientOptions = null;
+      if (config().containsKey(HTTP_CLIENT_OPTIONS_PARAM)) {
+        httpClientOptions = (HttpClientOptions) config().getValue(HTTP_CLIENT_OPTIONS_PARAM);
+      }
+      String requestPath = config().getString(WS_REQUEST_PATH_PARAM);
+      HttpClient httpClient;
+      if (httpClientOptions != null) {
+        httpClient = vertx.createHttpClient(httpClientOptions);
+      } else {
+        httpClient = vertx.createHttpClient();
+      }
+      httpClient.webSocket(requestPath).onComplete(ar -> {
+        if (ar.succeeded()) {
+          isRunning = true;
+          webSocket = ar.result();
+          webSocket.frameHandler(frame -> {
+            onFrame(webSocket, frame);
+          });
+          if (idleCheckEnable) {
+            startIdleChecker();
+          }
+          startPromise.complete();
+        } else {
+          startPromise.fail(ar.cause());
+        }
+      });
     }
-    this.vertx = vertx;
-
-    if (this.isDeployed) {
-      return true;
-    }
-    this.isRunning = false;
-    this.isDeployed = true;
-
-    return true;
   }
 
-  /**
-   * 取消部署收集器
-   *
-   * @param args 附加参数可以为空
-   * @return 如果取消部署失败
-   * @throws Exception 如果取消部署失败
-   */
   @Override
-  public boolean unDeploy(JsonObject args) {
-    if (isDeployed) {
-      try {
-        if (this.ws() != null && !this.ws().isClosed()) {
-          this.ws().close();
-        }
+  public synchronized void stop(Promise<Void> stopPromise) throws Exception {
+    if (!this.isRunning()) {
+      stopPromise.fail("collector running yet!");
+    } else {
+      webSocket.close((short) 0, "collector call the stop!", ar -> {
+        // force set state is close
         this.isRunning = false;
-        this.isDeployed = false;
-        return true;
-      } catch (Exception ex) {
-        ex.printStackTrace();
-      }
-      return false;
+        if (ar.succeeded()) {
+          webSocket = null;
+        } else {
+          log.info("collector: {} stop!", this.name());
+          log.warn("close the socket fail! ignore this error!");
+          ar.cause().printStackTrace();
+        }
+        stopPromise.complete();
+      });
     }
-    return true;
   }
 
-  /**
-   * 订阅一个交易对
-   *
-   * @param dataType 数据收集类型
-   * @param symbol   交易对
-   * @return 是否订阅成功
-   */
   @Override
-  public boolean subscribe(DataType dataType, String symbol) {
-    if (!this.isRunning)
-      return false;
-    List<String> symbols;
-    if ((symbols = subscribed.get(dataType)) != null) {
-      for (String exist : symbols) {
-        if (exist.equals(symbol)) {
-          return true;
+  public synchronized void restart(Handler<AsyncResult<Void>> handler) {
+    stopFuture()
+        .compose(none -> startFuture())
+        .onComplete(handler);
+  }
+
+  @Override
+  public void subscribe(DataType dataType, String symbol, Handler<AsyncResult<Void>> handler) {
+    if (!this.isRunning()) {
+      handler.handle(Future.failedFuture("the collector is not running yet!"));
+    } else {
+      List<String> symbols;
+      if ((symbols = subscribed.get(dataType)) != null) {
+        for (String exist : symbols) {
+          if (exist.equals(symbol)) {
+            handler.handle(Future.succeededFuture());
+            return;
+          }
         }
       }
+      subscribed.computeIfAbsent(dataType, k -> new ArrayList<>()).add(symbol);
+      handler.handle(Future.succeededFuture());
     }
-    subscribed.computeIfAbsent(dataType, k -> new ArrayList<>()).add(symbol);
-    return true;
   }
 
   /**
@@ -139,20 +130,22 @@ public abstract class GenericWsCollector implements Collector {
    * @return 是否取消订阅成功
    */
   @Override
-  public boolean unSubscribe(DataType dataType, String symbol) {
+  public void unSubscribe(DataType dataType, String symbol, Handler<AsyncResult<Void>> handler) {
     List<String> symbols = subscribed.get(dataType);
     if (symbols == null) {
-      return true;
-    }
-    Iterator<String> it = symbols.iterator();
-    while (it.hasNext()) {
-      String obj = it.next();
-      if (obj.equals(symbol)) {
-        it.remove();
-        return true;
+      handler.handle(Future.succeededFuture());
+    } else {
+      Iterator<String> it = symbols.iterator();
+      while (it.hasNext()) {
+        String obj = it.next();
+        if (obj.equals(symbol)) {
+          it.remove();
+          handler.handle(Future.succeededFuture());
+          return;
+        }
       }
+      handler.handle(Future.failedFuture("not found the subscribed info for: " + dataType + ":" + symbol));
     }
-    return false;
   }
 
   /**
@@ -166,53 +159,6 @@ public abstract class GenericWsCollector implements Collector {
   }
 
   /**
-   * 开启收集数据
-   *
-   * @param handler 回调
-   */
-  @Override
-  public void start(Handler<AsyncResult<Boolean>> handler) {
-
-    if (this.isRunning) {
-      handler.handle(Future.succeededFuture(true));
-    }
-
-    try {
-      if (this.ws() != null && !this.ws().isClosed()) {
-        this.ws().close();
-      }
-
-      this.isRunning = true;
-
-      // 部署 websocket
-      handler.handle(Future.succeededFuture(true));
-    } catch (Exception ex) {
-      this.isRunning = false;
-      handler.handle(Future.failedFuture(ex));
-    }
-  }
-
-  /**
-   * 停止数据收集
-   *
-   * @return 是否停止成功
-   */
-  @Override
-  public void stop(Handler<AsyncResult<Void>> handler) {
-    if (isRunning()) {
-      try {
-        this.isRunning = false;
-        if (!this.ws().isClosed()) {
-          this.ws().close().onComplete(handler);
-        }
-      } catch (Exception ex) {
-        handler.handle(Future.failedFuture(ex));
-      }
-    }
-    handler.handle(Future.succeededFuture());
-  }
-
-  /**
    * 是否正在收集
    *
    * @return 是否正在收集
@@ -222,49 +168,55 @@ public abstract class GenericWsCollector implements Collector {
     return this.isRunning;
   }
 
-  /**
-   * 是否已经部署
-   *
-   * @return 是否已经部署
-   */
-  @Override
-  public boolean isDeployed() {
-    return isDeployed;
+  public void writeText(String text) {
+    if (isRunning() && webSocket != null) {
+      webSocket.writeTextMessage(text);
+    }
   }
 
-  /**
-   * 获取websocket实例
-   *
-   * @return 实例
-   */
-  public abstract WebSocket ws();
+  public void writeBinary(Buffer buffer) {
+    if (isRunning() && webSocket != null) {
+      webSocket.writeBinaryMessage(buffer);
+    }
+  }
+
+  public void onFrame(WebSocket client, WebSocketFrame frame) {
+    refreshLastReceiveTime();
+  }
 
   /**
    * 启动空闲检测
    */
   public void startIdleChecker() {
-    idleCheckerTimerId = vertx.setPeriodic(TimeUnit.SECONDS.toMillis(1), timeId -> {
-      if (isRunning()) {
-        if (System.currentTimeMillis() - lastReceiveTimestamp >= idleTime) {
-          log.info("[Collectors]: collector {} idle detected, try to restart! ", this.name());
-          stop(ar -> {
-            if (ar.succeeded()) {
-              log.info("[Collectors]: stop collector: {} success!", this.name());
-              start(startAr -> {
-                if (startAr.succeeded()) {
-                  log.info("[Collectors]: start collector: {} success!", this.name());
-                } else {
-                  startAr.cause().printStackTrace();
-                }
-              });
-            } else {
-              ar.cause().printStackTrace();
-              log.error("[Collectors]: stop collector: {}  fail!", this.name());
-            }
-          });
-        }
+    idleCheckEnable = true;
+    lastCheckTime = System.currentTimeMillis();
+    idleCheckerExecutor.scheduleWithFixedDelay(() -> {
+      if (!isRunning() || !idleCheckEnable || restarting || (System.currentTimeMillis() - lastCheckTime) < checkTime) {
+        return;
       }
-    });
+      lastCheckTime = System.currentTimeMillis();
+      log.info("collector: {} idle checking lastReceiveTime: {}", this.name(), new Date(lastReceiveTimestamp));
+      if ((System.currentTimeMillis() - lastReceiveTimestamp) >= idleTime) {
+        restarting = true;
+        CompletableFuture<Void> cf = new CompletableFuture<>();
+        log.info("[Collectors]: collector {} idle detected, try to restart! lastReceiveTime: {} now: {}", this.name(), new Date(lastReceiveTimestamp), new Date());
+        restart(ar -> {
+          if (ar.succeeded()) {
+            cf.complete(null);
+          } else {
+            cf.completeExceptionally(ar.cause());
+          }
+        });
+        try {
+          cf.get();
+          log.info("[Collectors]: collector {} restart success!", this.name());
+        } catch (InterruptedException | ExecutionException e) {
+          e.printStackTrace();
+        }
+        restarting = false;
+        lastCheckTime = System.currentTimeMillis();
+      }
+    }, 5, 1, TimeUnit.SECONDS);
   }
 
   /**
@@ -278,9 +230,23 @@ public abstract class GenericWsCollector implements Collector {
    * 停止空闲检测
    */
   public void stopIdleChecker() {
-    if (idleCheckerTimerId != -1) {
-      vertx.cancelTimer(idleCheckerTimerId);
-      idleCheckerTimerId = -1;
+    idleCheckEnable = false;
+  }
+
+  @Override
+  public synchronized void addDataReceiver(DataReceiver receiver) {
+    if (numOfReceives >= receivers.length) {
+      DataReceiver[] newReceives = new DataReceiver[receivers.length << 1];
+      System.arraycopy(receivers, 0, newReceives, 0, numOfReceives);
+      receivers = newReceives;
+    }
+    receivers[numOfReceives++] = receiver;
+  }
+
+  @Override
+  public void unParkReceives(DataType dataType, JsonObject json) {
+    for (int i = 0; i < numOfReceives; i++) {
+      receivers[i].onReceive(this, dataType, json);
     }
   }
 }
