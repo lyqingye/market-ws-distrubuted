@@ -174,6 +174,7 @@ public class HuoBiKlineCollector extends GenericWsCollector {
               break;
             }
           }
+          handler.handle(Future.succeededFuture());
         })
         .onFailure(throwable -> {
           handler.handle(Future.failedFuture(throwable));
