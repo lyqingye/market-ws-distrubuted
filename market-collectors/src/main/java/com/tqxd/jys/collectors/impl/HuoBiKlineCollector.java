@@ -46,6 +46,7 @@ public class HuoBiKlineCollector extends GenericWsCollector {
     HttpClientOptions httpClientOptions = new HttpClientOptions().setDefaultHost(config().getString("host"));
     config().put(HTTP_CLIENT_OPTIONS_PARAM, httpClientOptions);
     config().put(WS_REQUEST_PATH_PARAM, config().getString("path"));
+    config().put(IDLE_TIME_OUT, 5000);
     subIdPrefix = UUID.randomUUID().toString();
     Promise<Void> promise = Promise.promise();
     super.start(promise);

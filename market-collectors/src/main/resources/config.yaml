@@ -2,9 +2,10 @@ market:
   collectors:
     enabled:
       - huobi
+
     huobi:
       clazz: com.tqxd.jys.collectors.impl.HuoBiKlineCollector
-      net:
+      config:
         host: api.huobiasia.vip
         path: /ws
       subscribe:
@@ -15,4 +16,3 @@ market:
         trade:
           detail:
             - BTC-USDT
-

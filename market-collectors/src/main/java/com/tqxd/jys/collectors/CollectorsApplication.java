@@ -29,7 +29,7 @@ public class CollectorsApplication extends AbstractVerticle {
   private static final String ENABLED_COLLECTORS_CONFIG = "market.collectors.enabled";
   private static final String COLLECTOR_FORMAT = "market.collectors.%s";
   private static final String COLLECTOR_CLAZZ = "clazz";
-  private static final String COLLECTOR_NET = "net";
+  private static final String COLLECTOR_CONFIG = "config";
   private static final String COLLECTOR_SUBSCRIBE_KLINE = "subscribe.kline";
   private static final String COLLECTOR_SUBSCRIBE_DEPTH = "subscribe.depth";
   private static final String COLLECTOR_SUBSCRIBE_TRADE_DETAIL = "subscribe.trade.detail";
@@ -93,7 +93,7 @@ public class CollectorsApplication extends AbstractVerticle {
     for (String collectorKey : enabledCollectors) {
       JsonObject collectorJson = jsonGetValue(config, String.format(COLLECTOR_FORMAT, collectorKey), JsonObject.class);
       String collectorClazz = collectorJson.getString(COLLECTOR_CLAZZ);
-      JsonObject collectorNet = jsonGetValue(collectorJson, COLLECTOR_NET, JsonObject.class);
+      JsonObject collectorNet = jsonGetValue(collectorJson, COLLECTOR_CONFIG, JsonObject.class);
       List<String> klineSubscribe = jsonListValue(collectorJson, COLLECTOR_SUBSCRIBE_KLINE, String.class);
       List<String> depthSubscribe = jsonListValue(collectorJson, COLLECTOR_SUBSCRIBE_DEPTH, String.class);
       List<String> tradeDetailSubscribe = jsonListValue(collectorJson, COLLECTOR_SUBSCRIBE_TRADE_DETAIL, String.class);

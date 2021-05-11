@@ -22,6 +22,7 @@ import java.util.concurrent.*;
 public abstract class GenericWsCollector extends AbstractVerticle implements Collector {
   public static final String HTTP_CLIENT_OPTIONS_PARAM = "http_client_options_param";
   public static final String WS_REQUEST_PATH_PARAM = "ws_request_path_param";
+  public static final String IDLE_TIME_OUT = "idle_time_out";
 
   static final ScheduledExecutorService idleCheckerExecutor;
 
@@ -36,7 +37,7 @@ public abstract class GenericWsCollector extends AbstractVerticle implements Col
   private volatile boolean isRunning;
   private volatile WebSocket webSocket;
   private long lastReceiveTimestamp;
-  private long idleTime = TimeUnit.SECONDS.toMillis(5);
+  private long idleTime;
   private long checkTime = TimeUnit.SECONDS.toMillis(5);
   private long lastCheckTime = 0;
   private volatile boolean restarting = false;
@@ -47,6 +48,7 @@ public abstract class GenericWsCollector extends AbstractVerticle implements Col
     if (isRunning()) {
       startPromise.fail("collector is running!");
     } else {
+      idleTime = config().getLong(IDLE_TIME_OUT, TimeUnit.SECONDS.toMillis(5));
       HttpClientOptions httpClientOptions = null;
       if (config().containsKey(HTTP_CLIENT_OPTIONS_PARAM)) {
         httpClientOptions = (HttpClientOptions) config().getValue(HTTP_CLIENT_OPTIONS_PARAM);
