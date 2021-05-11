@@ -10,6 +10,8 @@ import com.tqxd.jys.openapi.payload.CollectorStatusDto;
 import io.vertx.core.*;
 import io.vertx.core.eventbus.MessageConsumer;
 import io.vertx.core.json.JsonObject;
+import io.vertx.ext.web.Router;
+import io.vertx.ext.web.RoutingContext;
 import io.vertx.serviceproxy.ServiceBinder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -122,5 +124,17 @@ public class CollectorsApplication extends AbstractVerticle {
           log.info("[Collectors]: all collector deploy success!");
           promise.complete();
         });
+    Router router = Router.router(vertx);
+    vertx.createHttpServer()
+        .requestHandler(router)
+        .listen();
+
+    router.get("/products/:productID").handler(this::handlerHello);
+    router.get("/products/:productID").handler(this::handlerHello);
+  }
+
+  public void handlerHello(RoutingContext ctx) {
+    ///
+
   }
 }
