@@ -6,6 +6,7 @@ import io.vertx.codegen.annotations.ProxyGen;
 import io.vertx.core.AsyncResult;
 import io.vertx.core.Handler;
 import io.vertx.core.Vertx;
+import io.vertx.core.json.JsonObject;
 
 import java.util.List;
 
@@ -31,8 +32,8 @@ public interface CollectorOpenApi {
    * @param configJson    收集器配置
    * @param handler       结果处理器
    */
-  void deployCollectorEx(String collectorName, String configJson,
-                         Handler<AsyncResult<Boolean>> handler);
+  void deployCollectorEx(String collectorName, JsonObject configJson,
+                         Handler<AsyncResult<Void>> handler);
 
   /**
    * 部署一个收集器
@@ -41,7 +42,7 @@ public interface CollectorOpenApi {
    * @param handler       结果处理器
    */
   void deployCollector(String collectorName,
-                       Handler<AsyncResult<Boolean>> handler);
+                       Handler<AsyncResult<Void>> handler);
 
   /**
    * 取消部署一个收集器
@@ -50,7 +51,7 @@ public interface CollectorOpenApi {
    * @param handler       结果处理器
    */
   void unDeployCollector(String collectorName,
-                         Handler<AsyncResult<Boolean>> handler);
+                         Handler<AsyncResult<Void>> handler);
 
   /**
    * 启动收集器
@@ -59,7 +60,7 @@ public interface CollectorOpenApi {
    * @param handler       结果处理器
    */
   void startCollector(String collectorName,
-                      Handler<AsyncResult<Boolean>> handler);
+                      Handler<AsyncResult<Void>> handler);
 
   /**
    * 停止收集器
@@ -68,7 +69,7 @@ public interface CollectorOpenApi {
    * @param handler       结果处理器
    */
   void stopCollector(String collectorName,
-                     Handler<AsyncResult<Boolean>> handler);
+                     Handler<AsyncResult<Void>> handler);
 
   /**
    * 订阅交易对
@@ -79,7 +80,7 @@ public interface CollectorOpenApi {
    * @param handler       结果处理器
    */
   void subscribe(String collectorName, DataType dataType, String symbol,
-                 Handler<AsyncResult<Boolean>> handler);
+                 Handler<AsyncResult<Void>> handler);
 
   /**
    * 取消订阅交易对
@@ -90,6 +91,6 @@ public interface CollectorOpenApi {
    * @param handler       结果处理器
    */
   void unsubscribe(String collectorName, DataType dataType, String symbol,
-                   Handler<AsyncResult<Boolean>> handler);
+                   Handler<AsyncResult<Void>> handler);
 }
 
