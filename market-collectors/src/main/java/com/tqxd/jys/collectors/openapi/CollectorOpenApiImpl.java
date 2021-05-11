@@ -92,6 +92,7 @@ public class CollectorOpenApiImpl implements CollectorOpenApi, DataReceiver {
         .onComplete(ar -> {
           if (ar.succeeded()) {
             deployMap.put(collectorName, collector);
+            collector.addDataReceiver(this);
             handler.handle(Future.succeededFuture());
           } else {
             handler.handle(Future.failedFuture(ar.cause()));
