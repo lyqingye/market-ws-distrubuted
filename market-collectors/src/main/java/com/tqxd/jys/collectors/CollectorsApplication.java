@@ -78,6 +78,7 @@ public class CollectorsApplication extends AbstractVerticle {
     }
   }
 
+
   @Override
   @SuppressWarnings("rawtypes")
   public void start(Promise<Void> promise) throws Exception {

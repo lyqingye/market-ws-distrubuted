@@ -258,6 +258,7 @@ public class CollectorOpenApiImpl implements CollectorOpenApi, DataReceiver {
     return promise.future();
   }
 
+
   @Override
   public void onReceive(Collector from, DataType dataType, JsonObject obj) {
     Topic topic;
