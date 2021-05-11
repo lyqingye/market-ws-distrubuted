@@ -1,5 +1,6 @@
 package com.tqxd.jys.collectors.impl;
 
+import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import com.tqxd.jys.constance.DataType;
 import io.vertx.core.Future;
 import io.vertx.core.*;
@@ -26,9 +27,7 @@ public abstract class GenericWsCollector extends AbstractVerticle implements Col
 
   static final ScheduledExecutorService idleCheckerExecutor;
 
-  static {
-    idleCheckerExecutor = Executors.newSingleThreadScheduledExecutor();
-  }
+  private static final int RETRY_MAX_COUNT = 255;
 
   Logger log = LoggerFactory.getLogger(GenericWsCollector.class);
   private Map<DataType, List<String>> subscribed = new HashMap<>(16);
@@ -42,6 +41,16 @@ public abstract class GenericWsCollector extends AbstractVerticle implements Col
   private long lastCheckTime = 0;
   private volatile boolean restarting = false;
   private volatile boolean idleCheckEnable = true;
+
+  static {
+    ThreadFactory threadFactory = new ThreadFactoryBuilder()
+        .setNameFormat("collector-idle-check-thread%d")
+        .setUncaughtExceptionHandler(((t, e) -> e.printStackTrace()))
+        .build();
+    idleCheckerExecutor = Executors.newSingleThreadScheduledExecutor(threadFactory);
+  }
+
+  private int retryCount = 0;
 
   @Override
   public synchronized void start(Promise<Void> startPromise) throws Exception {
@@ -62,10 +71,22 @@ public abstract class GenericWsCollector extends AbstractVerticle implements Col
       }
       httpClient.webSocket(requestPath).onComplete(ar -> {
         if (ar.succeeded()) {
+          retryCount = 0;
           isRunning = true;
           webSocket = ar.result();
           webSocket.frameHandler(frame -> {
             onFrame(webSocket, frame);
+          });
+          webSocket.closeHandler(none -> {
+            stopIdleChecker();
+            log.info("[Collectors]: collector {} connection closed try to restart!", this.name());
+            retry();
+          });
+          webSocket.exceptionHandler(throwable -> {
+            stopIdleChecker();
+            log.info("[Collectors]: collector {} catch exception try to restart!", this.name());
+            throwable.printStackTrace();
+            retry();
           });
           if (idleCheckEnable) {
             startIdleChecker();
@@ -78,6 +99,23 @@ public abstract class GenericWsCollector extends AbstractVerticle implements Col
     }
   }
 
+  private synchronized void retry() {
+    log.info("[collectors]: collector {} connect fail! retry: {}", this.name(), retryCount);
+    if (retryCount++ >= RETRY_MAX_COUNT) {
+      log.error("[collectors]: collector {} retryCount == 255!", this.name());
+    } else {
+      restart()
+          .onComplete(v -> {
+            if (v.failed()) {
+              v.cause().printStackTrace();
+            } else {
+              log.info("[collectors]: collector {} retry success!", this.name());
+              retryCount = 0;
+            }
+          });
+    }
+  }
+
   @Override
   public synchronized void stop(Promise<Void> stopPromise) throws Exception {
     if (!this.isRunning()) {
@@ -86,6 +124,7 @@ public abstract class GenericWsCollector extends AbstractVerticle implements Col
       webSocket.close((short) 0, "collector call the stop!", ar -> {
         // force set state is close
         this.isRunning = false;
+        stopIdleChecker();
         if (ar.succeeded()) {
           webSocket = null;
         } else {
