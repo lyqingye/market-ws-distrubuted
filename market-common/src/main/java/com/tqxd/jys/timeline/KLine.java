@@ -2,11 +2,10 @@ package com.tqxd.jys.timeline;
 
 import com.tqxd.jys.common.payload.KlineTick;
 import com.tqxd.jys.constance.Period;
-import com.tqxd.jys.messagebus.payload.detail.MarketDetailTick;
 import com.tqxd.jys.openapi.payload.KlineSnapshot;
 import com.tqxd.jys.openapi.payload.KlineSnapshotMeta;
 import com.tqxd.jys.timeline.cmd.AppendTickResult;
-import com.tqxd.jys.timeline.cmd.AutoAggregateResult;
+import com.tqxd.jys.timeline.cmd.Auto24HourStatisticsResult;
 import io.vertx.core.AsyncResult;
 import io.vertx.core.Future;
 import io.vertx.core.Handler;
@@ -15,6 +14,7 @@ import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 
 import static com.tqxd.jys.utils.TimeUtils.alignWithPeriod;
 
@@ -49,27 +49,19 @@ public class KLine {
    */
   private Object[] data;
   /**
-   * 统计项
-   */
-  private boolean autoAggregate = false;
-  private BigDecimal high = BigDecimal.ZERO, low = BigDecimal.ZERO, vol = BigDecimal.ZERO, open = BigDecimal.ZERO, close = BigDecimal.ZERO, amount = BigDecimal.ZERO;
-  private int count = 0;
-
-  /**
    * 元数据
    */
   private KLineMeta meta;
 
-  public KLine(KLineMeta meta, Period p, boolean autoAggregate) {
+  public KLine(KLineMeta meta, Period p) {
     this.meta = meta;
     this.period = p.getMill();
     this.numOfPeriod = p.getNumOfPeriod();
     this.totalPeriodSize = p.getMill() * numOfPeriod;
-    long now = System.currentTimeMillis();
+    long now = nowBeijingTimeStamp();
     this.tt = alignWithPeriod(now, p.getMill());
     this.data = new Object[numOfPeriod];
     this.ht = tt - totalPeriodSize + p.getMill();
-    this.autoAggregate = autoAggregate;
   }
 
   public KLineMeta meta() {
@@ -120,10 +112,8 @@ public class KLine {
       handler.handle(Future.failedFuture("apply tick fail! index outbound: " + calculateIdx(newObj.getTime())));
       return;
     }
-    // aggregate the window
-    doAggregate(newObj);
     // complete
-    handler.handle(Future.succeededFuture(new AppendTickResult(meta.snapshot(), updateTick, snapAggregate())));
+    handler.handle(Future.succeededFuture(new AppendTickResult(meta.snapshot(), updateTick, get24HourStatistics())));
     // apply the committed index
     meta.applyCommittedIndex(commitIndex);
   }
@@ -131,10 +121,10 @@ public class KLine {
   public KlineSnapshot snapshot () {
     KlineSnapshot snapshot = new KlineSnapshot();
     KlineSnapshotMeta meta = new KlineSnapshotMeta();
-    meta.setTs(System.currentTimeMillis());
-    meta.setSymbol(meta.getSymbol());
-    meta.setCommittedIndex(meta.getCommittedIndex());
-    meta.setPeriod(meta.getPeriod());
+    meta.setTs(nowBeijingTimeStamp());
+    meta.setSymbol(this.meta.getSymbol());
+    meta.setCommittedIndex(this.meta.getCommitIndex());
+    meta.setPeriod(this.meta.getPeriod());
     snapshot.setMeta(meta);
     List<KlineTick> copy = new ArrayList<>(data.length);
     for (Object obj : data) {
@@ -149,33 +139,29 @@ public class KLine {
   /**
    * 应用快照
    */
-  public void restoreWithSnapshot(KlineSnapshot snapshot, Handler<AsyncResult<AutoAggregateResult>> handler) {
+  public void restoreWithSnapshot(KlineSnapshot snapshot, Handler<AsyncResult<Auto24HourStatisticsResult>> handler) {
     KlineSnapshotMeta meta = snapshot.getMeta();
     if (meta.getCommittedIndex() < 0) {
       handler.handle(Future.failedFuture("invalid commit index while apply the snapshot! commit index: " + meta.getCommittedIndex()));
       return;
     }
     for (KlineTick tick : snapshot.getTickList()) {
-      KlineTick newObj = append(tick);
-      if (newObj != null) {
-        doAggregate(newObj);
-      }
+      append(tick);
     }
     this.meta.applyCommittedIndex(meta.getCommittedIndex());
-    handler.handle(Future.succeededFuture(new AutoAggregateResult(this.meta.snapshot(),snapAggregate())));
+    handler.handle(Future.succeededFuture(new Auto24HourStatisticsResult(this.meta.snapshot(), get24HourStatistics())));
   }
 
-  public MarketDetailTick tick() {
-    MarketDetailTick result = null;
+  public KlineTick tick() {
+    KlineTick result = null;
     if (updateWindow()) {
-      if (autoAggregate) {
-        result = snapAggregate();
-      }
+      result = get24HourStatistics();
     }
     return result;
   }
 
-  private KlineTick append(KlineTick newObj) {
+  private KlineTick append(KlineTick source) {
+    KlineTick newObj = source.deepClone();
     int idx = calculateIdx(newObj.getTime());
     if (idx < 0 || idx >= numOfPeriod) {
       return null;
@@ -184,14 +170,7 @@ public class KLine {
     if (oldObj != null) {
       boolean isInSamePeriod = alignWithPeriod(newObj.getTime(), period) == alignWithPeriod(oldObj.getTime(), period);
       if (isInSamePeriod) {
-        if (oldObj.getId().equals(newObj.getId())) {
-          // same period
-          // rollback Aggregate before merge
-          doRollbackAggregate(oldObj);
-          data[idx] = oldObj.merge(newObj);
-        } else {
-          data[idx] = oldObj.sum(newObj);
-        }
+        data[idx] = oldObj.merge(newObj);
       } else {
         data[idx] = newObj;
       }
@@ -202,10 +181,9 @@ public class KLine {
   }
 
   private boolean updateWindow() {
-    long now = alignWithPeriod(System.currentTimeMillis(), period);
+    long now = alignWithPeriod(nowBeijingTimeStamp(), period);
     int roteCount = Math.toIntExact((now - tt) / period);
     if (roteCount != 0) {
-      clearAggregate();
       if (roteCount < numOfPeriod) {
         int sPos = roteCount;
         int dPos = 0;
@@ -214,7 +192,6 @@ public class KLine {
           this.data[dPos] = this.data[sPos];
           // clear src data
           this.data[sPos] = null;
-          doAggregate((KlineTick) this.data[dPos]);
           dPos++;
           sPos++;
         }
@@ -230,59 +207,88 @@ public class KLine {
     }
   }
 
-  private void clearAggregate() {
-    if (!autoAggregate)
-      return;
-    low = high = vol = open = close = amount = BigDecimal.ZERO;
-    count = 0;
-  }
+//  private void clearAggregate() {
+//    if (!autoAggregate)
+//      return;
+//    low = high = vol = open = close = amount = BigDecimal.ZERO;
+//    count = 0;
+//  }
 
-  private void doAggregate(KlineTick tick) {
-    if (!autoAggregate || tick == null) {
-      return;
-    }
-    count += tick.getCount();
-    amount = amount.add(tick.getAmount());
-    vol = vol.add(tick.getVol());
-    close = tick.getClose();
-    if (open.compareTo(BigDecimal.ZERO) == 0) {
-      open = tick.getOpen();
-    }
-    close = tick.getClose();
-    if (tick.getHigh().compareTo(high) > 0) {
-      high = tick.getHigh();
-    }
-    if (tick.getLow().compareTo(low) > 0) {
-      low = tick.getLow();
-    }
-  }
-
-  private void doRollbackAggregate(KlineTick oldTick) {
-    if (!autoAggregate || oldTick == null) {
-      return;
-    }
-    count -= oldTick.getCount();
-    amount = amount.subtract(oldTick.getAmount());
-    vol = vol.subtract(oldTick.getVol());
-  }
-
-  private MarketDetailTick snapAggregate() {
-    if (!autoAggregate) {
-      return null;
-    }
-    MarketDetailTick detail = new MarketDetailTick();
-    detail.setVol(vol);
-    detail.setAmount(amount);
-    detail.setClose(close);
-    detail.setOpen(open);
-    detail.setCount(count);
-    detail.setHigh(high);
-    detail.setLow(low);
-    return detail;
-  }
+//  @Deprecated
+//  private void doAggregate(KlineTick tick) {
+//    if (!autoAggregate || tick == null) {
+//      return;
+//    }
+//    count += tick.getCount();
+//    amount = amount.add(tick.getAmount());
+//    vol = vol.add(tick.getVol());
+//    close = tick.getClose();
+//    if (open.compareTo(BigDecimal.ZERO) == 0) {
+//      open = tick.getOpen();
+//    }
+//    close = tick.getClose();
+//    if (tick.getHigh().compareTo(high) > 0) {
+//      high = tick.getHigh();
+//    }
+//    if (tick.getLow().compareTo(low) > 0) {
+//      low = tick.getLow();
+//    }
+//  }
+//
+//  @Deprecated
+//  private void doRollbackAggregate(KlineTick oldTick) {
+//    if (!autoAggregate || oldTick == null) {
+//      return;
+//    }
+//    count -= oldTick.getCount();
+//    amount = amount.subtract(oldTick.getAmount());
+//    vol = vol.subtract(oldTick.getVol());
+//  }
+//
+//  @Deprecated
+//  private MarketDetailTick snapAggregate() {
+//    if (!autoAggregate) {
+//      return null;
+//    }
+//    MarketDetailTick detail = new MarketDetailTick();
+//    detail.setVol(vol);
+//    detail.setAmount(amount);
+//    detail.setClose(close);
+//    detail.setOpen(open);
+//    detail.setCount(count);
+//    detail.setHigh(high);
+//    detail.setLow(low);
+//    return detail;
+//  }
 
   private int calculateIdx(long t) {
     long at = alignWithPeriod(t, period);
     return Math.toIntExact(((at - ht) % totalPeriodSize) / period);
+  }
+
+  private KlineTick get24HourStatistics() {
+    if (Period._1_DAY.getMill() != period) {
+      return null;
+    }
+    int idx = calculateIdx(nowBeijingTimeStamp());
+    if (idx < 0 || idx >= data.length) {
+      return null;
+    }
+    KlineTick tick = (KlineTick) data[idx];
+    if (tick == null) {
+      tick = new KlineTick();
+      tick.setId(nowBeijingTimeStamp());
+      tick.setAmount(BigDecimal.ZERO);
+      tick.setClose(BigDecimal.ZERO);
+      tick.setOpen(BigDecimal.ZERO);
+      tick.setHigh(BigDecimal.ZERO);
+      tick.setCount(0);
+      tick.setVol(BigDecimal.ZERO);
+    }
+    return tick;
+  }
+
+  private long nowBeijingTimeStamp() {
+    return System.currentTimeMillis() / 1000 + TimeUnit.HOURS.toSeconds(8);
   }
 }

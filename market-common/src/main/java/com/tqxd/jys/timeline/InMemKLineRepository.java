@@ -6,7 +6,6 @@ import com.tqxd.jys.constance.Period;
 import com.tqxd.jys.disruptor.AbstractDisruptorConsumer;
 import com.tqxd.jys.disruptor.DisruptorFactory;
 import com.tqxd.jys.disruptor.DisruptorQueue;
-import com.tqxd.jys.messagebus.payload.detail.MarketDetailTick;
 import com.tqxd.jys.openapi.payload.KlineSnapshot;
 import com.tqxd.jys.openapi.payload.KlineSnapshotMeta;
 import com.tqxd.jys.timeline.cmd.*;
@@ -32,7 +31,7 @@ public class InMemKLineRepository implements KLineRepository {
   private List<KLineRepositoryListener> listeners = new ArrayList<>();
   private DisruptorQueue<Object> outQueue;
   private ConcurrentLinkedQueue<Object> cmdQueue = new ConcurrentLinkedQueue<>();
-  private Map<String,MarketDetailTick> marketDetailCache = new HashMap<>();
+  private Map<String, KlineTick> marketDetailCache = new HashMap<>();
   private Set<String> symbols = new HashSet<>();
   private JsonObject config;
   private Vertx vertx;
@@ -151,13 +150,13 @@ public class InMemKLineRepository implements KLineRepository {
   }
 
   @Override
-  public void getAggregate(String symbol, Handler<AsyncResult<MarketDetailTick>> handler) {
+  public void getAggregate(String symbol, Handler<AsyncResult<KlineTick>> handler) {
     handler.handle(Future.succeededFuture(marketDetailCache.get(symbol)));
   }
 
   @Override
-  public void putAggregate(String symbol, MarketDetailTick tick, Handler<AsyncResult<Void>> handler) {
-    marketDetailCache.put(symbol,tick);
+  public void putAggregate(String symbol, KlineTick tick, Handler<AsyncResult<Void>> handler) {
+    marketDetailCache.put(symbol, tick);
     handler.handle(Future.succeededFuture());
   }
 
@@ -169,9 +168,9 @@ public class InMemKLineRepository implements KLineRepository {
           for (KLineRepositoryListener listener : listeners) {
             listener.onAppendFinished((AppendTickResult) event);
           }
-        } else if (event instanceof AutoAggregateResult) {
+        } else if (event instanceof Auto24HourStatisticsResult) {
           for (KLineRepositoryListener listener : listeners) {
-            listener.onAutoAggregate((AutoAggregateResult) event);
+            listener.onAutoAggregate((Auto24HourStatisticsResult) event);
           }
         }
       }
@@ -221,9 +220,9 @@ public class InMemKLineRepository implements KLineRepository {
     for (int i = 0; i < size; i++) {
       KLine timeLine = timeLines[i];
       if (timeLine != null) {
-        MarketDetailTick aggregate = timeLine.tick();
-        if (aggregate != null) {
-          outQueue.add(new AutoAggregateResult(timeLine.meta().snapshot(), aggregate));
+        KlineTick statisticsResult = timeLine.tick();
+        if (statisticsResult != null) {
+          outQueue.add(new Auto24HourStatisticsResult(timeLine.meta().snapshot(), statisticsResult));
         }
       }
     }
@@ -282,6 +281,6 @@ public class InMemKLineRepository implements KLineRepository {
     KLineMeta meta = new KLineMeta();
     meta.setSymbol(symbol);
     meta.setPeriod(period);
-    return new KLine(meta, period, period.equals(Period._1_MIN));
+    return new KLine(meta, period);
   }
 }

@@ -2,7 +2,6 @@ package com.tqxd.jys.repository.impl;
 
 import com.tqxd.jys.common.payload.KlineTick;
 import com.tqxd.jys.constance.Period;
-import com.tqxd.jys.messagebus.payload.detail.MarketDetailTick;
 import com.tqxd.jys.openapi.payload.KlineSnapshot;
 import com.tqxd.jys.openapi.payload.KlineSnapshotMeta;
 import com.tqxd.jys.repository.redis.RedisHelper;
@@ -11,7 +10,7 @@ import com.tqxd.jys.timeline.KLineMeta;
 import com.tqxd.jys.timeline.KLineRepository;
 import com.tqxd.jys.timeline.KLineRepositoryListener;
 import com.tqxd.jys.timeline.cmd.AppendTickResult;
-import com.tqxd.jys.timeline.cmd.AutoAggregateResult;
+import com.tqxd.jys.timeline.cmd.Auto24HourStatisticsResult;
 import com.tqxd.jys.utils.TimeUtils;
 import com.tqxd.jys.utils.VertxUtil;
 import io.vertx.core.*;
@@ -39,7 +38,7 @@ public class RedisKLineRepository implements KLineRepository {
     if (redis != null) {
       handler.handle(Future.succeededFuture());
     }
-    String redisConnString = "redis://localhost:6379/6";
+    String redisConnString = "redis://localhost:6379/7";
     if (config != null) {
       redisConnString = VertxUtil.jsonGetValue(config, "market.repository.redis.connectionString", String.class, redisConnString);
     }
@@ -55,38 +54,28 @@ public class RedisKLineRepository implements KLineRepository {
 
   @Override
   public void listSymbols(Handler<AsyncResult<Set<String>>> handler) {
-    redis.sMembers(RedisKeyHelper.getSymbolsKey(), h -> {
-      if (h.succeeded()) {
-        handler.handle(Future.succeededFuture(h.result()));
-      }else {
-        handler.handle(Future.failedFuture(h.cause()));
-      }
-    });
+    redis.sMembers(RedisKeyHelper.getSymbolsKey(), handler);
   }
 
   @Override
   public void loadSnapshot(String symbol, Period period, Handler<AsyncResult<KlineSnapshot>> handler) {
-    if (!Period._1_MIN.equals(period)) {
-      handler.handle(Future.failedFuture("redis repository only support 1min kline data!"));
-      return;
-    }
     loadSnapshotMeta(symbol)
       .compose
         (
-          meta -> sizeOfKlineTicks(symbol)
-            .compose(size -> {
-              KlineSnapshot snapshot = new KlineSnapshot();
-              snapshot.setMeta(meta);
-              if (size != null && size > 0) {
-                long start = 0;
-                if (size >= Period._1_MIN.getNumOfPeriod()) {
-                  start = size - Period._1_MIN.getNumOfPeriod();
-                }
-                return listKlineTicksLimit(symbol, start, -1)
-                  .compose(ticks -> {
-                    snapshot.setTickList(ticks);
-                    return Future.succeededFuture(snapshot);
-                  });
+            meta -> sizeOfKlineTicks(symbol, period)
+                .compose(size -> {
+                  KlineSnapshot snapshot = new KlineSnapshot();
+                  snapshot.setMeta(meta);
+                  if (size != null && size > 0) {
+                    long start = 0;
+                    if (size >= Period._1_MIN.getNumOfPeriod()) {
+                      start = size - Period._1_MIN.getNumOfPeriod();
+                    }
+                    return listKlineTicksLimit(symbol, period, start, -1)
+                        .compose(ticks -> {
+                          snapshot.setTickList(ticks);
+                          return Future.succeededFuture(snapshot);
+                        });
               } else {
                 return Future.succeededFuture(snapshot);
               }
@@ -96,9 +85,9 @@ public class RedisKLineRepository implements KLineRepository {
       .onFailure(throwable -> handler.handle(Future.failedFuture(throwable)));
   }
 
-  private Future<List<KlineTick>> listKlineTicksLimit(String symbol, long start, int stop) {
+  private Future<List<KlineTick>> listKlineTicksLimit(String symbol, Period period, long start, int stop) {
     Promise<List<KlineTick>> promise = Promise.promise();
-    redis.zRange(RedisKeyHelper.toKlineDataKey(symbol), start, stop, ar -> {
+    redis.zRange(RedisKeyHelper.toKlineDataKey(symbol, period), start, stop, ar -> {
       if (ar.succeeded()) {
         List<String> ticks = ar.result();
         if (!ticks.isEmpty()) {
@@ -131,9 +120,9 @@ public class RedisKLineRepository implements KLineRepository {
     return promise.future();
   }
 
-  private Future<Long> sizeOfKlineTicks(String symbol) {
+  private Future<Long> sizeOfKlineTicks(String symbol, Period period) {
     Promise<Long> promise = Promise.promise();
-    redis.zCard(RedisKeyHelper.toKlineDataKey(symbol), promise);
+    redis.zCard(RedisKeyHelper.toKlineDataKey(symbol, period), promise);
     return promise.future();
   }
 
@@ -144,7 +133,7 @@ public class RedisKLineRepository implements KLineRepository {
 
   @Override
   public void append(long commitIndex, String symbol, Period period, KlineTick tick, Handler<AsyncResult<Long>> handler) {
-    String klineKey = RedisKeyHelper.toKlineDataKey(symbol);
+    String klineKey = RedisKeyHelper.toKlineDataKey(symbol, period);
     // 构造redis命令
     List<Request> batchCmd = new ArrayList<>(4);
 
@@ -156,7 +145,7 @@ public class RedisKLineRepository implements KLineRepository {
     );
 
     // 更新k线tick
-    long time = TimeUtils.alignWithPeriod(tick.getTime(), Period._1_MIN.getMill());
+    long time = TimeUtils.alignWithPeriod(tick.getTime(), period.getMill());
     batchCmd.add(
       Request.cmd(Command.ZREMRANGEBYSCORE)
         .arg(klineKey)
@@ -204,11 +193,7 @@ public class RedisKLineRepository implements KLineRepository {
 
   @Override
   public void query(String symbol, Period period, long from, long to, Handler<AsyncResult<List<KlineTick>>> handler) {
-    if (!Period._1_MIN.equals(period)) {
-      handler.handle(Future.failedFuture("redis repository only support 1min kline data!"));
-      return;
-    }
-    redis.zRangeByScore(RedisKeyHelper.toKlineDataKey(symbol),from,to, ar -> {
+    redis.zRangeByScore(RedisKeyHelper.toKlineDataKey(symbol, period), from, to, ar -> {
       if (ar.succeeded()) {
         List<String> ticks = ar.result();
         if (!ticks.isEmpty()) {
@@ -234,10 +219,10 @@ public class RedisKLineRepository implements KLineRepository {
   }
 
   @Override
-  public void getAggregate(String symbol, Handler<AsyncResult<MarketDetailTick>> handler) {
+  public void getAggregate(String symbol, Handler<AsyncResult<KlineTick>> handler) {
     redis.get(RedisKeyHelper.toMarketDetailKey(symbol), ar -> {
       if (ar.succeeded()) {
-        handler.handle(Future.succeededFuture(Json.decodeValue(ar.result(),MarketDetailTick.class)));
+        handler.handle(Future.succeededFuture(Json.decodeValue(ar.result(), KlineTick.class)));
       } else {
         handler.handle(Future.failedFuture(ar.cause()));
       }
@@ -245,7 +230,7 @@ public class RedisKLineRepository implements KLineRepository {
   }
 
   @Override
-  public void putAggregate(String symbol, MarketDetailTick tick, Handler<AsyncResult<Void>> handler) {
+  public void putAggregate(String symbol, KlineTick tick, Handler<AsyncResult<Void>> handler) {
     redis.set(RedisKeyHelper.toMarketDetailKey(symbol), Json.encode(tick), handler);
   }
 
@@ -254,9 +239,6 @@ public class RedisKLineRepository implements KLineRepository {
     target.addListener(new KLineRepositoryListener() {
       @Override
       public void onAppendFinished(AppendTickResult rs) {
-        if (!rs.getMeta().getPeriod().equals(Period._1_MIN)) {
-          return;
-        }
         KLineMeta meta = rs.getMeta();
         append(meta.getCommitIndex(), meta.getSymbol(), meta.getPeriod(), rs.getTick(), h -> {
           if (h.failed()) {
@@ -271,10 +253,10 @@ public class RedisKLineRepository implements KLineRepository {
       }
 
       @Override
-      public void onAutoAggregate(AutoAggregateResult rs) {
+      public void onAutoAggregate(Auto24HourStatisticsResult rs) {
         KLineMeta meta = rs.getMeta();
         putAggregate(meta.getSymbol(), rs.getTick())
-          .onFailure(Throwable::printStackTrace);
+            .onFailure(Throwable::printStackTrace);
       }
     });
     handler.handle(Future.succeededFuture());

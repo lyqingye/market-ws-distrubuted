@@ -1,4 +1,4 @@
-package com.tqxd.jys.constance;
+package com.tqxd.jys.spi.messagebus;
 
 public enum DataType {
   /**
@@ -12,10 +12,5 @@ public enum DataType {
   /**
    * 成交数据
    */
-  TRADE_DETAIL,
-
-  /**
-   * k线历史
-   */
-  KLINE_HISTORY
+  TRADE_DETAIL
 }

@@ -7,14 +7,13 @@ import com.tqxd.jys.constance.Period;
 import com.tqxd.jys.messagebus.MessageListener;
 import com.tqxd.jys.messagebus.payload.Message;
 import com.tqxd.jys.messagebus.payload.depth.DepthTick;
-import com.tqxd.jys.messagebus.payload.detail.MarketDetailTick;
 import com.tqxd.jys.messagebus.payload.trade.TradeDetailTick;
 import com.tqxd.jys.messagebus.payload.trade.TradeDetailTickData;
 import com.tqxd.jys.timeline.KLineMeta;
 import com.tqxd.jys.timeline.KLineRepository;
 import com.tqxd.jys.timeline.KLineRepositoryListener;
 import com.tqxd.jys.timeline.cmd.AppendTickResult;
-import com.tqxd.jys.timeline.cmd.AutoAggregateResult;
+import com.tqxd.jys.timeline.cmd.Auto24HourStatisticsResult;
 import com.tqxd.jys.utils.ChannelUtil;
 import io.vertx.core.AsyncResult;
 import io.vertx.core.Future;
@@ -36,7 +35,7 @@ public class CacheManager implements KLineRepositoryListener,MessageListener {
   /**
    * 市场概括缓存
    */
-  private Map<String, MarketDetailTick> marketDetailCache = new HashMap<>();
+  private Map<String, KlineTick> marketDetailCache = new HashMap<>();
 
   /**
    * 成交记录缓存
@@ -107,8 +106,8 @@ public class CacheManager implements KLineRepositoryListener,MessageListener {
    * @param symbol 交易对
    * @return null or 市场概要数据
    */
-  public @Nullable MarketDetailTick reqMarketDetail(@NonNull String symbol) {
-     return marketDetailCache.get(ChannelUtil.buildMarketDetailChannel(symbol));
+  public @Nullable KlineTick reqMarketDetail(@NonNull String symbol) {
+    return marketDetailCache.get(ChannelUtil.buildMarketDetailChannel(symbol));
   }
 
   /**
@@ -174,8 +173,8 @@ public class CacheManager implements KLineRepositoryListener,MessageListener {
    *
    * @param data 市场概要
    */
-  protected void updateMarketDetail (String symbol,MarketDetailTick data) {
-    marketDetailCache.put(ChannelUtil.buildMarketDetailChannel(symbol),data);
+  protected void updateMarketDetail(String symbol, KlineTick data) {
+    marketDetailCache.put(ChannelUtil.buildMarketDetailChannel(symbol), data);
   }
 
   /**
@@ -208,11 +207,11 @@ public class CacheManager implements KLineRepositoryListener,MessageListener {
   }
 
   @Override
-  public void onAutoAggregate(AutoAggregateResult aggregate) {
+  public void onAutoAggregate(Auto24HourStatisticsResult aggregate) {
     KLineMeta meta = aggregate.getMeta();
     updateMarketDetail(aggregate.getMeta().getSymbol(), aggregate.getTick());
     for (int i = 0; i < numOfListener; i++) {
-      LISTENERS[i].onMarketDetailUpdate(meta.getSymbol(),aggregate.getTick());
+      LISTENERS[i].onMarketDetailUpdate(meta.getSymbol(), aggregate.getTick());
     }
   }
 

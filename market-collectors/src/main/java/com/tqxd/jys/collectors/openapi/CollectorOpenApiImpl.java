@@ -1,6 +1,7 @@
 package com.tqxd.jys.collectors.openapi;
 
 import com.tqxd.jys.collectors.impl.Collector;
+import com.tqxd.jys.collectors.impl.DataReceiver;
 import com.tqxd.jys.collectors.impl.HuoBiKlineCollector;
 import com.tqxd.jys.constance.DataType;
 import com.tqxd.jys.messagebus.MessageBus;
@@ -8,10 +9,7 @@ import com.tqxd.jys.messagebus.payload.Message;
 import com.tqxd.jys.messagebus.topic.Topic;
 import com.tqxd.jys.openapi.CollectorOpenApi;
 import com.tqxd.jys.openapi.payload.CollectorStatusDto;
-import com.tqxd.jys.utils.VertxUtil;
 import io.vertx.core.*;
-import io.vertx.core.json.DecodeException;
-import io.vertx.core.json.Json;
 import io.vertx.core.json.JsonObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -20,13 +18,12 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 /**
  * 收集器服务
  */
-public class CollectorOpenApiImpl implements CollectorOpenApi {
+public class CollectorOpenApiImpl implements CollectorOpenApi, DataReceiver {
   private static final Logger log = LoggerFactory.getLogger(CollectorOpenApiImpl.class);
   /**
    * 收集器 map
@@ -56,24 +53,6 @@ public class CollectorOpenApiImpl implements CollectorOpenApi {
     // 注册支持的收集器
     HuoBiKlineCollector huoBi = new HuoBiKlineCollector();
     collectorMap.put(huoBi.name(), huoBi);
-
-    // 定时重启收集器免得被踢掉
-    vertx.setPeriodic(TimeUnit.MINUTES.toMillis(10), timeId -> {
-      deployMap.values().forEach(collector -> {
-        if (collector.stop()) {
-          log.info("[Collectors]: stop collector: {} success!", collector.name());
-          collector.start(ar -> {
-            if (ar.succeeded()) {
-              log.info("[Collectors]: start collector: {} success!", collector.name());
-            } else {
-              ar.cause().printStackTrace();
-            }
-          });
-        } else {
-          log.error("[Collectors]: stop collector: {}  fail!", collector.name());
-        }
-      });
-    });
   }
 
   /**
@@ -98,56 +77,27 @@ public class CollectorOpenApiImpl implements CollectorOpenApi {
    * @return 是否部署成功
    */
   @Override
-  public void deployCollectorEx(String collectorName, String configJson,
-                                Handler<AsyncResult<Boolean>> handler) {
+  public void deployCollectorEx(String collectorName, JsonObject configJson,
+                                Handler<AsyncResult<Void>> handler) {
     Collector collector = collectorMap.get(collectorName);
     if (collector == null) {
       handler.handle(Future.failedFuture("collector not found"));
       return;
     }
     if (deployMap.containsKey(collectorName)) {
-      handler.handle(Future.succeededFuture(true));
+      handler.handle(Future.succeededFuture());
       return;
     }
-    JsonObject config = null;
-    if (configJson != null) {
-      try {
-        config = (JsonObject) Json.decodeValue(configJson);
-      } catch (DecodeException ex) {
-        handler.handle(Future.failedFuture(ex));
-      }
-    }
-    if (collector.deploy(vertx,
-        (type, data) -> {
-          Topic topic;
-          switch (type) {
-            case KLINE: {
-              topic = Topic.KLINE_TICK_TOPIC;
-              break;
-            }
-            case DEPTH: {
-              topic = Topic.DEPTH_CHART_TOPIC;
-              break;
-            }
-            case TRADE_DETAIL:{
-              topic = Topic.TRADE_DETAIL_TOPIC;
-              break;
-            }
-            default:
-              throw new IllegalStateException("Unexpected value: " + type);
+    vertx.deployVerticle(collector, new DeploymentOptions().setConfig(configJson))
+        .onComplete(ar -> {
+          if (ar.succeeded()) {
+            deployMap.put(collectorName, collector);
+            collector.addDataReceiver(this);
+            handler.handle(Future.succeededFuture());
+          } else {
+            handler.handle(Future.failedFuture(ar.cause()));
           }
-          // 异步数据处理
-          VertxUtil.asyncFastCallIgnoreRs(vertx, () -> {
-            // 推送k线数据
-            msgBus.publishIgnoreRs(topic, Message.withData(type, "HuoBi", data.encode()));
-          });
-        }, config)) {
-      deployMap.put(collectorName, collector);
-      handler.handle(Future.succeededFuture(true));
-    } else {
-      handler.handle(Future.failedFuture("deploy fail"));
-    }
-
+        });
   }
 
   /**
@@ -158,7 +108,7 @@ public class CollectorOpenApiImpl implements CollectorOpenApi {
    */
   @Override
   public void deployCollector(String collectorName,
-                              Handler<AsyncResult<Boolean>> handler) {
+                              Handler<AsyncResult<Void>> handler) {
     deployCollectorEx(collectorName, null, handler);
   }
 
@@ -170,17 +120,20 @@ public class CollectorOpenApiImpl implements CollectorOpenApi {
    */
   @Override
   public void unDeployCollector(String collectorName,
-                                Handler<AsyncResult<Boolean>> handler) {
+                                Handler<AsyncResult<Void>> handler) {
     Collector collector = deployMap.get(collectorName);
     if (collector == null) {
       handler.handle(Future.failedFuture("collector not found"));
-      return;
-    }
-    if (collector.unDeploy(null)) {
-      deployMap.remove(collectorName);
-      handler.handle(Future.succeededFuture(true));
     } else {
-      handler.handle(Future.failedFuture("unDeploy fail"));
+      vertx.undeploy(collector.deploymentID())
+          .onComplete(ar -> {
+            if (ar.succeeded()) {
+              deployMap.remove(collectorName);
+              handler.handle(Future.succeededFuture());
+            } else {
+              handler.handle(Future.failedFuture(ar.cause()));
+            }
+          });
     }
   }
 
@@ -192,13 +145,13 @@ public class CollectorOpenApiImpl implements CollectorOpenApi {
    */
   @Override
   public void startCollector(String collectorName,
-                             Handler<AsyncResult<Boolean>> handler) {
+                             Handler<AsyncResult<Void>> handler) {
     Collector collector = deployMap.get(collectorName);
     if (collector == null) {
       handler.handle(Future.failedFuture("collector not found"));
       return;
     }
-    collector.start(handler);
+    collector.startFuture().onComplete(handler);
   }
 
   /**
@@ -209,17 +162,13 @@ public class CollectorOpenApiImpl implements CollectorOpenApi {
    */
   @Override
   public void stopCollector(String collectorName,
-                            Handler<AsyncResult<Boolean>> handler) {
+                            Handler<AsyncResult<Void>> handler) {
     Collector collector = deployMap.get(collectorName);
     if (collector == null) {
       handler.handle(Future.failedFuture("collector not found"));
       return;
     }
-    if (collector.stop()) {
-      handler.handle(Future.succeededFuture(true));
-    } else {
-      handler.handle(Future.failedFuture("fail to stop"));
-    }
+    collector.stopFuture().onComplete(handler);
   }
 
   /**
@@ -232,17 +181,13 @@ public class CollectorOpenApiImpl implements CollectorOpenApi {
    */
   @Override
   public void subscribe(String collectorName, DataType dataType, String symbol,
-                        Handler<AsyncResult<Boolean>> handler) {
+                        Handler<AsyncResult<Void>> handler) {
     Collector collector = deployMap.get(collectorName);
     if (collector == null) {
       handler.handle(Future.failedFuture("collector not found"));
       return;
     }
-    if (collector.subscribe(dataType, symbol)) {
-      handler.handle(Future.succeededFuture(true));
-    } else {
-      handler.handle(Future.failedFuture("subscribe fail"));
-    }
+    collector.subscribe(dataType, symbol, handler);
   }
 
   /**
@@ -255,17 +200,13 @@ public class CollectorOpenApiImpl implements CollectorOpenApi {
    */
   @Override
   public void unsubscribe(String collectorName, DataType dataType, String symbol,
-                          Handler<AsyncResult<Boolean>> handler) {
+                          Handler<AsyncResult<Void>> handler) {
     Collector collector = deployMap.get(collectorName);
     if (collector == null) {
       handler.handle(Future.failedFuture("collector not found"));
       return;
     }
-    if (collector.unSubscribe(dataType, symbol)) {
-      handler.handle(Future.succeededFuture(true));
-    } else {
-      handler.handle(Future.failedFuture("unSubscribe fail"));
-    }
+    collector.unSubscribe(dataType, symbol, handler);
   }
 
 
@@ -279,9 +220,15 @@ public class CollectorOpenApiImpl implements CollectorOpenApi {
    * @param collectorName 收集器名称
    * @return future
    */
-  public Future<Boolean> deployCollector(String collectorName) {
-    Promise<Boolean> promise = Promise.promise();
+  public Future<Void> deployCollector(String collectorName) {
+    Promise<Void> promise = Promise.promise();
     deployCollector(collectorName, promise);
+    return promise.future();
+  }
+
+  public Future<Void> deployCollectorEx(String collectorName, JsonObject jsonObject) {
+    Promise<Void> promise = Promise.promise();
+    deployCollectorEx(collectorName, jsonObject, promise);
     return promise.future();
   }
 
@@ -291,8 +238,8 @@ public class CollectorOpenApiImpl implements CollectorOpenApi {
    * @param collectorName 收集器名称
    * @return future
    */
-  public Future<Boolean> startCollector(String collectorName) {
-    Promise<Boolean> promise = Promise.promise();
+  public Future<Void> startCollector(String collectorName) {
+    Promise<Void> promise = Promise.promise();
     startCollector(collectorName, promise);
     return promise.future();
   }
@@ -305,9 +252,33 @@ public class CollectorOpenApiImpl implements CollectorOpenApi {
    * @param symbol        交易对
    * @return future
    */
-  public Future<Boolean> subscribe(String collectorName, DataType dataType, String symbol) {
-    Promise<Boolean> promise = Promise.promise();
+  public Future<Void> subscribe(String collectorName, DataType dataType, String symbol) {
+    Promise<Void> promise = Promise.promise();
     subscribe(collectorName, dataType, symbol, promise);
     return promise.future();
+  }
+
+
+  @Override
+  public void onReceive(Collector from, DataType dataType, JsonObject obj) {
+    Topic topic;
+    switch (dataType) {
+      case KLINE: {
+        topic = Topic.KLINE_TICK_TOPIC;
+        break;
+      }
+      case DEPTH: {
+        topic = Topic.DEPTH_CHART_TOPIC;
+        break;
+      }
+      case TRADE_DETAIL: {
+        topic = Topic.TRADE_DETAIL_TOPIC;
+        break;
+      }
+      default:
+        throw new IllegalStateException("Unexpected value: " + dataType);
+    }
+    // 推送k线数据
+    msgBus.publishIgnoreRs(topic, Message.withData(dataType, from.desc(), obj.encode()));
   }
 }

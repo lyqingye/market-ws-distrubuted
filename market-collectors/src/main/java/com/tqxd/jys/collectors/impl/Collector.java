@@ -2,14 +2,11 @@ package com.tqxd.jys.collectors.impl;
 
 import com.tqxd.jys.constance.DataType;
 import com.tqxd.jys.openapi.payload.CollectorStatusDto;
-import io.vertx.core.AsyncResult;
-import io.vertx.core.Handler;
-import io.vertx.core.Vertx;
+import io.vertx.core.*;
 import io.vertx.core.json.JsonObject;
 
 import java.util.List;
 import java.util.Map;
-import java.util.function.BiConsumer;
 
 /**
  * 三方数据收集器接口定义, 支持的功能如下：
@@ -20,7 +17,7 @@ import java.util.function.BiConsumer;
  *
  * @author ex
  */
-public interface Collector {
+public interface Collector extends Verticle {
   /**
    * 返回当前收集器的名称
    *
@@ -37,27 +34,34 @@ public interface Collector {
     return name();
   }
 
-  /**
-   * 部署一个收集器
-   *
-   * @param vertx    vertx 实例
-   * @param consumer 数据消费器
-   * @param args     附加参数 (可以为空)
-   * @return 是否部署成功
-   * @throws Exception 如果部署失败
-   */
-  boolean deploy(Vertx vertx,
-                 BiConsumer<DataType, JsonObject> consumer,
-                 JsonObject args);
+  default Future<Void> startFuture() {
+    Promise<Void> promise = Promise.promise();
+    try {
+      this.start(promise);
+    } catch (Exception e) {
+      promise.fail(e);
+    }
+    return promise.future();
+  }
+
+  default Future<Void> stopFuture() {
+    Promise<Void> promise = Promise.promise();
+    try {
+      this.stop(promise);
+    } catch (Exception e) {
+      promise.fail(e);
+    }
+    return promise.future();
+  }
 
   /**
-   * 取消部署收集器
+   * 订阅一个交易对
    *
-   * @param args 附加参数可以为空
-   * @return 如果取消部署失败
-   * @throws Exception 如果取消部署失败
+   * @param dataType 数据收集类型
+   * @param symbol   交易对
+   * @param handler  结果处理器
    */
-  boolean unDeploy(JsonObject args);
+  void subscribe(DataType dataType, String symbol, Handler<AsyncResult<Void>> handler);
 
   /**
    * 订阅一个交易对
@@ -66,7 +70,20 @@ public interface Collector {
    * @param symbol   交易对
    * @return 是否订阅成功
    */
-  boolean subscribe(DataType dataType, String symbol);
+  default Future<Void> subscribe(DataType dataType, String symbol) {
+    Promise<Void> promise = Promise.promise();
+    this.subscribe(dataType, symbol, promise);
+    return promise.future();
+  }
+
+  /**
+   * 取消订阅一个交易对
+   *
+   * @param dataType 数据收集类型
+   * @param symbol   交易对
+   * @param handler  结果处理器
+   */
+  void unSubscribe(DataType dataType, String symbol, Handler<AsyncResult<Void>> handler);
 
   /**
    * 取消订阅一个交易对
@@ -75,28 +92,29 @@ public interface Collector {
    * @param symbol   交易对
    * @return 是否取消订阅成功
    */
-  boolean unSubscribe(DataType dataType, String symbol);
+  default Future<Void> unSubscribe(DataType dataType, String symbol) {
+    Promise<Void> promise = Promise.promise();
+    this.unSubscribe(dataType, symbol, promise);
+    return promise.future();
+  }
 
   /**
    * 获取当前正在订阅的信息
-   *
-   * @return 当前正在订阅的信息, key为数据收集类型, value为交易对列表
    */
   Map<DataType, List<String>> listSubscribedInfo();
 
   /**
-   * 开启收集数据
+   * 重新启动
    *
-   * @param handler 回调
+   * @param handler 结果处理器
    */
-  void start(Handler<AsyncResult<Boolean>> handler);
+  void restart(Handler<AsyncResult<Void>> handler);
 
-  /**
-   * 停止数据收集
-   *
-   * @return 是否停止成功
-   */
-  boolean stop();
+  default Future<Void> restart() {
+    Promise<Void> promise = Promise.promise();
+    this.restart(promise);
+    return promise.future();
+  }
 
   /**
    * 是否正在收集
@@ -105,12 +123,11 @@ public interface Collector {
    */
   boolean isRunning();
 
-  /**
-   * 是否已经部署
-   *
-   * @return 是否已经部署
-   */
-  boolean isDeployed();
+  String deploymentID();
+
+  void addDataReceiver(DataReceiver receiver);
+
+  void unParkReceives(DataType dataType, JsonObject json);
 
   /**
    * 快照状态
@@ -123,7 +140,6 @@ public interface Collector {
     status.setDesc(desc());
     status.setRunning(isRunning());
 //        status.setSubscribedSymbols(listSubscribedInfo());
-    status.setDeployed(isDeployed());
     return status;
   }
 }
