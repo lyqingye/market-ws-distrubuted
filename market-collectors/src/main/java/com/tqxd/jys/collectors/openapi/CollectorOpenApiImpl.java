@@ -5,7 +5,6 @@ import com.tqxd.jys.collectors.impl.DataReceiver;
 import com.tqxd.jys.collectors.impl.HuoBiKlineCollector;
 import com.tqxd.jys.constance.DataType;
 import com.tqxd.jys.messagebus.MessageBus;
-import com.tqxd.jys.messagebus.payload.Message;
 import com.tqxd.jys.messagebus.topic.Topic;
 import com.tqxd.jys.openapi.CollectorOpenApi;
 import com.tqxd.jys.openapi.payload.CollectorStatusDto;
@@ -18,6 +17,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 /**
@@ -259,8 +259,22 @@ public class CollectorOpenApiImpl implements CollectorOpenApi, DataReceiver {
   }
 
 
+  private Long lastTime;
+  private int counter = 0;
+  private long sizeOfByte = 0;
+
   @Override
   public void onReceive(Collector from, DataType dataType, JsonObject obj) {
+    counter++;
+    sizeOfByte += obj.toBuffer().length();
+    if (lastTime == null) {
+      lastTime = System.currentTimeMillis();
+    } else {
+      long sec = TimeUnit.MILLISECONDS.toSeconds(System.currentTimeMillis() - lastTime);
+      if (sec > 0) {
+        log.info("receive avg: {}/s  {}kb/s counter: {}", counter / sec, sizeOfByte / sec / 1024, counter);
+      }
+    }
     Topic topic;
     switch (dataType) {
       case KLINE: {
@@ -278,7 +292,9 @@ public class CollectorOpenApiImpl implements CollectorOpenApi, DataReceiver {
       default:
         throw new IllegalStateException("Unexpected value: " + dataType);
     }
-    // 推送k线数据
-    msgBus.publishIgnoreRs(topic, Message.withData(dataType, from.desc(), obj.encode()));
+//    VertxUtil.asyncFastCallIgnoreRs(vertx, () -> {
+//      // 推送k线数据
+//      msgBus.publishIgnoreRs(topic, Message.withData(dataType, from.desc(), obj.encode()));
+//    });
   }
 }
