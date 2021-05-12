@@ -71,14 +71,7 @@ public class CollectorOpenApiHttpEndpoint extends AbstractVerticle {
     }
   }
 
-  static <T> void genericHandler(RoutingContext ctx, Function<RoutingContext, Future<T>> handler) {
-    handler.apply(ctx)
-        .onSuccess(rs -> ctx.end(R.success(rs)))
-        .onFailure(throwable -> {
-          throwable.printStackTrace();
-          ctx.response().putHeader("Content-type", "application/json; charset=UTF-8").end(R.fail(throwable));
-        });
-  }
+
 
   private void initRouterHandler(Router router) {
     router.route().failureHandler(ctx -> ctx.response().putHeader("Content-type", "application/json; charset=UTF-8").end(R.fail("系统挂了哦!")));
@@ -127,5 +120,16 @@ public class CollectorOpenApiHttpEndpoint extends AbstractVerticle {
       service.unsubscribe(ctx.pathParam("collectorName"), dataType, ctx.pathParam("symbol"), promise);
       return promise.future();
     }
+  }
+
+  <T> void genericHandler(RoutingContext ctx, Function<RoutingContext, Future<T>> handler) {
+    handler.apply(ctx)
+        .onSuccess(rs -> ctx.response()
+            .putHeader("Content-type", "application/json;charset=UTF-8").end(R.success(rs)))
+        .onFailure(throwable -> {
+          throwable.printStackTrace();
+          ctx.response()
+              .putHeader("Content-type", "application/json;charset=UTF-8").end(R.fail(throwable));
+        });
   }
 }
