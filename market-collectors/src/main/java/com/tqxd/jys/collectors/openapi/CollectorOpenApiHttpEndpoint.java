@@ -71,8 +71,6 @@ public class CollectorOpenApiHttpEndpoint extends AbstractVerticle {
     }
   }
 
-
-
   private void initRouterHandler(Router router) {
     router.route().failureHandler(ctx -> ctx.response().putHeader("Content-type", "application/json; charset=UTF-8").end(R.fail("系统挂了哦!")));
     router.get("/api/market/collectors/list").handler(ctx -> genericHandler(ctx, this::listCollectors));
