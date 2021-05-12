@@ -57,8 +57,9 @@ public class CollectorsApplication extends AbstractVerticle {
     if (openService != null) {
       openService.listCollector(cr -> {
         if (cr.succeeded()) {
-          for (CollectorStatusDto collector : cr.result()) {
-            openService.stopCollector(collector.getName(), stopRs -> {
+          for (JsonObject json : cr.result()) {
+            CollectorStatusDto collectorStatus = json.mapTo(CollectorStatusDto.class);
+            openService.stopCollector(collectorStatus.getName(), stopRs -> {
               if (stopRs.failed()) {
                 stopRs.cause().printStackTrace();
               }

@@ -1,6 +1,5 @@
 package com.tqxd.jys.api.collectors;
 
-import com.tqxd.jys.api.collectors.payload.CollectorStatusDto;
 import com.tqxd.jys.core.spi.DataType;
 import io.vertx.codegen.annotations.GenIgnore;
 import io.vertx.codegen.annotations.ProxyGen;
@@ -8,6 +7,7 @@ import io.vertx.codegen.annotations.VertxGen;
 import io.vertx.core.AsyncResult;
 import io.vertx.core.Handler;
 import io.vertx.core.Vertx;
+import io.vertx.core.json.JsonObject;
 
 import java.util.List;
 
@@ -26,7 +26,7 @@ public interface CollectorOpenApi {
    *
    * @param handler 处理器
    */
-  void listCollector(Handler<AsyncResult<List<CollectorStatusDto>>> handler);
+  void listCollector(Handler<AsyncResult<List<JsonObject>>> handler);
 
   /**
    * 部署一个收集器

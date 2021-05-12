@@ -60,12 +60,7 @@ public class KafkaMessageBus extends AbstractVerticle implements MessageBus {
         KafkaProducerRecord<String, Object> record = KafkaProducerRecord.create(topic.name(), message);
         return producer.write(record);
       })
-      .onSuccess(h -> {
-        handler.handle(Future.succeededFuture());
-      })
-      .onFailure(throwable -> {
-        handler.handle(Future.failedFuture(throwable));
-      });
+      .onComplete(handler);
   }
 
   @Override

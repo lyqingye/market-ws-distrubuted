@@ -1,7 +1,6 @@
 package com.tqxd.jys.collectors.api;
 
 import com.tqxd.jys.api.collectors.CollectorOpenApi;
-import com.tqxd.jys.api.collectors.payload.CollectorStatusDto;
 import com.tqxd.jys.collectors.impl.Collector;
 import com.tqxd.jys.collectors.impl.HuoBiKlineCollector;
 import com.tqxd.jys.core.spi.DataType;
@@ -82,10 +81,11 @@ public class CollectorOpenApiImpl implements CollectorOpenApi {
    * @param handler 处理器
    */
   @Override
-  public void listCollector(Handler<AsyncResult<List<CollectorStatusDto>>> handler) {
-    List<CollectorStatusDto> result = collectorMap.values()
+  public void listCollector(Handler<AsyncResult<List<JsonObject>>> handler) {
+    List<JsonObject> result = collectorMap.values()
       .stream()
       .map(Collector::snapStatus)
+      .map(JsonObject::mapFrom)
       .collect(Collectors.toList());
     handler.handle(Future.succeededFuture(result));
   }
@@ -139,7 +139,8 @@ public class CollectorOpenApiImpl implements CollectorOpenApi {
         // 异步数据处理
         VertxUtil.asyncFastCallIgnoreRs(vertx, () -> {
           // 推送k线数据
-          msgBus.publishIgnoreRs(topic, Message.withData(type, "HuoBi", data.encode()));
+          msgBus.publish(topic, data.getString("ch"), Message.withData(type, "HuoBi", data.encode()))
+            .onFailure(Throwable::printStackTrace);
         });
       }, config)) {
       deployMap.put(collectorName, collector);
