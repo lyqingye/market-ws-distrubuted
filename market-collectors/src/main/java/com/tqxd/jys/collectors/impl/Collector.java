@@ -139,7 +139,7 @@ public interface Collector extends Verticle {
     status.setName(name());
     status.setDesc(desc());
     status.setRunning(isRunning());
-//        status.setSubscribedSymbols(listSubscribedInfo());
+    status.setSubscribedInfo(listSubscribedInfo());
     return status;
   }
 }

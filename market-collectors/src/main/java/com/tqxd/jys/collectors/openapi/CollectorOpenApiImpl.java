@@ -265,6 +265,7 @@ public class CollectorOpenApiImpl implements CollectorOpenApi, DataReceiver {
 
   @Override
   public void onReceive(Collector from, DataType dataType, JsonObject obj) {
+    log.info(obj.encode());
     counter++;
     sizeOfByte += obj.toBuffer().length();
     if (lastTime == null) {
@@ -272,7 +273,7 @@ public class CollectorOpenApiImpl implements CollectorOpenApi, DataReceiver {
     } else {
       long sec = TimeUnit.MILLISECONDS.toSeconds(System.currentTimeMillis() - lastTime);
       if (sec > 0) {
-        log.info("receive avg: {}/s  {}kb/s counter: {}", counter / sec, sizeOfByte / sec / 1024, counter);
+//        log.info("receive avg: {}/s  {}kb/s counter: {}", counter / sec, sizeOfByte / sec / 1024, counter);
       }
     }
     Topic topic;
