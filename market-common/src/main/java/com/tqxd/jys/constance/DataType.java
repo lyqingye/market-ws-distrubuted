@@ -17,5 +17,14 @@ public enum DataType {
   /**
    * k线历史
    */
-  KLINE_HISTORY
+  KLINE_HISTORY;
+
+  public static DataType valueOfName(String name) {
+    for (DataType type : values()) {
+      if (type.name().equalsIgnoreCase(name)) {
+        return type;
+      }
+    }
+    return null;
+  }
 }
