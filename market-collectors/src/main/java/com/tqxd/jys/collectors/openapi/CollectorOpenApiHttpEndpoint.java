@@ -70,10 +70,10 @@ public class CollectorOpenApiHttpEndpoint extends AbstractVerticle {
   private void initRouterHandler(Router router) {
     router.route().failureHandler(ctx -> ctx.response().putHeader("Content-type", "application/json; charset=UTF-8").end(R.fail("系统挂了哦!")));
     router.get("/api/market/collectors/list").handler(this::listCollectors);
-    router.get("/api/market/collector/:collectorName/subscribe/:dataType/:symbol").handler(this::subscribeSymbol);
-    router.get("/api/market/collector/:collectorName/unSubscribe/:dataType/:symbol").handler(this::unsubscribeSymbol);
-    router.get("/api/market/collector/:collectorName/start").handler(this::startCollector);
-    router.get("/api/market/collector/:collectorName/stop").handler(this::stopCollector);
+    router.put("/api/market/collector/:collectorName/subscribe/:dataType/:symbol").handler(this::subscribeSymbol);
+    router.put("/api/market/collector/:collectorName/unSubscribe/:dataType/:symbol").handler(this::unsubscribeSymbol);
+    router.put("/api/market/collector/:collectorName/start").handler(this::startCollector);
+    router.put("/api/market/collector/:collectorName/stop").handler(this::stopCollector);
   }
 
   private void listCollectors(RoutingContext ctx) {
