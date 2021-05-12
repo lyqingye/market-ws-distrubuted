@@ -225,11 +225,6 @@ public class HuoBiKlineCollector extends GenericWsCollector {
       } catch (IOException e) {
         e.printStackTrace();
       }
-//      GZIPUtils.decompressAsync(getVertx(), frame.binaryData().getBytes())
-//          .onSuccess(data -> {
-//
-//          })
-//          .onFailure(Throwable::printStackTrace);
     } else if (frame.isPing()) {
       log.info("[HuoBi]: receive ping");
     } else if (frame.isClose()) {
