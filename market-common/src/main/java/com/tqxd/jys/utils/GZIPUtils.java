@@ -2,6 +2,7 @@ package com.tqxd.jys.utils;
 
 import io.vertx.core.*;
 import io.vertx.core.buffer.Buffer;
+import org.apache.curator.framework.imps.GzipCompressionProvider;
 
 import java.io.*;
 import java.util.zip.GZIPInputStream;
@@ -151,5 +152,11 @@ public class GZIPUtils {
     Promise<Buffer> promise = Promise.promise();
     compressAsync(vertx, data, promise);
     return promise.future();
+  }
+
+  static final GzipCompressionProvider provider = new GzipCompressionProvider();
+
+  public static byte[] fastDecompress(Buffer buffer) throws IOException {
+    return provider.decompress(null, buffer.getBytes());
   }
 }

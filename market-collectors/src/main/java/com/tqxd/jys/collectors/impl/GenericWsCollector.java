@@ -237,7 +237,6 @@ public abstract class GenericWsCollector extends AbstractVerticle implements Col
         return;
       }
       lastCheckTime = System.currentTimeMillis();
-      log.info("collector: {} idle checking lastReceiveTime: {}", this.name(), new Date(lastReceiveTimestamp));
       if ((System.currentTimeMillis() - lastReceiveTimestamp) >= idleTime) {
         restarting = true;
         CompletableFuture<Void> cf = new CompletableFuture<>();

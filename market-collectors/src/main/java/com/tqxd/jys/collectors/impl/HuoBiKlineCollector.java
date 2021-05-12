@@ -16,6 +16,7 @@ import io.vertx.core.json.JsonObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
 
@@ -36,6 +37,8 @@ public class HuoBiKlineCollector extends GenericWsCollector {
    * 订阅ID
    */
   private String subIdPrefix;
+
+  private long pingTimer;
 
   /**
    * 开启收集数据
@@ -200,27 +203,39 @@ public class HuoBiKlineCollector extends GenericWsCollector {
   public void onFrame(WebSocket client, WebSocketFrame frame) {
     super.onFrame(client, frame);
     if (frame.isBinary() && frame.isFinal()) {
-      GZIPUtils.decompressAsync(getVertx(), frame.binaryData().getBytes())
-          .onSuccess(data -> {
-            JsonObject obj = (JsonObject) Json.decodeValue(new String(data, StandardCharsets.UTF_8));
-            // 如果是 ping 消息则需要回复 pong
-            if (isPingMsg(obj)) {
-              this.pong();
-            } else {
-              String ch = obj.getString("ch");
-              // 取消交易对映射
-              obj.put("ch", symbolDeMapping.get(ch));
-              // k线主题
-              if (ChannelUtil.isKLineChannel(ch)) {
-                unParkReceives(DataType.KLINE, obj);
-              } else if (ChannelUtil.isDepthChannel(ch)) {
-                unParkReceives(DataType.DEPTH, obj);
-              } else if (ChannelUtil.isTradeDetailChannel(ch)) {
-                unParkReceives(DataType.TRADE_DETAIL, obj);
-              }
-            }
-          })
-          .onFailure(Throwable::printStackTrace);
+      try {
+        byte[] data = GZIPUtils.fastDecompress(frame.binaryData());
+        JsonObject obj = (JsonObject) Json.decodeValue(new String(data, StandardCharsets.UTF_8));
+        // 如果是 ping 消息则需要回复 pong
+        if (isPingMsg(obj)) {
+          this.pong();
+        } else {
+          String ch = obj.getString("ch");
+          // 取消交易对映射
+          obj.put("ch", symbolDeMapping.get(ch));
+          // k线主题
+          if (ChannelUtil.isKLineChannel(ch)) {
+            unParkReceives(DataType.KLINE, obj);
+          } else if (ChannelUtil.isDepthChannel(ch)) {
+            unParkReceives(DataType.DEPTH, obj);
+          } else if (ChannelUtil.isTradeDetailChannel(ch)) {
+            unParkReceives(DataType.TRADE_DETAIL, obj);
+          }
+        }
+      } catch (IOException e) {
+        e.printStackTrace();
+      }
+//      GZIPUtils.decompressAsync(getVertx(), frame.binaryData().getBytes())
+//          .onSuccess(data -> {
+//
+//          })
+//          .onFailure(Throwable::printStackTrace);
+    } else if (frame.isPing()) {
+      log.info("[HuoBi]: receive ping");
+    } else if (frame.isClose()) {
+      log.info("[HuoBi]: receive close");
+    } else if (frame.isText()) {
+      log.info("[HuoBi]: receive text msg: {}", frame.textData());
     }
   }
 
