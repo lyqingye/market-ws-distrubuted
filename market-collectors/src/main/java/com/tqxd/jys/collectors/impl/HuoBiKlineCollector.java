@@ -38,8 +38,6 @@ public class HuoBiKlineCollector extends GenericWsCollector {
    */
   private String subIdPrefix;
 
-  private long pingTimer;
-
   /**
    * 开启收集数据
    */
@@ -196,7 +194,7 @@ public class HuoBiKlineCollector extends GenericWsCollector {
    */
   @Override
   public String desc() {
-    return "HuoBi";
+    return "火币数据收集器";
   }
 
   @Override

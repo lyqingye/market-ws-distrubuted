@@ -2,8 +2,10 @@ package com.tqxd.jys.collectors.openapi;
 
 import com.tqxd.jys.constance.DataType;
 import com.tqxd.jys.openapi.CollectorOpenApi;
+import com.tqxd.jys.openapi.payload.CollectorStatusDto;
 import com.tqxd.jys.utils.VertxUtil;
 import io.vertx.core.AbstractVerticle;
+import io.vertx.core.Future;
 import io.vertx.core.Promise;
 import io.vertx.core.http.HttpServer;
 import io.vertx.ext.web.Router;
@@ -11,7 +13,9 @@ import io.vertx.ext.web.RoutingContext;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.List;
 import java.util.Objects;
+import java.util.function.Function;
 
 /**
  * 收集器http服务器
@@ -67,78 +71,61 @@ public class CollectorOpenApiHttpEndpoint extends AbstractVerticle {
     }
   }
 
+  static <T> void genericHandler(RoutingContext ctx, Function<RoutingContext, Future<T>> handler) {
+    handler.apply(ctx)
+        .onSuccess(rs -> ctx.end(R.success(rs)))
+        .onFailure(throwable -> {
+          throwable.printStackTrace();
+          ctx.response().putHeader("Content-type", "application/json; charset=UTF-8").end(R.fail(throwable));
+        });
+  }
+
   private void initRouterHandler(Router router) {
     router.route().failureHandler(ctx -> ctx.response().putHeader("Content-type", "application/json; charset=UTF-8").end(R.fail("系统挂了哦!")));
-    router.get("/api/market/collectors/list").handler(this::listCollectors);
-    router.put("/api/market/collector/:collectorName/subscribe/:dataType/:symbol").handler(this::subscribeSymbol);
-    router.put("/api/market/collector/:collectorName/unSubscribe/:dataType/:symbol").handler(this::unsubscribeSymbol);
-    router.put("/api/market/collector/:collectorName/start").handler(this::startCollector);
-    router.put("/api/market/collector/:collectorName/stop").handler(this::stopCollector);
+    router.get("/api/market/collectors/list").handler(ctx -> genericHandler(ctx, this::listCollectors));
+    router.put("/api/market/collector/:collectorName/subscribe/:dataType/:symbol").handler(ctx -> genericHandler(ctx, this::subscribeSymbol));
+    router.put("/api/market/collector/:collectorName/unSubscribe/:dataType/:symbol").handler(ctx -> genericHandler(ctx, this::unsubscribeSymbol));
+    router.put("/api/market/collector/:collectorName/start").handler(ctx -> genericHandler(ctx, this::startCollector));
+    router.put("/api/market/collector/:collectorName/stop").handler(ctx -> genericHandler(ctx, this::stopCollector));
   }
 
-  private void listCollectors(RoutingContext ctx) {
-    service.listCollector(ar -> {
-      if (ar.succeeded()) {
-        ctx.end(R.success(ar.result()));
-      } else {
-        ar.cause().printStackTrace();
-        ctx.end(R.fail(ar.cause()));
-      }
-    });
+  private Future<List<CollectorStatusDto>> listCollectors(RoutingContext ctx) {
+    Promise<List<CollectorStatusDto>> promise = Promise.promise();
+    service.listCollector(promise);
+    return promise.future();
   }
 
-  private void startCollector(RoutingContext ctx) {
-    service.startCollector(ctx.pathParam("collectorName"), ar -> {
-      if (ar.succeeded()) {
-        ctx.end(R.success());
-      } else {
-        ar.cause().printStackTrace();
-        ctx.end(R.fail(ar.cause()));
-      }
-    });
+  private Future<Void> startCollector(RoutingContext ctx) {
+    Promise<Void> promise = Promise.promise();
+    service.startCollector(ctx.pathParam("collectorName"), promise);
+    return promise.future();
   }
 
-  private void stopCollector(RoutingContext ctx) {
-    service.stopCollector(ctx.pathParam("collectorName"), ar -> {
-      if (ar.succeeded()) {
-        ctx.end(R.success());
-      } else {
-        ar.cause().printStackTrace();
-        ctx.end(R.fail(ar.cause()));
-      }
-    });
+  private Future<Void> stopCollector(RoutingContext ctx) {
+    Promise<Void> promise = Promise.promise();
+    service.stopCollector(ctx.pathParam("collectorName"), promise);
+    return promise.future();
   }
 
-  private void subscribeSymbol(RoutingContext ctx) {
+  private Future<Void> subscribeSymbol(RoutingContext ctx) {
     DataType dataType = DataType.valueOfName(ctx.pathParam("dataType"));
     if (dataType == null) {
-      ctx.end(R.fail("invalid data type"));
+      return Future.failedFuture("invalid data type");
     } else {
-      service.subscribe(ctx.pathParam("collectorName"), dataType, ctx.pathParam("symbol"), ar -> {
-        if (ar.succeeded()) {
-          ctx.end(R.success());
-        } else {
-          ar.cause().printStackTrace();
-          ctx.end(R.fail(ar.cause()));
-        }
-      });
+      Promise<Void> promise = Promise.promise();
+      service.subscribe(ctx.pathParam("collectorName"), dataType, ctx.pathParam("symbol"), promise);
+      return promise.future();
     }
-
   }
 
-  private void unsubscribeSymbol(RoutingContext ctx) {
+  private Future<Void> unsubscribeSymbol(RoutingContext ctx) {
     DataType dataType = DataType.valueOfName(ctx.pathParam("dataType"));
     if (dataType == null) {
-      ctx.end(R.fail("invalid data type"));
+      return Future.failedFuture("invalid data type");
     } else {
-      service.unsubscribe(ctx.pathParam("collectorName"), dataType, ctx.pathParam("symbol"), ar -> {
-        if (ar.succeeded()) {
-          ctx.end(R.success());
-        } else {
-          ar.cause().printStackTrace();
-          ctx.end(R.fail(ar.cause()));
-        }
-      });
+      Promise<Void> promise = Promise.promise();
+      service.unsubscribe(ctx.pathParam("collectorName"), dataType, ctx.pathParam("symbol"), promise);
+      return promise.future();
     }
   }
 }
