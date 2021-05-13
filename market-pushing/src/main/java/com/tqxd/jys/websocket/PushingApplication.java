@@ -8,12 +8,16 @@ import com.tqxd.jys.timeline.KLineRepository;
 import com.tqxd.jys.timeline.KLineRepositoryAdapter;
 import com.tqxd.jys.timeline.sync.MBKLineRepositoryAppendedSyncer;
 import com.tqxd.jys.websocket.cache.CacheManager;
+import com.tqxd.jys.websocket.processor.impl.KLineChannelProcessor;
+import com.tqxd.jys.websocket.processor.impl.MarketDepthChannelProcessor;
+import com.tqxd.jys.websocket.processor.impl.MarketDetailChannelProcessor;
+import com.tqxd.jys.websocket.processor.impl.TradeDetailChannelProcessor;
+import com.tqxd.jys.websocket.session.SessionManager;
+import com.tqxd.jys.websocket.transport.RequestDispatcher;
 import com.tqxd.jys.websocket.transport.ServerEndpointVerticle;
 import io.vertx.core.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import static com.tqxd.jys.utils.VertxUtil.deploy;
 @SuppressWarnings("unchecked")
 public class PushingApplication extends AbstractVerticle {
   private static final Logger log = LoggerFactory.getLogger(PushingApplication.class);
@@ -61,9 +65,31 @@ public class PushingApplication extends AbstractVerticle {
   }
 
   private Future<Void> initTransport () {
-    this.serverEndpointVerticle = new ServerEndpointVerticle(cacheManager);
-    return deploy(vertx,serverEndpointVerticle , new DeploymentOptions().setWorker(true))
-      .map(toVoid -> null);
+    RequestDispatcher dispatcher = RequestDispatcher.getInstance();
+    SessionManager sessionMgr = SessionManager.getInstance();
+    // k线主题处理器
+    KLineChannelProcessor kLineChannelProcessor = new KLineChannelProcessor(cacheManager, sessionMgr);
+    cacheManager.addListener(kLineChannelProcessor);
+    dispatcher.addProcessor(kLineChannelProcessor);
+
+    // 成交记录主题处理器
+    TradeDetailChannelProcessor tradeDetailChannelProcessor = new TradeDetailChannelProcessor(cacheManager, sessionMgr);
+    cacheManager.addListener(tradeDetailChannelProcessor);
+    dispatcher.addProcessor(tradeDetailChannelProcessor);
+
+    // 市场概括主题处理器
+    MarketDetailChannelProcessor marketDetailChannelProcessor = new MarketDetailChannelProcessor(cacheManager, sessionMgr);
+    cacheManager.addListener(marketDetailChannelProcessor);
+    dispatcher.addProcessor(marketDetailChannelProcessor);
+
+    // 市场深度主题处理器
+    MarketDepthChannelProcessor marketDepthChannelProcessor = new MarketDepthChannelProcessor(cacheManager, sessionMgr);
+    cacheManager.addListener(marketDepthChannelProcessor);
+    dispatcher.addProcessor(marketDepthChannelProcessor);
+
+    this.serverEndpointVerticle = new ServerEndpointVerticle();
+    return vertx.deployVerticle(ServerEndpointVerticle.class, new DeploymentOptions().setWorker(true).setInstances(12))
+        .map(toVoid -> null);
   }
 
   @Override

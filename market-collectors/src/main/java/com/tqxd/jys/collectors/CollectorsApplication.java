@@ -1,6 +1,7 @@
 package com.tqxd.jys.collectors;
 
 import com.tqxd.jys.bootstrap.Bootstrap;
+import com.tqxd.jys.collectors.openapi.CollectorOpenApiHttpEndpoint;
 import com.tqxd.jys.collectors.openapi.CollectorOpenApiImpl;
 import com.tqxd.jys.constance.DataType;
 import com.tqxd.jys.messagebus.MessageBusFactory;
@@ -10,7 +11,6 @@ import com.tqxd.jys.openapi.payload.CollectorStatusDto;
 import io.vertx.core.*;
 import io.vertx.core.eventbus.MessageConsumer;
 import io.vertx.core.json.JsonObject;
-import io.vertx.ext.web.Router;
 import io.vertx.ext.web.RoutingContext;
 import io.vertx.serviceproxy.ServiceBinder;
 import org.slf4j.Logger;
@@ -35,6 +35,7 @@ public class CollectorsApplication extends AbstractVerticle {
   private static final String COLLECTOR_SUBSCRIBE_KLINE = "subscribe.kline";
   private static final String COLLECTOR_SUBSCRIBE_DEPTH = "subscribe.depth";
   private static final String COLLECTOR_SUBSCRIBE_TRADE_DETAIL = "subscribe.trade.detail";
+  private static final String OPEN_API_HTTP_ENDPOINT_CONFIG = "market.collectors.api.endpoint.http";
   private static final Logger log = LoggerFactory.getLogger(CollectorsApplication.class);
 
   /**
@@ -119,19 +120,16 @@ public class CollectorsApplication extends AbstractVerticle {
         collectorsFutures.add(deployFuture);
       }
     }
+
     CompositeFuture.any(collectorsFutures)
-        .onFailure(Throwable::printStackTrace)
+        .compose(none -> vertx.deployVerticle(new CollectorOpenApiHttpEndpoint(openService),
+            new DeploymentOptions().setConfig(jsonGetValue(config(), OPEN_API_HTTP_ENDPOINT_CONFIG, JsonObject.class)))
+        )
         .onSuccess(ignored -> {
           log.info("[Collectors]: all collector deploy success!");
           promise.complete();
-        });
-    Router router = Router.router(vertx);
-    vertx.createHttpServer()
-        .requestHandler(router)
-        .listen();
-
-    router.get("/products/:productID").handler(this::handlerHello);
-    router.get("/products/:productID").handler(this::handlerHello);
+        })
+        .onFailure(Throwable::printStackTrace);
   }
 
   public void handlerHello(RoutingContext ctx) {

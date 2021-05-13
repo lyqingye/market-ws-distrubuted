@@ -1,8 +1,13 @@
 market:
+
   collectors:
+    api:
+      endpoint:
+        http:
+          host: 0.0.0.0
+          port: 8088
     enabled:
       - huobi
-
     huobi:
       clazz: com.tqxd.jys.collectors.impl.HuoBiKlineCollector
       config:
@@ -10,9 +15,34 @@ market:
         path: /ws
       subscribe:
         depth:
-          - BTC-USDT
+          - btcusdt
+          - ETH-USDT
+          - XRP-USDT
+          - EOS-USDT
+          - DOGE-USDT
+          - HT-USDT
+          - SHIB-USDT
+          - ETC-USDT
+          - ICP-USDT
         kline:
-          - BTC-USDT
+          - btcusdt
+          - ETH-USDT
+          - XRP-USDT
+          - EOS-USDT
+          - DOGE-USDT
+          - HT-USDT
+          - SHIB-USDT
+          - ETC-USDT
+          - ICP-USDT
         trade:
           detail:
             - BTC-USDT
+            - BTC-USDT
+            - ETH-USDT
+            - XRP-USDT
+            - EOS-USDT
+            - DOGE-USDT
+            - HT-USDT
+            - SHIB-USDT
+            - ETC-USDT
+            - ICP-USDT

@@ -79,7 +79,7 @@ public abstract class GenericWsCollector extends AbstractVerticle implements Col
           });
           webSocket.closeHandler(none -> {
             stopIdleChecker();
-            log.info("[Collectors]: collector {} connection closed try to restart!", this.name());
+            log.warn("[Collectors]: collector {} connection closed try to restart!", this.name());
             retry();
           });
           webSocket.exceptionHandler(throwable -> {
@@ -100,10 +100,10 @@ public abstract class GenericWsCollector extends AbstractVerticle implements Col
   }
 
   private synchronized void retry() {
-    log.info("[collectors]: collector {} connect fail! retry: {}", this.name(), retryCount);
     if (retryCount++ >= RETRY_MAX_COUNT) {
       log.error("[collectors]: collector {} retryCount == 255!", this.name());
     } else {
+      log.info("[collectors]: collector {} retry: {}", this.name(), retryCount);
       restart()
           .onComplete(v -> {
             if (v.failed()) {
@@ -121,6 +121,7 @@ public abstract class GenericWsCollector extends AbstractVerticle implements Col
     if (!this.isRunning()) {
       stopPromise.fail("collector running yet!");
     } else {
+      log.info("[collectors]: collector {} stopping, try to close client!", this.name());
       webSocket.close((short) 0, "collector call the stop!", ar -> {
         // force set state is close
         this.isRunning = false;
@@ -236,7 +237,6 @@ public abstract class GenericWsCollector extends AbstractVerticle implements Col
         return;
       }
       lastCheckTime = System.currentTimeMillis();
-      log.info("collector: {} idle checking lastReceiveTime: {}", this.name(), new Date(lastReceiveTimestamp));
       if ((System.currentTimeMillis() - lastReceiveTimestamp) >= idleTime) {
         restarting = true;
         CompletableFuture<Void> cf = new CompletableFuture<>();

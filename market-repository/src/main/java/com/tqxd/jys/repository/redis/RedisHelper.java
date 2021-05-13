@@ -37,7 +37,7 @@ public class RedisHelper {
     RedisHelper self = new RedisHelper();
     NetClientOptions netOptions = new NetClientOptions()
         .setConnectTimeout(5000)
-        .setReconnectAttempts(2)
+        .setReconnectAttempts(1)
         .setReconnectInterval(1000);
     RedisOptions redisOptions = new RedisOptions()
         .setConnectionString(connectionString)

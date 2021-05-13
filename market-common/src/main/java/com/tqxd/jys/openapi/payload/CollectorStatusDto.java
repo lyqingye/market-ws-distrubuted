@@ -1,9 +1,11 @@
 package com.tqxd.jys.openapi.payload;
 
+import com.tqxd.jys.constance.DataType;
 import io.vertx.codegen.annotations.DataObject;
 import io.vertx.core.json.JsonObject;
 
 import java.util.List;
+import java.util.Map;
 
 @DataObject
 public class CollectorStatusDto {
@@ -20,14 +22,11 @@ public class CollectorStatusDto {
    * 是否正在运行
    */
   private boolean isRunning;
-  /**
-   * 是否已经部署
-   */
-  private boolean isDeployed;
-  /**
-   * 已经订阅的交易对
-   */
-  private List<String> subscribedSymbols;
+
+  private List<String> klineSubscribes;
+  private List<String> depthSubscribes;
+  private List<String> tradeDetailSubscribes;
+
 
   public CollectorStatusDto() {
   }
@@ -36,9 +35,10 @@ public class CollectorStatusDto {
     CollectorStatusDto t = object.mapTo(CollectorStatusDto.class);
     this.name = t.name;
     this.desc = t.desc;
-    this.isDeployed = t.isDeployed;
     this.isRunning = t.isRunning;
-    this.subscribedSymbols = t.subscribedSymbols;
+    this.klineSubscribes = t.klineSubscribes;
+    this.depthSubscribes = t.depthSubscribes;
+    this.tradeDetailSubscribes = t.tradeDetailSubscribes;
   }
 
   public JsonObject toJson() {
@@ -69,19 +69,33 @@ public class CollectorStatusDto {
     isRunning = running;
   }
 
-  public boolean isDeployed() {
-    return isDeployed;
+  public List<String> getKlineSubscribes() {
+    return klineSubscribes;
   }
 
-  public void setDeployed(boolean deployed) {
-    isDeployed = deployed;
+  public void setKlineSubscribes(List<String> klineSubscribes) {
+    this.klineSubscribes = klineSubscribes;
   }
 
-  public List<String> getSubscribedSymbols() {
-    return subscribedSymbols;
+  public List<String> getDepthSubscribes() {
+    return depthSubscribes;
   }
 
-  public void setSubscribedSymbols(List<String> subscribedSymbols) {
-    this.subscribedSymbols = subscribedSymbols;
+  public void setDepthSubscribes(List<String> depthSubscribes) {
+    this.depthSubscribes = depthSubscribes;
+  }
+
+  public List<String> getTradeDetailSubscribes() {
+    return tradeDetailSubscribes;
+  }
+
+  public void setTradeDetailSubscribes(List<String> tradeDetailSubscribes) {
+    this.tradeDetailSubscribes = tradeDetailSubscribes;
+  }
+
+  public void setSubscribedInfo(Map<DataType, List<String>> subscribedInfo) {
+    klineSubscribes = subscribedInfo.get(DataType.KLINE);
+    depthSubscribes = subscribedInfo.get(DataType.DEPTH);
+    tradeDetailSubscribes = subscribedInfo.get(DataType.TRADE_DETAIL);
   }
 }

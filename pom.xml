@@ -27,11 +27,11 @@
 
     <dependencies>
         <!--vertx begin-->
-        <dependency>
-            <groupId>io.vertx</groupId>
-            <artifactId>vertx-web</artifactId>
-            <version>${vertx.version}</version>
-        </dependency>
+        <!--        <dependency>-->
+        <!--            <groupId>io.vertx</groupId>-->
+        <!--            <artifactId>vertx-web</artifactId>-->
+        <!--            <version>${vertx.version}</version>-->
+        <!--        </dependency>-->
         <dependency>
             <groupId>io.vertx</groupId>
             <artifactId>vertx-config</artifactId>
@@ -42,11 +42,7 @@
             <artifactId>vertx-config-yaml</artifactId>
             <version>${vertx.version}</version>
         </dependency>
-        <dependency>
-            <groupId>io.vertx</groupId>
-            <artifactId>vertx-redis-client</artifactId>
-            <version>${vertx.version}</version>
-        </dependency>
+
         <!--        <dependency>-->
         <!--            <groupId>io.vertx</groupId>-->
         <!--            <artifactId>vertx-hazelcast</artifactId>-->
@@ -63,6 +59,12 @@
                     <artifactId>slf4j-log4j12</artifactId>
                 </exclusion>
             </exclusions>
+        </dependency>
+
+        <dependency>
+            <groupId>io.vertx</groupId>
+            <artifactId>vertx-hazelcast</artifactId>
+            <version>${vertx.version}</version>
         </dependency>
 
         <dependency>
@@ -86,11 +88,11 @@
         <!--vertx end-->
 
         <!--jackson begin-->
-        <dependency>
-            <groupId>com.fasterxml.jackson.core</groupId>
-            <artifactId>jackson-databind</artifactId>
-            <version>${jackson.version}</version>
-        </dependency>
+        <!--        <dependency>-->
+        <!--            <groupId>com.fasterxml.jackson.core</groupId>-->
+        <!--            <artifactId>jackson-databind</artifactId>-->
+        <!--            <version>${jackson.version}</version>-->
+        <!--        </dependency>-->
         <!--jackson end-->
 
         <!--log begin-->

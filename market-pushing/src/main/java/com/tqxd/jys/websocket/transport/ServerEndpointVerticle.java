@@ -1,10 +1,5 @@
 package com.tqxd.jys.websocket.transport;
 
-import com.tqxd.jys.websocket.cache.CacheManager;
-import com.tqxd.jys.websocket.processor.impl.KLineChannelProcessor;
-import com.tqxd.jys.websocket.processor.impl.MarketDepthChannelProcessor;
-import com.tqxd.jys.websocket.processor.impl.MarketDetailChannelProcessor;
-import com.tqxd.jys.websocket.processor.impl.TradeDetailChannelProcessor;
 import com.tqxd.jys.websocket.session.Session;
 import com.tqxd.jys.websocket.session.SessionManager;
 import io.vertx.core.AbstractVerticle;
@@ -31,32 +26,13 @@ public class ServerEndpointVerticle extends AbstractVerticle {
   /**
    * 会话管理器
    */
-  private SessionManager sessionMgr = new SessionManager(1 << 14);
+  private SessionManager sessionMgr = SessionManager.getInstance();
   private TimeUnit timeUnit = TimeUnit.SECONDS;
   private long expire = -1;
   private RequestDispatcher dispatcher;
 
-  public ServerEndpointVerticle(CacheManager cacheManager) {
-    dispatcher = new RequestDispatcher();
-    // k线主题处理器
-    KLineChannelProcessor kLineChannelProcessor = new KLineChannelProcessor(cacheManager, sessionMgr);
-    cacheManager.addListener(kLineChannelProcessor);
-    dispatcher.addProcessor(kLineChannelProcessor);
-
-    // 成交记录主题处理器
-    TradeDetailChannelProcessor tradeDetailChannelProcessor = new TradeDetailChannelProcessor(cacheManager, sessionMgr);
-    cacheManager.addListener(tradeDetailChannelProcessor);
-    dispatcher.addProcessor(tradeDetailChannelProcessor);
-
-    // 市场概括主题处理器
-    MarketDetailChannelProcessor marketDetailChannelProcessor = new MarketDetailChannelProcessor(cacheManager, sessionMgr);
-    cacheManager.addListener(marketDetailChannelProcessor);
-    dispatcher.addProcessor(marketDetailChannelProcessor);
-
-    // 市场深度主题处理器
-    MarketDepthChannelProcessor marketDepthChannelProcessor = new MarketDepthChannelProcessor(cacheManager, sessionMgr);
-    cacheManager.addListener(marketDepthChannelProcessor);
-    dispatcher.addProcessor(marketDepthChannelProcessor);
+  public ServerEndpointVerticle() {
+    dispatcher = RequestDispatcher.getInstance();
   }
 
   @Override
@@ -94,7 +70,7 @@ public class ServerEndpointVerticle extends AbstractVerticle {
       client.closeHandler(ignored -> safeRelease(session));
     });
 
-    wsServer.listen(7776, "localhost")
+    wsServer.listen(7776, "0.0.0.0")
         .onComplete(h -> {
           if (h.succeeded()) {
             log.info("[ServerEndpoint]: start success!");

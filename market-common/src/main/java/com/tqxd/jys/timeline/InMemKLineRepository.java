@@ -26,7 +26,7 @@ import java.util.concurrent.ThreadFactory;
  */
 @SuppressWarnings("rawtypes")
 public class InMemKLineRepository implements KLineRepository {
-  private static final long KLINE_TICK_MILLS = 10;
+  private static final long KLINE_TICK_MILLS = 1;
   private static final Logger log = LoggerFactory.getLogger(InMemKLineRepository.class);
   private List<KLineRepositoryListener> listeners = new ArrayList<>();
   private DisruptorQueue<Object> outQueue;
@@ -164,14 +164,18 @@ public class InMemKLineRepository implements KLineRepository {
     return new AbstractDisruptorConsumer<Object>() {
       @Override
       public void process(Object event) {
-        if (event instanceof AppendTickResult) {
-          for (KLineRepositoryListener listener : listeners) {
-            listener.onAppendFinished((AppendTickResult) event);
+        try {
+          if (event instanceof AppendTickResult) {
+            for (KLineRepositoryListener listener : listeners) {
+              listener.onAppendFinished((AppendTickResult) event);
+            }
+          } else if (event instanceof Auto24HourStatisticsResult) {
+            for (KLineRepositoryListener listener : listeners) {
+              listener.onAutoAggregate((Auto24HourStatisticsResult) event);
+            }
           }
-        } else if (event instanceof Auto24HourStatisticsResult) {
-          for (KLineRepositoryListener listener : listeners) {
-            listener.onAutoAggregate((Auto24HourStatisticsResult) event);
-          }
+        } catch (Exception ex) {
+          ex.printStackTrace();
         }
       }
     };
@@ -181,7 +185,7 @@ public class InMemKLineRepository implements KLineRepository {
     isRunning = true;
     Thread thread = new Thread(tickJob());
     thread.setName("kline-auto-aggregate-thread");
-    thread.setDaemon(true);
+    thread.setDaemon(false);
     thread.setUncaughtExceptionHandler(((t, e) -> e.printStackTrace()));
     thread.start();
   }
