@@ -1,5 +1,6 @@
 package com.tqxd.jys.websocket.session;
 
+import com.tqxd.jys.utils.GZIPUtils;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.util.AttributeKey;
 import io.netty.util.internal.shaded.org.jctools.util.UnsafeAccess;
@@ -8,6 +9,7 @@ import io.vertx.core.http.ServerWebSocket;
 import io.vertx.core.http.impl.WebSocketImplBase;
 import sun.misc.Unsafe;
 
+import java.io.IOException;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -138,10 +140,22 @@ public class Session {
   // TODO 水位得做策略，目前临时策略是直接丢弃消息
   //
 
-  public void writeText(String text) {
+  public void writeBufferAndCompress(Buffer buffer) {
     if (state == USED) {
       if (!client.writeQueueFull()) {
-        client.writeTextMessage(text);
+        try {
+          client.write(Buffer.buffer(GZIPUtils.fastCompress(buffer.getBytes())));
+        } catch (IOException e) {
+          e.printStackTrace();
+        }
+      }
+    }
+  }
+
+  public void writeBuffer(Buffer buffer) {
+    if (state == USED) {
+      if (!client.writeQueueFull()) {
+        client.write(buffer);
       }
     }
   }

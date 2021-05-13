@@ -1,8 +1,13 @@
 {
-  "bootstrap.servers": "localhost:9092",
+  "bootstrap.servers": "192.168.2.94:9092",
   "key.deserializer": "com.tqxd.jys.messagebus.impl.kafka.KafkaJsonDeSerializer",
   "value.deserializer": "com.tqxd.jys.messagebus.impl.kafka.KafkaJsonDeSerializer",
   "group.id": "market.pushing.consumer",
-  "auto.offset.reset": "earliest",
+  "auto.offset.reset": "latest",
   "enable.auto.commit": "true"
+  //  "max.poll.records": "10",
+  //  "fetch.max.wait.ms": "1",
+  //  "fetch.min.bytes": "10"
+  //  "max.poll.interval.ms": "5"
+  //  "session.timeout.ms": "100"
 }

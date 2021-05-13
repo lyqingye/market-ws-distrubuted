@@ -75,19 +75,20 @@ public class KLine {
    * @param to   结束时间
    */
   public void query(long from, long to, Handler<AsyncResult<List<KlineTick>>> handler) {
-    int startIdx = calculateIdx(alignWithPeriod(from, period));
-    int endIdx = calculateIdx(alignWithPeriod(to, period));
-    if (startIdx >= 0 && startIdx < numOfPeriod && endIdx > startIdx) {
-      endIdx = Math.min(endIdx, numOfPeriod - 1);
-    } else {
-      handler.handle(Future.failedFuture("fail to poll kline data! from: " + from + " to: " + to + " startIdx: " + startIdx + " endIdx: " + endIdx));
-      return;
+    int startIdx = calculateIdx(alignWithPeriod(from + TimeUnit.HOURS.toSeconds(8), period));
+    int endIdx = calculateIdx(alignWithPeriod(to + TimeUnit.HOURS.toSeconds(8), period));
+
+    if (startIdx <= 0 || startIdx >= numOfPeriod) {
+      startIdx = 0;
     }
-    List<KlineTick> result = new ArrayList<>(300);
+    if (endIdx < 0 || endIdx >= numOfPeriod) {
+      endIdx = numOfPeriod - 1;
+    }
+    List<KlineTick> result = new ArrayList<>(numOfPeriod);
     while (startIdx <= endIdx) {
       KlineTick obj = (KlineTick) this.data[startIdx];
       if (obj != null) {
-        if (obj.getTime() >= from && obj.getTime() <= to) {
+        if (obj.getId() >= from && obj.getId() <= to) {
           result.add(obj);
         }
       }

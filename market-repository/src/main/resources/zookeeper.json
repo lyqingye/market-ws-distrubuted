@@ -1,11 +1,11 @@
 {
-  "zookeeperHosts":"127.0.0.1",
-  "sessionTimeout":20000,
-  "connectTimeout":3000,
-  "rootPath":"io.vertx",
+  "zookeeperHosts": "192.168.2.94",
+  "sessionTimeout": 20000,
+  "connectTimeout": 3000,
+  "rootPath": "io.vertx",
   "retry": {
-    "initialSleepTime":100,
-    "intervalTimes":10000,
-    "maxTimes":5
+    "initialSleepTime": 100,
+    "intervalTimes": 10000,
+    "maxTimes": 5
   }
 }

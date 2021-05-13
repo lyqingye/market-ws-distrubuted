@@ -20,7 +20,7 @@ public interface Bootstrap {
   @SuppressWarnings("unchecked")
   static void run(Verticle verticle, DeploymentOptions options) {
     try {
-      Class<Bootstrap> zookeeper = (Class<Bootstrap>) Class.forName("com.tqxd.jys.bootstrap.impl.ZookeeperBootstrap");
+      Class<Bootstrap> zookeeper = (Class<Bootstrap>) Class.forName("com.tqxd.jys.bootstrap.impl.HazelcastBootstrap");
       for (Constructor<?> constructor : zookeeper.getConstructors()) {
         if (constructor.getParameterCount() == 0) {
           Object bootstrap = constructor.newInstance();
@@ -30,7 +30,7 @@ public interface Bootstrap {
         }
       }
     } catch (ClassNotFoundException | InvocationTargetException | InstantiationException | IllegalAccessException | NoSuchMethodException ignored) {
-
+      ignored.printStackTrace();
     }
     log.error("bootstrap fail! not provider! system will be exit!");
     System.exit(-1);

@@ -1,9 +1,9 @@
 package com.tqxd.jys.websocket.session;
 
 import com.tqxd.jys.websocket.transport.ServerEndpointVerticle;
-import io.netty.util.internal.shaded.org.jctools.queues.atomic.MpscAtomicArrayQueue;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.http.ServerWebSocket;
+import org.jctools.queues.MpmcArrayQueue;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -24,7 +24,7 @@ public class SessionManager {
   private static final long SESSION_CLEAR_TIMER = 1000;
   private final int capacity;
   private final Object[] objects; // must have exact type Object[]
-  private MpscAtomicArrayQueue<Integer> freeQueue;
+  private static final SessionManager INSTANCE = new SessionManager(1 << 14);
   private AtomicInteger usedCounter = new AtomicInteger(0);
 
   //
@@ -37,6 +37,7 @@ public class SessionManager {
   // channel -> bitmap
   //
   private Map<String, long[]> partition = new HashMap<>();
+  private MpmcArrayQueue<Integer> freeQueue;
 
   public SessionManager(int capacity) {
     if (capacity < 64 || capacity %8 != 0) {
@@ -44,13 +45,17 @@ public class SessionManager {
     }
     this.capacity = capacity;
     objects = new Object[capacity];
-    freeQueue = new MpscAtomicArrayQueue<>(capacity);
+    freeQueue = new MpmcArrayQueue<>(capacity);
     for (int i = 0; i < capacity; i++) {
       Session newSession = new Session(i);
       objects[i] = newSession;
       freeQueue.offer(i);
     }
     startClearExpiredSessionThread();
+  }
+
+  public static SessionManager getInstance() {
+    return INSTANCE;
   }
 
   public Session getById(int id) {
@@ -112,24 +117,7 @@ public class SessionManager {
     return false;
   }
 
-  public void broadcastText(String text) {
-    broadcastText(text, null);
-  }
 
-  public void broadcastText(String text, Predicate<Session> isSend) {
-    for (Object object : objects) {
-      Session session = (Session) object;
-      if (session.state == Session.USED) {
-        if (isSend != null) {
-          if (isSend.test(session)) {
-            session.writeText(text);
-          }
-        } else {
-          session.writeText(text);
-        }
-      }
-    }
-  }
 
   public void broadcast(Buffer buffer) {
     broadcast(buffer, null);
@@ -198,7 +186,11 @@ public class SessionManager {
         if (isSet) {
           Session session = (Session) objects[(i << ADDRESS_BITS_PER_WORD) + j];
           if (session != null & consumer != null) {
-            consumer.accept(session);
+            try {
+              consumer.accept(session);
+            } catch (Exception ex) {
+              ex.printStackTrace();
+            }
           }
         }
       }

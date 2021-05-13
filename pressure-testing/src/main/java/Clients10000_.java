@@ -11,6 +11,7 @@ public class Clients10000_ {
             "\t\"sub\": \"market.BTC-USDT.kline.1min\"\n" +
             "}");
         });
+
     }
   }
 }

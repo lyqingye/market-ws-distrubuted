@@ -159,4 +159,8 @@ public class GZIPUtils {
   public static byte[] fastDecompress(Buffer buffer) throws IOException {
     return provider.decompress(null, buffer.getBytes());
   }
+
+  public static byte[] fastCompress(byte[] bytes) throws IOException {
+    return provider.compress(null, bytes);
+  }
 }

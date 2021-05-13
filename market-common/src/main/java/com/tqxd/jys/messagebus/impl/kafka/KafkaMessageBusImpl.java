@@ -50,18 +50,9 @@ public class KafkaMessageBusImpl extends AbstractVerticle implements MessageBus 
 
   @Override
   public void publish(Topic topic, Message<?> message, Handler<AsyncResult<Void>> handler) {
-    messageIndexCounter.addAndGet(1)
-      .compose(idx -> {
-        message.setIndex(idx);
-        KafkaProducerRecord<String, Object> record = KafkaProducerRecord.create(topic.name(), message);
-        return producer.write(record);
-      })
-      .onSuccess(h -> {
-        handler.handle(Future.succeededFuture());
-      })
-      .onFailure(throwable -> {
-        handler.handle(Future.failedFuture(throwable));
-      });
+    message.setIndex(-1);
+    KafkaProducerRecord<String, Object> record = KafkaProducerRecord.create(topic.name(), message);
+    producer.write(record, handler);
   }
 
   @Override
@@ -80,7 +71,9 @@ public class KafkaMessageBusImpl extends AbstractVerticle implements MessageBus 
         Object value = record.value();
         if (value instanceof String) {
           try {
-            consumer.accept(Json.decodeValue((String) value, Message.class));
+            Message<?> message = Json.decodeValue((String) value, Message.class);
+            message.setIndex(record.offset());
+            consumer.accept(message);
           } catch (Exception ex) {
             ex.printStackTrace();
           }

@@ -1,0 +1,15 @@
+hazelcast:
+  cluster-name: dev
+  management-center:
+    scripting-enabled: false
+  network:
+    join:
+      multicast:
+        enabled: false
+      tcp-ip:
+        enabled: true
+        member-list:
+          - 172.20.48.1:5701
+  map:
+    default:
+      time-to-live-seconds: 0

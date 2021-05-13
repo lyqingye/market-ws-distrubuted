@@ -1,5 +1,5 @@
 {
-  "bootstrap.servers": "localhost:9092",
+  "bootstrap.servers": "192.168.2.94:9092",
   "key.deserializer": "com.tqxd.jys.messagebus.impl.kafka.KafkaJsonDeSerializer",
   "value.deserializer": "com.tqxd.jys.messagebus.impl.kafka.KafkaJsonDeSerializer",
   "group.id": "market.repository.consumer",

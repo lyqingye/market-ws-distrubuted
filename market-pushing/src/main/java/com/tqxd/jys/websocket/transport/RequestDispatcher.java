@@ -19,13 +19,19 @@ public class RequestDispatcher {
   private int numOfProcessor = 0;
   private ChannelProcessor[] PROCESSORS = new ChannelProcessor[255];
 
-  public synchronized void addProcessor (ChannelProcessor processor) {
+  private static RequestDispatcher INSTANCE = new RequestDispatcher();
+
+  public synchronized void addProcessor(ChannelProcessor processor) {
     if (numOfProcessor >= PROCESSORS.length) {
       ChannelProcessor[] newProcessor = new ChannelProcessor[numOfProcessor << 1];
-      System.arraycopy(PROCESSORS,0,newProcessor,0,numOfProcessor);
+      System.arraycopy(PROCESSORS, 0, newProcessor, 0, numOfProcessor);
       PROCESSORS = newProcessor;
     }
     PROCESSORS[numOfProcessor++] = Objects.requireNonNull(processor);
+  }
+
+  public static RequestDispatcher getInstance() {
+    return INSTANCE;
   }
 
   /**
@@ -39,7 +45,7 @@ public class RequestDispatcher {
     try {
       jsonObj = (JsonObject) Json.decodeValue(msg);
     } catch (Exception ex) {
-      session.writeText(Json.encode(Response.err(null, null, "only support json message!")));
+      session.writeBufferAndCompress(Json.encodeToBuffer(Response.err(null, null, "only support json message!")));
       return;
     }
     // 忽略心跳
@@ -69,7 +75,7 @@ public class RequestDispatcher {
         }
       }
     } else {
-      session.writeText(Json.encode(Response.err(null, null, "unknown message: {}" + msg)));
+      session.writeBufferAndCompress(Json.encodeToBuffer(Response.err(null, null, "unknown message: {}" + msg)));
       log.warn("[ServerEndpoint]: unknown message: {}", msg);
     }
   }
