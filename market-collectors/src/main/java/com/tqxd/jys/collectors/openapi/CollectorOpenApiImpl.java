@@ -1,8 +1,6 @@
 package com.tqxd.jys.collectors.openapi;
 
-import com.tqxd.jys.collectors.impl.Collector;
-import com.tqxd.jys.collectors.impl.DataReceiver;
-import com.tqxd.jys.collectors.impl.HuoBiKlineCollector;
+import com.tqxd.jys.collectors.impl.*;
 import com.tqxd.jys.constance.DataType;
 import com.tqxd.jys.messagebus.MessageBus;
 import com.tqxd.jys.messagebus.payload.Message;
@@ -53,6 +51,12 @@ public class CollectorOpenApiImpl implements CollectorOpenApi, DataReceiver {
     // 注册支持的收集器
     HuoBiKlineCollector huoBi = new HuoBiKlineCollector();
     collectorMap.put(huoBi.name(), huoBi);
+    // 注册支持的收集器
+//    BiAnKlineCollector biAn = new BiAnKlineCollector();
+//    collectorMap.put(biAn.name(), biAn);
+    // 注册天启旭达真实收集器
+//    TqxdMatchCollector tqxd = new TqxdMatchCollector();
+//    collectorMap.put(tqxd.name(), tqxd);
   }
 
   /**

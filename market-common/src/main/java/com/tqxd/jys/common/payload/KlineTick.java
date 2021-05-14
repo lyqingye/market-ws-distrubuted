@@ -9,20 +9,45 @@ import java.util.concurrent.TimeUnit;
 
 @DataObject
 public class KlineTick{
+  /**
+   *unix时间，同时作为K线ID
+   */
   private Long id;
 
+  /**
+   *成交量
+   */
   private BigDecimal amount;
 
+  /**
+   *成交笔数
+   */
   private Integer count;
 
+  /**
+   *开盘价
+   */
   private BigDecimal open;
 
+  /**
+   *收盘价（当K线为最晚的一根时，是最新成交价）
+   */
   private BigDecimal close;
 
+  /**
+   *最低价
+   */
   private BigDecimal low;
 
+  /**
+   *最高价
+   */
   private BigDecimal high;
 
+
+  /**
+   * 成交额, 即 sum(每一笔成交价 * 该笔的成交量)
+   */
   private BigDecimal vol;
 
   public KlineTick() {

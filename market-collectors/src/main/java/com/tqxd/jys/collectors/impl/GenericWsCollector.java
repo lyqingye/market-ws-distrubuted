@@ -222,6 +222,12 @@ public abstract class GenericWsCollector extends AbstractVerticle implements Col
     }
   }
 
+  public void writePong (Buffer buffer) {
+    if (isRunning() && webSocket != null){
+      webSocket.writePong(buffer);
+    }
+  }
+
   public void onFrame(WebSocket client, WebSocketFrame frame) {
     refreshLastReceiveTime();
   }
