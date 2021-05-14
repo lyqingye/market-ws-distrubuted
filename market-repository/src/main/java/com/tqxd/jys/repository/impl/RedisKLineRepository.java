@@ -59,7 +59,7 @@ public class RedisKLineRepository implements KLineRepository {
 
   @Override
   public void loadSnapshot(String symbol, Period period, Handler<AsyncResult<KlineSnapshot>> handler) {
-    loadSnapshotMeta(symbol)
+    loadSnapshotMeta(symbol, period)
       .compose
         (
             meta -> sizeOfKlineTicks(symbol, period)
@@ -108,9 +108,9 @@ public class RedisKLineRepository implements KLineRepository {
     return promise.future();
   }
 
-  private Future<KlineSnapshotMeta> loadSnapshotMeta(String symbol) {
+  private Future<KlineSnapshotMeta> loadSnapshotMeta(String symbol, Period period) {
     Promise<KlineSnapshotMeta> promise = Promise.promise();
-    redis.get(RedisKeyHelper.toKlineMetaKey(symbol), ar -> {
+    redis.get(RedisKeyHelper.toKlineMetaKey(symbol, period), ar -> {
       if (ar.succeeded()) {
         promise.complete(Json.decodeValue(ar.result(), KlineSnapshotMeta.class));
       } else {
@@ -128,7 +128,58 @@ public class RedisKLineRepository implements KLineRepository {
 
   @Override
   public void restoreWithSnapshot(KlineSnapshot snapshot, Handler<AsyncResult<Void>> handler) {
+    List<KlineTick> ticks = snapshot.getTickList();
+    if (ticks.isEmpty()) {
+      handler.handle(Future.failedFuture("invalid snapshot! ticks is null!"));
+      return;
+    }
+    KlineSnapshotMeta replaceTheMeta = snapshot.getMeta();
+    String symbol = replaceTheMeta.getSymbol();
+    Period period = replaceTheMeta.getPeriod();
+    List<Request> batchCmd = new ArrayList<>(ticks.size() + 2);
+    loadSnapshotMeta(symbol, period)
+        .onSuccess(meta -> {
+          if (replaceTheMeta.getCommittedIndex() <= meta.getCommittedIndex()) {
+            log.warn("restore snapshot warning! symbol: {} period: {} stored index: {} source index: {} ignored committed index, just restore ticks!",
+                meta.getSymbol(),
+                meta.getPeriod(),
+                meta.getCommittedIndex(),
+                replaceTheMeta.getCommittedIndex());
+          } else {
+            meta.setCommittedIndex(replaceTheMeta.getCommittedIndex());
+            meta.setTs(System.currentTimeMillis());
+            batchCmd.add(
+                Request.cmd(Command.SET)
+                    .arg(RedisKeyHelper.toKlineMetaKey(symbol, period))
+                    .arg(Json.encode(meta))
+            );
+            log.info("restore with snapshot: symbol {} period {} committed index: {}", symbol, period, replaceTheMeta.getCommittedIndex());
+          }
+          long startTime = TimeUtils.alignWithPeriod(ticks.get(0).getTime(), period.getMill());
+          long endTime = TimeUtils.alignWithPeriod(ticks.get(ticks.size() - 1).getTime(), period.getMill());
+          String klineKey = RedisKeyHelper.toKlineDataKey(symbol, period);
+          batchCmd.add(
+              Request.cmd(Command.ZREMRANGEBYSCORE)
+                  .arg(klineKey)
+                  .arg(startTime)
+                  .arg(endTime)
+          );
+          Request batchAddRequest = Request.cmd(Command.ZADD).arg(klineKey);
+          for (KlineTick tick : ticks) {
+            long theScore = TimeUtils.alignWithPeriod(tick.getTime(), period.getMill());
+            batchAddRequest = batchAddRequest.arg(theScore).arg(Json.encode(tick));
+          }
 
+          // 批量执行
+          redis.batch(batchCmd, ar -> {
+            if (ar.succeeded()) {
+              handler.handle(Future.succeededFuture());
+            } else {
+              handler.handle(Future.failedFuture(ar.cause()));
+            }
+          });
+        })
+        .onFailure(throwable -> handler.handle(Future.failedFuture(throwable)));
   }
 
   @Override
@@ -166,11 +217,10 @@ public class RedisKLineRepository implements KLineRepository {
     snapshotMeta.setPeriod(period);
     snapshotMeta.setSymbol(symbol);
     batchCmd.add(
-      Request.cmd(Command.SET)
-        .arg(RedisKeyHelper.toKlineMetaKey(symbol))
+        Request.cmd(Command.SET)
+            .arg(RedisKeyHelper.toKlineMetaKey(symbol, period))
         .arg(Json.encode(snapshotMeta))
     );
-
     // 批量执行
     redis.batch(batchCmd, ar -> {
       if (ar.succeeded()) {
