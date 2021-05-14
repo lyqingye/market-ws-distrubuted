@@ -32,7 +32,8 @@ public class HazelcastBootstrap implements Bootstrap {
     if (host == null) {
       host = System.getProperty(VERTX_CLUSTER_PUBLIC_HOST);
     }
-    vertxOptions.setEventBusOptions(new EventBusOptions().setClusterPublicHost(host));
+    EventBusOptions eventBusOptions = new EventBusOptions().setHost(host).setClusterPublicHost(host);
+    vertxOptions.setEventBusOptions(eventBusOptions);
     String finalHost = host;
     Vertx.clusteredVertx(vertxOptions,
         clusteredAr -> {
