@@ -31,8 +31,8 @@ public class RedisKeyHelper {
    *
    * @param symbol 交易对
    */
-  public static String toKlineMetaKey(String symbol) {
-    return "market:" + symbol + ":kline:meta";
+  public static String toKlineMetaKey(String symbol, Period period) {
+    return "market:" + symbol + ":kline:meta:" + period;
   }
 
   /**

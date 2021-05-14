@@ -88,7 +88,7 @@ public class PushingApplication extends AbstractVerticle {
     dispatcher.addProcessor(marketDepthChannelProcessor);
 
     this.serverEndpointVerticle = new ServerEndpointVerticle();
-    return vertx.deployVerticle(ServerEndpointVerticle.class, new DeploymentOptions().setWorker(true).setInstances(12))
+    return vertx.deployVerticle(ServerEndpointVerticle.class, new DeploymentOptions().setWorker(true).setInstances(8))
         .map(toVoid -> null);
   }
 

@@ -35,15 +35,8 @@ public class RedisHelper {
   public static Future<RedisHelper> create(Vertx vertx, String connectionString) {
     Promise<RedisHelper> promise = Promise.promise();
     RedisHelper self = new RedisHelper();
-    NetClientOptions netOptions = new NetClientOptions()
-        .setConnectTimeout(5000)
-        .setReconnectAttempts(1)
-        .setReconnectInterval(1000);
-    RedisOptions redisOptions = new RedisOptions()
-        .setConnectionString(connectionString)
-        .setNetClientOptions(netOptions)
-        .setMaxWaitingHandlers(1 << 16)
-        .setMaxPoolWaiting(1 << 16);
+    NetClientOptions netOptions = new NetClientOptions().setConnectTimeout(5000).setReconnectAttempts(1).setReconnectInterval(1000);
+    RedisOptions redisOptions = new RedisOptions().setConnectionString(connectionString).setNetClientOptions(netOptions).setMaxWaitingHandlers(1 << 16).setMaxPoolWaiting(1 << 16);
     Redis.createClient(vertx, redisOptions)
         .connect(onConnect -> {
           if (onConnect.succeeded()) {
