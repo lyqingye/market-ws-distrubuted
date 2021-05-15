@@ -16,6 +16,7 @@ import org.slf4j.LoggerFactory;
 
 import java.util.*;
 import java.util.concurrent.*;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.locks.ReentrantLock;
 
 /**
@@ -27,11 +28,9 @@ public abstract class GenericWsCollector extends AbstractVerticle implements Col
   public static final String WS_REQUEST_PATH_PARAM = "ws_request_path_param";
   public static final String IDLE_TIME_OUT = "idle_time_out";
 
-  static final ScheduledExecutorService idleCheckerExecutor;
-
+  private static final ScheduledExecutorService idleCheckerExecutor;
+  private Logger log = LoggerFactory.getLogger(GenericWsCollector.class);
   private static final int RETRY_MAX_COUNT = 255;
-
-  Logger log = LoggerFactory.getLogger(GenericWsCollector.class);
   private Map<DataType, List<String>> subscribed = new HashMap<>(16);
   private DataReceiver[] receivers = new DataReceiver[16];
   private int numOfReceives = 0;
@@ -47,7 +46,7 @@ public abstract class GenericWsCollector extends AbstractVerticle implements Col
   private ReentrantLock startLock = new ReentrantLock();
   private ReentrantLock stopLock = new ReentrantLock();
   private ReentrantLock restartLock = new ReentrantLock();
-
+  private AtomicInteger retryCount = new AtomicInteger(0);
   static {
     ThreadFactory threadFactory = new ThreadFactoryBuilder()
         .setNameFormat("collector-idle-check-thread%d")
@@ -55,8 +54,6 @@ public abstract class GenericWsCollector extends AbstractVerticle implements Col
         .build();
     idleCheckerExecutor = Executors.newSingleThreadScheduledExecutor(threadFactory);
   }
-
-  private int retryCount = 0;
 
   @Override
   public synchronized void start(Promise<Void> startPromise) throws Exception {
@@ -80,7 +77,7 @@ public abstract class GenericWsCollector extends AbstractVerticle implements Col
         httpClient.webSocket(requestPath).onComplete(ar -> {
           startLock.unlock();
           if (ar.succeeded()) {
-            retryCount = 0;
+            retryCount.set(0);
             isRunning = true;
             webSocket = ar.result();
             webSocket.frameHandler(frame -> {
@@ -124,7 +121,7 @@ public abstract class GenericWsCollector extends AbstractVerticle implements Col
     if (stopping) {
       return;
     }
-    if (retryCount++ >= RETRY_MAX_COUNT) {
+    if (retryCount.getAndIncrement() >= RETRY_MAX_COUNT) {
       log.error("[collectors]: collector {} retryCount == 255!", this.name());
     } else {
       restartLock.lock();
@@ -136,7 +133,7 @@ public abstract class GenericWsCollector extends AbstractVerticle implements Col
               v.cause().printStackTrace();
             } else {
               log.info("[collectors]: collector {} retry success!", this.name());
-              retryCount = 0;
+              retryCount.set(0);
             }
           });
     }

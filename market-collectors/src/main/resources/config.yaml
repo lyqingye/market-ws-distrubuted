@@ -9,7 +9,7 @@ market:
       - binance
 
     huobi:
-      clazz: com.tqxd.jys.collectors.impl.HuoBiKlineCollector
+      clazz: com.tqxd.jys.collectors.impl.huobi.HuoBiKlineCollector
       config:
         host: api.huobiasia.vip
         path: /ws

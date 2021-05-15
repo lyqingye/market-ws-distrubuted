@@ -2,8 +2,8 @@ package com.tqxd.jys.collectors.openapi;
 
 import com.tqxd.jys.collectors.impl.Collector;
 import com.tqxd.jys.collectors.impl.DataReceiver;
-import com.tqxd.jys.collectors.impl.HuoBiKlineCollector;
 import com.tqxd.jys.collectors.impl.binance.BiNanceCollector;
+import com.tqxd.jys.collectors.impl.huobi.HuoBiKlineCollector;
 import com.tqxd.jys.constance.DataType;
 import com.tqxd.jys.messagebus.MessageBus;
 import com.tqxd.jys.messagebus.topic.Topic;

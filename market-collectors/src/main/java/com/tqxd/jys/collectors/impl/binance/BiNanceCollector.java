@@ -105,9 +105,6 @@ public class BiNanceCollector extends GenericWsCollector {
               }
             }
           }));
-          if (futures.isEmpty()) {
-            return Future.succeededFuture();
-          }
           return CompositeFuture.any(futures);
         })
         .onSuccess(ar -> {

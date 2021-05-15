@@ -1,6 +1,7 @@
-package com.tqxd.jys.collectors.impl;
+package com.tqxd.jys.collectors.impl.huobi;
 
 
+import com.tqxd.jys.collectors.impl.GenericWsCollector;
 import com.tqxd.jys.constance.DataType;
 import com.tqxd.jys.constance.DepthLevel;
 import com.tqxd.jys.constance.Period;
@@ -32,7 +33,6 @@ public class HuoBiKlineCollector extends GenericWsCollector {
    */
   private Map<String, String> symbolDeMapping = new HashMap<>();
 
-
   /**
    * 订阅ID
    */
@@ -61,9 +61,6 @@ public class HuoBiKlineCollector extends GenericWsCollector {
               }
             }
           }));
-          if (futures.isEmpty()) {
-            return Future.succeededFuture();
-          }
           return CompositeFuture.any(futures);
         })
         .onSuccess(ar -> {
@@ -72,7 +69,6 @@ public class HuoBiKlineCollector extends GenericWsCollector {
         })
         .onFailure(startPromise::fail);
   }
-
 
   /**
    * 订阅一个交易对
