@@ -4,6 +4,7 @@ import com.tqxd.jys.websocket.session.Session;
 import com.tqxd.jys.websocket.session.SessionManager;
 import io.vertx.core.AbstractVerticle;
 import io.vertx.core.Promise;
+import io.vertx.core.VertxException;
 import io.vertx.core.http.HttpServer;
 import io.vertx.core.http.HttpServerOptions;
 import org.slf4j.Logger;
@@ -64,7 +65,10 @@ public class ServerEndpointVerticle extends AbstractVerticle {
         }
       });
       client.exceptionHandler(throwable -> {
-        safeRelease(session);
+        // 这种异常会由close handler处理，所以不需要重复处理
+        if (!(throwable instanceof VertxException) || !"Connection was closed".equals(throwable.getMessage())) {
+          safeRelease(session);
+        }
         throwable.printStackTrace();
       });
       client.closeHandler(ignored -> safeRelease(session));
