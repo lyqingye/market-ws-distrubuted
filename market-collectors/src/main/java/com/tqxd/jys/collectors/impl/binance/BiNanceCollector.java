@@ -133,6 +133,7 @@ public class BiNanceCollector extends GenericWsCollector {
           subscribeId = System.currentTimeMillis();
           String biNanceSymbol = toBiNanceSymbol(symbol);
           putSymbolMapping(symbol, biNanceSymbol);
+          log.info("[BiNance]: subscribe: {} {}", dataType, symbol);
           switch (dataType) {
             case KLINE: {
               super.writeText(BiNanceRequestUtils.buildSubscribeKLineReq(subscribeId, biNanceSymbol));
@@ -190,6 +191,7 @@ public class BiNanceCollector extends GenericWsCollector {
     promise.future()
         .onSuccess(none -> {
           String biNanceSymbol = toBiNanceSymbol(symbol);
+          log.info("[BiNance]: unsubscribe: {} {}", dataType, symbol);
           switch (dataType) {
             case KLINE: {
               super.writeText(BiNanceRequestUtils.buildUnSubscribeKLineReq(subscribeId, biNanceSymbol));

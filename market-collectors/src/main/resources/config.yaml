@@ -8,44 +8,44 @@ market:
     enabled:
       - binance
 
-    #    huobi:
-    #      clazz: com.tqxd.jys.collectors.impl.HuoBiKlineCollector
-    #      config:
-    #        host: api.huobiasia.vip
-    #        path: /ws
-    #      subscribe:
-    #        depth:
-    #          - btcusdt
-    #          - ETH-USDT
-    #          - XRP-USDT
-    #          - EOS-USDT
-    #          - DOGE-USDT
-    #          - HT-USDT
-    #          - SHIB-USDT
-    #          - ETC-USDT
-    #          - ICP-USDT
-    #        kline:
-    #          - btcusdt
-    #          - ETH-USDT
-    #          - XRP-USDT
-    #          - EOS-USDT
-    #          - DOGE-USDT
-    #          - HT-USDT
-    #          - SHIB-USDT
-    #          - ETC-USDT
-    #          - ICP-USDT
-    #        trade:
-    #          detail:
-    #            - BTC-USDT
-    #            - BTC-USDT
-    #            - ETH-USDT
-    #            - XRP-USDT
-    #            - EOS-USDT
-    #            - DOGE-USDT
-    #            - HT-USDT
-    #            - SHIB-USDT
-    #            - ETC-USDT
-    #            - ICP-USDT
+    huobi:
+      clazz: com.tqxd.jys.collectors.impl.HuoBiKlineCollector
+      config:
+        host: api.huobiasia.vip
+        path: /ws
+      subscribe:
+        depth:
+          - btcusdt
+          - ETH-USDT
+          - XRP-USDT
+          - EOS-USDT
+          - DOGE-USDT
+          - HT-USDT
+          - SHIB-USDT
+          - ETC-USDT
+          - ICP-USDT
+        kline:
+          - btcusdt
+          - ETH-USDT
+          - XRP-USDT
+          - EOS-USDT
+          - DOGE-USDT
+          - HT-USDT
+          - SHIB-USDT
+          - ETC-USDT
+          - ICP-USDT
+        trade:
+          detail:
+            - BTC-USDT
+            - BTC-USDT
+            - ETH-USDT
+            - XRP-USDT
+            - EOS-USDT
+            - DOGE-USDT
+            - HT-USDT
+            - SHIB-USDT
+            - ETC-USDT
+            - ICP-USDT
 
     binance:
       clazz: com.tqxd.jys.collectors.impl.binance.BiNanceCollector
@@ -60,6 +60,3 @@ market:
       subscribe:
         depth:
           - BTC-USDT
-#        trade:
-#          detail:
-#            - BTC-USDT
