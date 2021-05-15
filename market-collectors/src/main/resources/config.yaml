@@ -7,7 +7,7 @@ market:
           port: 8088
     enabled:
       - binance
-    #      - tqxd
+#      - tqxd
 
     huobi:
       clazz: com.tqxd.jys.collectors.impl.huobi.HuoBiKlineCollector
@@ -61,6 +61,7 @@ market:
       subscribe:
         depth:
           - BTC-USDT
+          - ETH-USDT
     tqxd:
       clazz: com.tqxd.jys.collectors.impl.tqxd.TqxdCollector
       config:

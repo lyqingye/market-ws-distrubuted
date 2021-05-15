@@ -11,7 +11,6 @@ import com.tqxd.jys.openapi.payload.CollectorStatusDto;
 import io.vertx.core.*;
 import io.vertx.core.eventbus.MessageConsumer;
 import io.vertx.core.json.JsonObject;
-import io.vertx.ext.web.RoutingContext;
 import io.vertx.serviceproxy.ServiceBinder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -122,18 +121,16 @@ public class CollectorsApplication extends AbstractVerticle {
     }
 
     CompositeFuture.any(collectorsFutures)
-        .compose(none -> vertx.deployVerticle(new CollectorOpenApiHttpEndpoint(openService),
-            new DeploymentOptions().setConfig(jsonGetValue(config(), OPEN_API_HTTP_ENDPOINT_CONFIG, JsonObject.class)))
-        )
-        .onSuccess(ignored -> {
-          log.info("[Collectors]: all collector deploy success!");
-          promise.complete();
-        })
-        .onFailure(Throwable::printStackTrace);
-  }
-
-  public void handlerHello(RoutingContext ctx) {
-    ///
-
+      .compose(none -> vertx.deployVerticle(new CollectorOpenApiHttpEndpoint(openService),
+        new DeploymentOptions().setConfig(jsonGetValue(config(), OPEN_API_HTTP_ENDPOINT_CONFIG, JsonObject.class)))
+      )
+      .onSuccess(ignored -> {
+        log.info("[Collectors]: all collector deploy success!");
+        promise.complete();
+      })
+      .onFailure(throwable -> {
+        log.error("[Collectors]: all collector deploy fail! cause by: {}", throwable.getMessage());
+        throwable.printStackTrace();
+      });
   }
 }

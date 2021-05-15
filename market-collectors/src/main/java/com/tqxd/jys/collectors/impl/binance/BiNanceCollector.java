@@ -152,10 +152,15 @@ public class BiNanceCollector extends GenericWsCollector {
   }
 
   private void subscribeDepth(String symbol, Handler<AsyncResult<Void>> handler) {
+    synchronized (this) {
+      if (depthCollectorVerticleMap.containsKey(symbol)) {
+        return;
+      }
+    }
     JsonObject cfg = new JsonObject()
-        .put(HTTP_CLIENT_OPTIONS_PARAM, config().getValue(HTTP_CLIENT_OPTIONS_PARAM))
-        .put(WS_REQUEST_PATH_PARAM, "/ws/" + toBiNanceSymbol(symbol) + "@depth20@1000ms")
-        .put(IDLE_TIME_OUT, 5000);
+      .put(HTTP_CLIENT_OPTIONS_PARAM, config().getValue(HTTP_CLIENT_OPTIONS_PARAM))
+      .put(WS_REQUEST_PATH_PARAM, "/ws/" + toBiNanceSymbol(symbol) + "@depth20@1000ms")
+      .put(IDLE_TIME_OUT, 5000);
     BiNanceDepthCollector biNanceDepthCollector = new BiNanceDepthCollector(cfg);
     BiNanceCollector that = this;
     biNanceDepthCollector.addDataReceiver(new DataReceiver() {

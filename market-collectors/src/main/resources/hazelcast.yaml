@@ -3,17 +3,11 @@ hazelcast:
   management-center:
     scripting-enabled: false
   network:
-    interfaces:
-      enabled: true
-      interfaces:
-        - 192.168.2.94
     join:
       multicast:
         enabled: false
       tcp-ip:
         enabled: true
         member-list:
-          - 192.168.2.94:5701
-          - 192.168.2.94:5702
-          - 192.168.2.94:5703
+          - localhost:5702
 

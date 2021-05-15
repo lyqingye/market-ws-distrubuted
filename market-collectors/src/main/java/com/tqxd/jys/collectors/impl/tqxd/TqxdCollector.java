@@ -128,8 +128,9 @@ public class TqxdCollector extends BasicCollector {
               deployCollector(dataType, symbol, null, new TqxdTradeDetailCollector(this.createConfig(symbol, null)), handler);
               break;
             }
+            default:
+              handler.handle(Future.failedFuture("[tqxd]: unknown data type for: " + dataType));
           }
-          handler.handle(Future.failedFuture("[tqxd]: unknown data type for: " + dataType));
         })
         .onFailure(throwable -> handler.handle(Future.failedFuture(throwable)));
   }
