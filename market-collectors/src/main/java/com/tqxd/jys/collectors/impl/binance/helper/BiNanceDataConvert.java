@@ -38,7 +38,6 @@ public class BiNanceDataConvert {
   private static final String EVENT_KEY = "e";
   private static final String SYMBOL_KEY = "s";
 
-
   public static void smartConvertTo(JsonObject obj, Function<String, String> deMappingFunc, BiConsumer<DataType, JsonObject> consumer) {
     String eventType = obj.getString(EVENT_KEY);
     if (KLINE_EVENT.equalsIgnoreCase(eventType)) {
@@ -55,7 +54,6 @@ public class BiNanceDataConvert {
   }
 
   public static JsonObject convertToTradeDetail(JsonObject obj, Function<String, String> deMappingFunc) {
-    String eventType = obj.getString(EVENT_KEY);
     String symbol = obj.getString(SYMBOL_KEY).toLowerCase();
     TradeDetailTickData tick = new TradeDetailTickData();
     tick.setTradeId(String.valueOf(obj.getLong("t")));
@@ -71,7 +69,6 @@ public class BiNanceDataConvert {
   }
 
   public static JsonObject convertToKLine(JsonObject obj, Function<String, String> deMappingFunc) {
-    String kline = obj.getString(EVENT_KEY);
     String symbol = obj.getString(SYMBOL_KEY).toLowerCase();
     JsonObject k = obj.getJsonObject("k");
     KlineTick tick = new KlineTick();
@@ -103,13 +100,12 @@ public class BiNanceDataConvert {
     return JsonObject.mapFrom(TemplatePayload.of(ch, depthTick));
   }
 
-  @SuppressWarnings("unchecked")
+  @SuppressWarnings({"unchecked", "rawtypes"})
   private static String[][] parseBidsOrAsks(JsonArray bidsOrAsks) {
     if (bidsOrAsks == null || bidsOrAsks.isEmpty()) {
       return null;
     }
     String[][] result = new String[bidsOrAsks.size()][2];
-
     List list = bidsOrAsks.getList();
     for (int i = 0; i < list.size(); i++) {
       ArrayList<String> bidOrAsk = (ArrayList<String>) list.get(i);

@@ -1,5 +1,4 @@
 market:
-
   collectors:
     api:
       endpoint:
@@ -7,42 +6,60 @@ market:
           host: 0.0.0.0
           port: 8088
     enabled:
-      - huobi
-    huobi:
-      clazz: com.tqxd.jys.collectors.impl.HuoBiKlineCollector
+      - binance
+
+    #    huobi:
+    #      clazz: com.tqxd.jys.collectors.impl.HuoBiKlineCollector
+    #      config:
+    #        host: api.huobiasia.vip
+    #        path: /ws
+    #      subscribe:
+    #        depth:
+    #          - btcusdt
+    #          - ETH-USDT
+    #          - XRP-USDT
+    #          - EOS-USDT
+    #          - DOGE-USDT
+    #          - HT-USDT
+    #          - SHIB-USDT
+    #          - ETC-USDT
+    #          - ICP-USDT
+    #        kline:
+    #          - btcusdt
+    #          - ETH-USDT
+    #          - XRP-USDT
+    #          - EOS-USDT
+    #          - DOGE-USDT
+    #          - HT-USDT
+    #          - SHIB-USDT
+    #          - ETC-USDT
+    #          - ICP-USDT
+    #        trade:
+    #          detail:
+    #            - BTC-USDT
+    #            - BTC-USDT
+    #            - ETH-USDT
+    #            - XRP-USDT
+    #            - EOS-USDT
+    #            - DOGE-USDT
+    #            - HT-USDT
+    #            - SHIB-USDT
+    #            - ETC-USDT
+    #            - ICP-USDT
+
+    binance:
+      clazz: com.tqxd.jys.collectors.impl.binance.BiNanceCollector
       config:
-        host: api.huobiasia.vip
+        proxy:
+          switch: true
+          host: 127.0.0.1
+          port: 1080
+        host: stream.binance.com
+        port: 9443
         path: /ws
       subscribe:
         depth:
-          - btcusdt
-          - ETH-USDT
-          - XRP-USDT
-          - EOS-USDT
-          - DOGE-USDT
-          - HT-USDT
-          - SHIB-USDT
-          - ETC-USDT
-          - ICP-USDT
-        kline:
-          - btcusdt
-          - ETH-USDT
-          - XRP-USDT
-          - EOS-USDT
-          - DOGE-USDT
-          - HT-USDT
-          - SHIB-USDT
-          - ETC-USDT
-          - ICP-USDT
-        trade:
-          detail:
-            - BTC-USDT
-            - BTC-USDT
-            - ETH-USDT
-            - XRP-USDT
-            - EOS-USDT
-            - DOGE-USDT
-            - HT-USDT
-            - SHIB-USDT
-            - ETC-USDT
-            - ICP-USDT
+          - BTC-USDT
+#        trade:
+#          detail:
+#            - BTC-USDT
