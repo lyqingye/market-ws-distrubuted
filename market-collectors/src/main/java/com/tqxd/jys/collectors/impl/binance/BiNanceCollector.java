@@ -37,16 +37,18 @@ import static com.tqxd.jys.utils.VertxUtil.jsonGetValue;
  * <p>
  * 币安收集器配置为:
  * <p>
+ * <pre>
  * binance:
- * clazz: com.tqxd.jys.collectors.impl.binance.BiNanceCollector
- * config:
- * proxy:
- * switch: true
- * host: 127.0.0.1
- * port: 4780
- * host: stream.binance.com
- * port: 9443
- * path: /ws
+ *   clazz: com.tqxd.jys.collectors.impl.binance.BiNanceCollector
+ *   config:
+ *     proxy:
+ *       switch: true
+ *       host: 127.0.0.1
+ *       port: 4780
+ *     host: stream.binance.com
+ *     port: 9443
+ *     path: /ws
+ * </pre>
  * <p>
  * proxy.switch 为代理的开关，如果是true则说明需要走代理，false 为不走代理
  * <p>
