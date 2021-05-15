@@ -42,8 +42,8 @@ public class TqxdTradeDetailCollector extends GenericWsCollector {
     Promise<Void> promise = Promise.promise();
     super.start(promise);
     promise.future()
-        .compose(none -> this.subscribe(DataType.TRADE_DETAIL, config.getString(TqxdCollector.SYMBOL_CONFIG)))
-        .onComplete(startPromise);
+      .compose(none -> this.subscribe(DataType.TRADE_DETAIL, config.getString(TqxdCollector.SYMBOL_CONFIG)))
+      .onComplete(startPromise);
   }
 
   @Override

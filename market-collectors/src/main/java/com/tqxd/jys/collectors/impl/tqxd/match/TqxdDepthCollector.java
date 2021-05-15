@@ -30,8 +30,8 @@ public class TqxdDepthCollector extends GenericWsCollector {
     Promise<Void> promise = Promise.promise();
     super.start(promise);
     promise.future()
-        .compose(none -> this.subscribe(DataType.DEPTH, config.getString(TqxdCollector.SYMBOL_CONFIG)))
-        .onComplete(startPromise);
+      .compose(none -> this.subscribe(DataType.DEPTH, config.getString(TqxdCollector.SYMBOL_CONFIG)))
+      .onComplete(startPromise);
   }
 
   @Override
@@ -54,11 +54,11 @@ public class TqxdDepthCollector extends GenericWsCollector {
     Promise<Void> promise = Promise.promise();
     super.subscribe(dataType, symbol, promise);
     promise.future()
-        .onSuccess(none -> {
-          super.writeText(TqxdRequestUtils.buildSubscribeDepthReq(System.currentTimeMillis() / 1000, TqxdRequestUtils.toTqxdSymbol(symbol), 20, DepthLevel.step0));
-          handler.handle(Future.succeededFuture());
-        })
-        .onFailure(throwable -> handler.handle(Future.failedFuture(throwable)));
+      .onSuccess(none -> {
+        super.writeText(TqxdRequestUtils.buildSubscribeDepthReq(System.currentTimeMillis() / 1000, TqxdRequestUtils.toTqxdSymbol(symbol), 20, DepthLevel.step0));
+        handler.handle(Future.succeededFuture());
+      })
+      .onFailure(throwable -> handler.handle(Future.failedFuture(throwable)));
   }
 
   @Override

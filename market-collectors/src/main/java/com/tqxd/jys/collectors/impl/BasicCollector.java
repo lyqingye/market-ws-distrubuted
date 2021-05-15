@@ -20,8 +20,8 @@ public abstract class BasicCollector extends AbstractVerticle implements Collect
   @Override
   public synchronized void restart(Handler<AsyncResult<Void>> handler) {
     stopFuture()
-        .compose(none -> startFuture())
-        .onComplete(handler);
+      .compose(none -> startFuture())
+      .onComplete(handler);
   }
 
   @Override

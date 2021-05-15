@@ -15,6 +15,9 @@ import io.vertx.core.json.JsonObject;
 import java.math.BigDecimal;
 import java.util.Collections;
 
+/**
+ * TODO
+ */
 public class TqxdDataConvert {
 
     public static JsonObject trade(JsonObject obj, String reqSymbol) {
@@ -33,7 +36,7 @@ public class TqxdDataConvert {
         return JsonObject.mapFrom(TemplatePayload.of(ch, tickList));
     }
 
-    public static JsonObject kline(JsonObject obj,String reqSymbol) {
+    public static JsonObject kline(JsonObject obj, String reqSymbol) {
         String kline = obj.getString("e");
         String symbol = obj.getString("s");
         JsonObject k = obj.getJsonObject("k");
@@ -48,14 +51,14 @@ public class TqxdDataConvert {
         tick.setVol(new BigDecimal(k.getString("Q")));
         String biAnPeriod = k.getString("i");
         Period period = BiAnPeriod.containsSymbol(biAnPeriod);
-        if(null == period){
+        if (null == period) {
             return null;
         }
         String ch = ChannelUtil.buildKLineTickChannel(reqSymbol, period);
         return JsonObject.mapFrom(TemplatePayload.of(ch, tick));
     }
 
-    public static JsonObject depth(JsonObject obj,String symbol) {
+    public static JsonObject depth(JsonObject obj, String symbol) {
         Long lastUpdateId = obj.getLong("lastUpdateId");
         JsonArray bids = obj.getJsonArray("bids");
         JsonArray asks = obj.getJsonArray("asks");

@@ -40,10 +40,9 @@ public abstract class GenericWsCollector extends BasicCollector {
     idleCheckerExecutor = Executors.newSingleThreadScheduledExecutor(threadFactory);
   }
 
+  private final long checkTime = TimeUnit.SECONDS.toMillis(5);
   private volatile boolean isRunning;
   private volatile WebSocket webSocket;
-
-  private final long checkTime = TimeUnit.SECONDS.toMillis(5);
   private long idleTime;
   private volatile long lastReceiveTimestamp;
   private volatile long lastCheckTime = 0;

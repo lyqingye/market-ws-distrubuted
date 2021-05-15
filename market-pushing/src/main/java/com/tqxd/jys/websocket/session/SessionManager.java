@@ -7,10 +7,11 @@ import org.jctools.queues.MpmcArrayQueue;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Consumer;
 import java.util.function.Predicate;
 
@@ -22,25 +23,24 @@ import java.util.function.Predicate;
 public class SessionManager {
   private static final Logger log = LoggerFactory.getLogger(ServerEndpointVerticle.class);
   private static final long SESSION_CLEAR_TIMER = 1000;
-  private final int capacity;
-  private final Object[] objects; // must have exact type Object[]
   private static final SessionManager INSTANCE = new SessionManager(1 << 14);
-  private AtomicInteger usedCounter = new AtomicInteger(0);
-
   //
   // bitmap helper
   //
   // 2 ^ 6 = 64 = 8bit * sizeof(long) = 8bit * 8byte = 64
   private final static int ADDRESS_BITS_PER_WORD = 6;
-
+  private final int capacity;
+  private final Object[] objects; // must have exact type Object[]
+  private AtomicInteger usedCounter = new AtomicInteger(0);
   //
   // channel -> bitmap
   //
-  private Map<String, long[]> partition = new HashMap<>();
+  private AtomicLong bitmapVersion = new AtomicLong(0);
+  private Map<String, long[]> partition = new ConcurrentHashMap<>();
   private MpmcArrayQueue<Integer> freeQueue;
 
   public SessionManager(int capacity) {
-    if (capacity < 64 || capacity %8 != 0) {
+    if (capacity < 64 || capacity % 8 != 0) {
       throw new IllegalArgumentException("capacity must be >= 64 && capacity % 8 == 0");
     }
     this.capacity = capacity;
@@ -100,7 +100,7 @@ public class SessionManager {
       if (id != null) {
         session = getById(id);
         if (session != null && session.tryToUse()) {
-          log.info("[SessionMgr]: allocate session: {}! current number of online session is: {}",session.id(),usedCounter.incrementAndGet());
+          log.info("[SessionMgr]: allocate session: {}! current number of online session is: {}", session.id(), usedCounter.incrementAndGet());
           return session;
         }
       }
@@ -111,12 +111,11 @@ public class SessionManager {
   public boolean release(Session session) {
     if (session.tryToFree()) {
       freeQueue.offer(session.id());
-      log.info("[SessionMgr]: release session: {}! current number of online session is: {}",session.id(),usedCounter.decrementAndGet());
+      log.info("[SessionMgr]: release session: {}! current number of online session is: {}", session.id(), usedCounter.decrementAndGet());
       return true;
     }
     return false;
   }
-
 
 
   public void broadcast(Buffer buffer) {
@@ -176,7 +175,7 @@ public class SessionManager {
   //
   // partition helper functions
   //
-  public void foreachSessionByChannel (String ch, Consumer<Session> consumer) {
+  public void foreachSessionByChannel(String ch, Consumer<Session> consumer) {
     long[] bitmap = selectPartition(ch);
     int count = capacity >> ADDRESS_BITS_PER_WORD;
     for (int i = 0; i < count; i++) {
@@ -197,33 +196,44 @@ public class SessionManager {
     }
   }
 
-  public void removeSessionSubscribedAllChannels (Session session) {
-    if(session == null)
-      return;
-    int id = session.id();
-    for (long[] bitmap : partition.values()) {
-      bitmap[id >> ADDRESS_BITS_PER_WORD] &= ~(1L << id);
-    }
+  public void removeSessionSubscribedAllChannels(Session session) {
+    long currentVersion;
+    do {
+      currentVersion = bitmapVersion.get();
+      if (session == null)
+        return;
+      int id = session.id();
+      for (long[] bitmap : partition.values()) {
+        bitmap[id >> ADDRESS_BITS_PER_WORD] &= ~(1L << id);
+      }
+    } while (!bitmapVersion.compareAndSet(currentVersion, currentVersion + 1));
   }
 
-  public boolean subscribeChannel (Session session, String ch){
-    long[] bitmap = partition.get(ch);
-    if (bitmap == null) {
-      return false;
-    }
-    int id = session.id();
-    bitmap[id >> ADDRESS_BITS_PER_WORD] |= (1L << id);
+  public boolean subscribeChannel(Session session, String ch) {
+    long currentVersion;
+    do {
+      currentVersion = bitmapVersion.get();
+      long[] bitmap = partition.get(ch);
+      if (bitmap == null) {
+        return false;
+      }
+      int id = session.id();
+      bitmap[id >> ADDRESS_BITS_PER_WORD] |= (1L << id);
+    } while (!bitmapVersion.compareAndSet(currentVersion, currentVersion + 1));
     return true;
   }
 
   public boolean unSubscribeChannel(Session session, String ch) {
-    long[] bitmap = partition.get(ch);
-    if (bitmap == null) {
-      return false;
-    }
-
-    int id = session.id();
-    bitmap[id >> ADDRESS_BITS_PER_WORD] &= ~(1L << id);
+    long currentVersion;
+    do {
+      currentVersion = bitmapVersion.get();
+      long[] bitmap = partition.get(ch);
+      if (bitmap == null) {
+        return false;
+      }
+      int id = session.id();
+      bitmap[id >> ADDRESS_BITS_PER_WORD] &= ~(1L << id);
+    } while (!bitmapVersion.compareAndSet(currentVersion, currentVersion + 1));
     return true;
   }
 

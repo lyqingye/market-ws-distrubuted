@@ -52,22 +52,22 @@ public class HuoBiKlineCollector extends GenericWsCollector {
     Promise<Void> promise = Promise.promise();
     super.start(promise);
     promise.future()
-        .compose(none -> {
-          List<Future> futures = new ArrayList<>();
-          super.listSubscribedInfo().forEach(((collectDataType, symbols) -> {
-            if (symbols != null) {
-              for (String symbol : symbols) {
-                futures.add(this.subscribe(collectDataType, symbol));
-              }
+      .compose(none -> {
+        List<Future> futures = new ArrayList<>();
+        super.listSubscribedInfo().forEach(((collectDataType, symbols) -> {
+          if (symbols != null) {
+            for (String symbol : symbols) {
+              futures.add(this.subscribe(collectDataType, symbol));
             }
-          }));
-          return CompositeFuture.any(futures);
-        })
-        .onSuccess(ar -> {
-          log.info("[HuoBi]: start success!");
-          startPromise.complete();
-        })
-        .onFailure(startPromise::fail);
+          }
+        }));
+        return CompositeFuture.any(futures);
+      })
+      .onSuccess(ar -> {
+        log.info("[HuoBi]: start success!");
+        startPromise.complete();
+      })
+      .onFailure(startPromise::fail);
   }
 
   /**
@@ -82,46 +82,46 @@ public class HuoBiKlineCollector extends GenericWsCollector {
     Promise<Void> promise = Promise.promise();
     super.subscribe(dataType, symbol, promise);
     promise.future()
-        .onSuccess(none -> {
-          String id = subIdPrefix + symbol;
-          String sub = null;
-          JsonObject json = new JsonObject();
-          json.put("id", id);
-          switch (dataType) {
-            case KLINE: {
-              // 只订阅 1min的交易
-              for (Period period : Period.values()) {
-                sub = HuoBiUtils.toKlineSub(toGenericSymbol(symbol), period);
-                symbolDeMapping.put(sub, HuoBiUtils.toKlineSub(symbol, period));
-                json.put("sub", sub);
-                super.writeText(json.toString());
-                log.info("[HuoBi]: subscribe: {}", sub);
-              }
-              break;
-            }
-            case DEPTH: {
-              // 只订阅深度为0的
-              sub = HuoBiUtils.toDepthSub(toGenericSymbol(symbol), DepthLevel.step0);
-              symbolDeMapping.put(sub, HuoBiUtils.toDepthSub(symbol, DepthLevel.step0));
+      .onSuccess(none -> {
+        String id = subIdPrefix + symbol;
+        String sub = null;
+        JsonObject json = new JsonObject();
+        json.put("id", id);
+        switch (dataType) {
+          case KLINE: {
+            // 只订阅 1min的交易
+            for (Period period : Period.values()) {
+              sub = HuoBiUtils.toKlineSub(toGenericSymbol(symbol), period);
+              symbolDeMapping.put(sub, HuoBiUtils.toKlineSub(symbol, period));
               json.put("sub", sub);
               super.writeText(json.toString());
               log.info("[HuoBi]: subscribe: {}", sub);
-              break;
             }
-            case TRADE_DETAIL: {
-              sub = HuoBiUtils.toTradeDetailSub(toGenericSymbol(symbol));
-              symbolDeMapping.put(sub, HuoBiUtils.toTradeDetailSub(symbol));
-              json.put("sub", sub);
-              super.writeText(json.toString());
-              log.info("[HuoBi]: subscribe: {}", sub);
-              break;
-            }
+            break;
           }
-          handler.handle(Future.succeededFuture());
-        })
-        .onFailure(throwable -> {
-          handler.handle(Future.failedFuture(throwable));
-        });
+          case DEPTH: {
+            // 只订阅深度为0的
+            sub = HuoBiUtils.toDepthSub(toGenericSymbol(symbol), DepthLevel.step0);
+            symbolDeMapping.put(sub, HuoBiUtils.toDepthSub(symbol, DepthLevel.step0));
+            json.put("sub", sub);
+            super.writeText(json.toString());
+            log.info("[HuoBi]: subscribe: {}", sub);
+            break;
+          }
+          case TRADE_DETAIL: {
+            sub = HuoBiUtils.toTradeDetailSub(toGenericSymbol(symbol));
+            symbolDeMapping.put(sub, HuoBiUtils.toTradeDetailSub(symbol));
+            json.put("sub", sub);
+            super.writeText(json.toString());
+            log.info("[HuoBi]: subscribe: {}", sub);
+            break;
+          }
+        }
+        handler.handle(Future.succeededFuture());
+      })
+      .onFailure(throwable -> {
+        handler.handle(Future.failedFuture(throwable));
+      });
   }
 
   /**
@@ -136,46 +136,46 @@ public class HuoBiKlineCollector extends GenericWsCollector {
     Promise<Void> promise = Promise.promise();
     super.unSubscribe(dataType, symbol, promise);
     promise.future()
-        .onSuccess(none -> {
-          String id = subIdPrefix + symbol;
-          String unsub = null;
-          JsonObject json = new JsonObject();
-          json.put("id", id);
-          switch (dataType) {
-            case KLINE: {
-              // 只订阅 1min的交易
-              for (Period period : Period.values()) {
-                unsub = HuoBiUtils.toKlineSub(toGenericSymbol(symbol), period);
-                symbolDeMapping.put(unsub, HuoBiUtils.toKlineSub(symbol, period));
-                json.put("unsub", unsub);
-                log.info("[HuoBi]: unsubscribe: {}", unsub);
-                super.writeText(json.toString());
-              }
-              break;
-            }
-            case DEPTH: {
-              // 只订阅深度为0的
-              unsub = HuoBiUtils.toDepthSub(toGenericSymbol(symbol), DepthLevel.step0);
-              symbolDeMapping.put(unsub, HuoBiUtils.toDepthSub(symbol, DepthLevel.step0));
+      .onSuccess(none -> {
+        String id = subIdPrefix + symbol;
+        String unsub = null;
+        JsonObject json = new JsonObject();
+        json.put("id", id);
+        switch (dataType) {
+          case KLINE: {
+            // 只订阅 1min的交易
+            for (Period period : Period.values()) {
+              unsub = HuoBiUtils.toKlineSub(toGenericSymbol(symbol), period);
+              symbolDeMapping.put(unsub, HuoBiUtils.toKlineSub(symbol, period));
               json.put("unsub", unsub);
               log.info("[HuoBi]: unsubscribe: {}", unsub);
               super.writeText(json.toString());
-              break;
             }
-            case TRADE_DETAIL: {
-              unsub = HuoBiUtils.toTradeDetailSub(toGenericSymbol(symbol));
-              symbolDeMapping.put(unsub, HuoBiUtils.toTradeDetailSub(symbol));
-              json.put("unsub", unsub);
-              log.info("[HuoBi]: unsubscribe: {}", unsub);
-              super.writeText(json.toString());
-              break;
-            }
+            break;
           }
-          handler.handle(Future.succeededFuture());
-        })
-        .onFailure(throwable -> {
-          handler.handle(Future.failedFuture(throwable));
-        });
+          case DEPTH: {
+            // 只订阅深度为0的
+            unsub = HuoBiUtils.toDepthSub(toGenericSymbol(symbol), DepthLevel.step0);
+            symbolDeMapping.put(unsub, HuoBiUtils.toDepthSub(symbol, DepthLevel.step0));
+            json.put("unsub", unsub);
+            log.info("[HuoBi]: unsubscribe: {}", unsub);
+            super.writeText(json.toString());
+            break;
+          }
+          case TRADE_DETAIL: {
+            unsub = HuoBiUtils.toTradeDetailSub(toGenericSymbol(symbol));
+            symbolDeMapping.put(unsub, HuoBiUtils.toTradeDetailSub(symbol));
+            json.put("unsub", unsub);
+            log.info("[HuoBi]: unsubscribe: {}", unsub);
+            super.writeText(json.toString());
+            break;
+          }
+        }
+        handler.handle(Future.succeededFuture());
+      })
+      .onFailure(throwable -> {
+        handler.handle(Future.failedFuture(throwable));
+      });
   }
 
   @Override
@@ -247,7 +247,7 @@ public class HuoBiKlineCollector extends GenericWsCollector {
 
   private String toGenericSymbol(String symbol) {
     return symbol.replace("-", "")
-        .replace("/", "")
-        .toLowerCase();
+      .replace("/", "")
+      .toLowerCase();
   }
 }

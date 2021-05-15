@@ -61,7 +61,6 @@ public class RequestDispatcher {
           return;
         }
       }
-
     } else if (sub != null) {
       for (int i = 0; i < numOfProcessor; i++) {
         if (PROCESSORS[i].doSubIfChannelMatched(sub, session, jsonObj)) {

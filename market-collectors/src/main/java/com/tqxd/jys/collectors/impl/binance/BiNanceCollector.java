@@ -85,8 +85,8 @@ public class BiNanceCollector extends GenericWsCollector {
     String proxyHost = jsonGetValue(config(), "proxy.host", String.class);
     Integer proxyPort = jsonGetValue(config(), "proxy.port", Integer.class);
     HttpClientOptions httpClientOptions = new HttpClientOptions().setSsl(true)
-        .setDefaultHost(config().getString("host"))
-        .setDefaultPort(config().getInteger("port"));
+      .setDefaultHost(config().getString("host"))
+      .setDefaultPort(config().getInteger("port"));
     if (proxySwitch) {
       httpClientOptions.setProxyOptions(new ProxyOptions().setHost(proxyHost).setPort(proxyPort).setType(ProxyType.HTTP));
     }
@@ -96,22 +96,22 @@ public class BiNanceCollector extends GenericWsCollector {
     Promise<Void> promise = Promise.promise();
     super.start(promise);
     promise.future()
-        .compose(none -> {
-          List<Future> futures = new ArrayList<>();
-          super.listSubscribedInfo().forEach(((collectDataType, symbols) -> {
-            if (symbols != null) {
-              for (String symbol : symbols) {
-                futures.add(this.subscribe(collectDataType, symbol));
-              }
+      .compose(none -> {
+        List<Future> futures = new ArrayList<>();
+        super.listSubscribedInfo().forEach(((collectDataType, symbols) -> {
+          if (symbols != null) {
+            for (String symbol : symbols) {
+              futures.add(this.subscribe(collectDataType, symbol));
             }
-          }));
-          return CompositeFuture.any(futures);
-        })
-        .onSuccess(ar -> {
-          log.info("[BiNance]: start success!");
-          startPromise.complete();
-        })
-        .onFailure(startPromise::fail);
+          }
+        }));
+        return CompositeFuture.any(futures);
+      })
+      .onSuccess(ar -> {
+        log.info("[BiNance]: start success!");
+        startPromise.complete();
+      })
+      .onFailure(startPromise::fail);
   }
 
   /**
@@ -126,29 +126,29 @@ public class BiNanceCollector extends GenericWsCollector {
     Promise<Void> promise = Promise.promise();
     super.subscribe(dataType, symbol, promise);
     promise.future()
-        .onSuccess(none -> {
-          subscribeId = System.currentTimeMillis();
-          String biNanceSymbol = toBiNanceSymbol(symbol);
-          putSymbolMapping(symbol, biNanceSymbol);
-          log.info("[BiNance]: subscribe: {} {}", dataType, symbol);
-          switch (dataType) {
-            case KLINE: {
-              super.writeText(BiNanceRequestUtils.buildSubscribeKLineReq(subscribeId, biNanceSymbol));
-              handler.handle(Future.succeededFuture());
-              break;
-            }
-            case TRADE_DETAIL: {
-              super.writeText(BiNanceRequestUtils.buildSubscribeTradeDetailReq(subscribeId, biNanceSymbol));
-              handler.handle(Future.succeededFuture());
-              break;
-            }
-            case DEPTH: {
-              this.subscribeDepth(symbol, handler);
-              break;
-            }
+      .onSuccess(none -> {
+        subscribeId = System.currentTimeMillis();
+        String biNanceSymbol = toBiNanceSymbol(symbol);
+        putSymbolMapping(symbol, biNanceSymbol);
+        log.info("[BiNance]: subscribe: {} {}", dataType, symbol);
+        switch (dataType) {
+          case KLINE: {
+            super.writeText(BiNanceRequestUtils.buildSubscribeKLineReq(subscribeId, biNanceSymbol));
+            handler.handle(Future.succeededFuture());
+            break;
           }
-        })
-        .onFailure(throwable -> handler.handle(Future.failedFuture(throwable)));
+          case TRADE_DETAIL: {
+            super.writeText(BiNanceRequestUtils.buildSubscribeTradeDetailReq(subscribeId, biNanceSymbol));
+            handler.handle(Future.succeededFuture());
+            break;
+          }
+          case DEPTH: {
+            this.subscribeDepth(symbol, handler);
+            break;
+          }
+        }
+      })
+      .onFailure(throwable -> handler.handle(Future.failedFuture(throwable)));
   }
 
   private void subscribeDepth(String symbol, Handler<AsyncResult<Void>> handler) {
@@ -191,39 +191,39 @@ public class BiNanceCollector extends GenericWsCollector {
     Promise<Void> promise = Promise.promise();
     super.unSubscribe(dataType, symbol, promise);
     promise.future()
-        .onSuccess(none -> {
-          String biNanceSymbol = toBiNanceSymbol(symbol);
-          log.info("[BiNance]: unsubscribe: {} {}", dataType, symbol);
-          switch (dataType) {
-            case KLINE: {
-              super.writeText(BiNanceRequestUtils.buildUnSubscribeKLineReq(subscribeId, biNanceSymbol));
-              handler.handle(Future.succeededFuture());
-              break;
-            }
-            case TRADE_DETAIL: {
-              super.writeText(BiNanceRequestUtils.buildUnSubscribeTradeDetailReq(subscribeId, biNanceSymbol));
-              handler.handle(Future.succeededFuture());
-              break;
-            }
-            case DEPTH: {
-              String deployedId = depthCollectorVerticleMap.get(symbol);
-              if (deployedId != null) {
-                vertx.undeploy(deployedId, ar -> {
-                  if (ar.succeeded()) {
-                    depthCollectorVerticleMap.remove(symbol);
-                    handler.handle(Future.succeededFuture());
-                  } else {
-                    handler.handle(Future.failedFuture(ar.cause()));
-                  }
-                });
-              }
-              break;
-            }
+      .onSuccess(none -> {
+        String biNanceSymbol = toBiNanceSymbol(symbol);
+        log.info("[BiNance]: unsubscribe: {} {}", dataType, symbol);
+        switch (dataType) {
+          case KLINE: {
+            super.writeText(BiNanceRequestUtils.buildUnSubscribeKLineReq(subscribeId, biNanceSymbol));
+            handler.handle(Future.succeededFuture());
+            break;
           }
-        })
-        .onFailure(throwable -> {
-          handler.handle(Future.failedFuture(throwable));
-        });
+          case TRADE_DETAIL: {
+            super.writeText(BiNanceRequestUtils.buildUnSubscribeTradeDetailReq(subscribeId, biNanceSymbol));
+            handler.handle(Future.succeededFuture());
+            break;
+          }
+          case DEPTH: {
+            String deployedId = depthCollectorVerticleMap.get(symbol);
+            if (deployedId != null) {
+              vertx.undeploy(deployedId, ar -> {
+                if (ar.succeeded()) {
+                  depthCollectorVerticleMap.remove(symbol);
+                  handler.handle(Future.succeededFuture());
+                } else {
+                  handler.handle(Future.failedFuture(ar.cause()));
+                }
+              });
+            }
+            break;
+          }
+        }
+      })
+      .onFailure(throwable -> {
+        handler.handle(Future.failedFuture(throwable));
+      });
   }
 
   @Override
@@ -266,7 +266,7 @@ public class BiNanceCollector extends GenericWsCollector {
 
   private String toBiNanceSymbol(String symbol) {
     return symbol.replace("-", "")
-        .replace("/", "")
-        .toLowerCase();
+      .replace("/", "")
+      .toLowerCase();
   }
 }

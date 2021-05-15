@@ -32,42 +32,42 @@ public class Run {
     Vertx vertx = Vertx.vertx(vertxOptions);
     vertx.createHttpClient(new HttpClientOptions().setDefaultHost("market-pre.sgpexchange.com"))
 
-        .webSocket("/", ar -> {
-          WebSocket websocket = ar.result();
+      .webSocket("/", ar -> {
+        WebSocket websocket = ar.result();
 
-          if (ar.failed()) {
-            ar.cause().printStackTrace();
-          } else {
-            websocket.writeTextMessage("{ \"method\":\"kline.subscribe\", \"id\":1, \"params\":[ \"AITDUSDT\", 60 ] }");
-            websocket.frameHandler(frame -> {
-              if (frame.isText()) {
-                System.out.println(frame.textData());
+        if (ar.failed()) {
+          ar.cause().printStackTrace();
+        } else {
+          websocket.writeTextMessage("{ \"method\":\"kline.subscribe\", \"id\":1, \"params\":[ \"AITDUSDT\", 60 ] }");
+          websocket.frameHandler(frame -> {
+            if (frame.isText()) {
+              System.out.println(frame.textData());
 //                websocket.writePong(Buffer.buffer(String.valueOf(System.currentTimeMillis())));
-              } else if (frame.isBinary()) {
-                System.out.println(frame.binaryData().toJson().toString());
-              } else if (frame.isClose()) {
-                System.out.println("close");
-              } else if (frame.isPing()) {
-                System.out.println("ping: " + frame.textData());
-                websocket.writePong(Buffer.buffer(String.valueOf(System.currentTimeMillis())));
-              } else if (frame.isContinuation()) {
-                System.out.println("continuation");
-              }
-            });
+            } else if (frame.isBinary()) {
+              System.out.println(frame.binaryData().toJson().toString());
+            } else if (frame.isClose()) {
+              System.out.println("close");
+            } else if (frame.isPing()) {
+              System.out.println("ping: " + frame.textData());
+              websocket.writePong(Buffer.buffer(String.valueOf(System.currentTimeMillis())));
+            } else if (frame.isContinuation()) {
+              System.out.println("continuation");
+            }
+          });
 
-            websocket.exceptionHandler(throwable -> {
-              throwable.printStackTrace();
-              System.out.println(new Date());
-            });
-            websocket.endHandler(endAr -> {
-              System.out.println(websocket.textHandlerID() + " end handler");
-            });
+          websocket.exceptionHandler(throwable -> {
+            throwable.printStackTrace();
+            System.out.println(new Date());
+          });
+          websocket.endHandler(endAr -> {
+            System.out.println(websocket.textHandlerID() + " end handler");
+          });
 
-            websocket.closeHandler(closeAr -> {
-              System.out.println(websocket.textHandlerID() + " close handler " + new Date());
-            });
-            System.out.println("success");
-          }
-        });
+          websocket.closeHandler(closeAr -> {
+            System.out.println(websocket.textHandlerID() + " close handler " + new Date());
+          });
+          System.out.println("success");
+        }
+      });
   }
 }
