@@ -1,4 +1,4 @@
-package com.tqxd.jys.collectors.impl.bian;
+package com.tqxd.jys.collectors.impl.binance.sub;
 
 import com.tqxd.jys.collectors.impl.GenericWsCollector;
 import com.tqxd.jys.constance.DataType;
@@ -11,17 +11,21 @@ import org.slf4j.LoggerFactory;
 
 import java.util.Objects;
 
-public class BiAnDepthCollector extends GenericWsCollector {
-    private static final Logger log = LoggerFactory.getLogger(BiAnDepthCollector.class);
+/**
+ * 作为币安子收集器，用于收集深度，之所以这么设计是因为币安深度需要根据路径来订阅
+ * 所以一个订阅对应一个websocket 客户端连接
+ */
+public class BiNanceDepthCollector extends GenericWsCollector {
+    private static final Logger log = LoggerFactory.getLogger(BiNanceDepthCollector.class);
     private JsonObject config;
 
-    public BiAnDepthCollector (JsonObject config) {
+    public BiNanceDepthCollector(JsonObject config) {
         this.config = Objects.requireNonNull(config);
     }
 
     @Override
     public String name() {
-        return BiAnDepthCollector.class.getSimpleName();
+        return BiNanceDepthCollector.class.getSimpleName();
     }
 
     @Override
@@ -36,15 +40,14 @@ public class BiAnDepthCollector extends GenericWsCollector {
 
     @Override
     public void onFrame(WebSocket client, WebSocketFrame frame) {
-        if(frame.isPing()){
-            log.info("[BiAn Depth] ping:{}",frame.textData());
+        if (frame.isPing()) {
+            log.info("[BiNance Depth] ping:{}", frame.textData());
             super.writePong(Buffer.buffer(String.valueOf(System.currentTimeMillis())));
-            return;
-        }
-        if (frame.isText() && frame.isFinal()) {
+        } else if (frame.isText() && frame.isFinal()) {
             JsonObject obj = new JsonObject(frame.textData());
-            unParkReceives(DataType.DEPTH,obj);
-            log.info("[BiAn Depth] subscribe result:{}",frame.textData());
+            unParkReceives(DataType.DEPTH, obj);
+        } else {
+            log.warn("[BiNance Depth] unknown message from: {}, frameType: {} content: {}", this.name(), frame.type().name(), frame.binaryData().toString());
         }
     }
 }

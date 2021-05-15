@@ -1,9 +1,11 @@
 package com.tqxd.jys.collectors.openapi;
 
-import com.tqxd.jys.collectors.impl.*;
+import com.tqxd.jys.collectors.impl.Collector;
+import com.tqxd.jys.collectors.impl.DataReceiver;
+import com.tqxd.jys.collectors.impl.HuoBiKlineCollector;
+import com.tqxd.jys.collectors.impl.binance.BiNanceCollector;
 import com.tqxd.jys.constance.DataType;
 import com.tqxd.jys.messagebus.MessageBus;
-import com.tqxd.jys.messagebus.payload.Message;
 import com.tqxd.jys.messagebus.topic.Topic;
 import com.tqxd.jys.openapi.CollectorOpenApi;
 import com.tqxd.jys.openapi.payload.CollectorStatusDto;
@@ -16,6 +18,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 /**
@@ -52,8 +55,8 @@ public class CollectorOpenApiImpl implements CollectorOpenApi, DataReceiver {
     HuoBiKlineCollector huoBi = new HuoBiKlineCollector();
     collectorMap.put(huoBi.name(), huoBi);
     // 注册支持的收集器
-//    BiAnKlineCollector biAn = new BiAnKlineCollector();
-//    collectorMap.put(biAn.name(), biAn);
+    BiNanceCollector biNance = new BiNanceCollector();
+    collectorMap.put(biNance.name(), biNance);
     // 注册天启旭达真实收集器
 //    TqxdMatchCollector tqxd = new TqxdMatchCollector();
 //    collectorMap.put(tqxd.name(), tqxd);
@@ -269,16 +272,17 @@ public class CollectorOpenApiImpl implements CollectorOpenApi, DataReceiver {
 
   @Override
   public void onReceive(Collector from, DataType dataType, JsonObject obj) {
-//    counter++;
-//    sizeOfByte += obj.toBuffer().length();
-//    if (lastTime == null) {
-//      lastTime = System.currentTimeMillis();
-//    } else {
-//      long sec = TimeUnit.MILLISECONDS.toSeconds(System.currentTimeMillis() - lastTime);
-//      if (sec > 0) {
-//        log.info("receive avg: {}/s  {}kb/s counter: {}", counter / sec, sizeOfByte / sec / 1024, counter);
-//      }
-//    }
+    log.info(obj.toString());
+    counter++;
+    sizeOfByte += obj.toBuffer().length();
+    if (lastTime == null) {
+      lastTime = System.currentTimeMillis();
+    } else {
+      long sec = TimeUnit.MILLISECONDS.toSeconds(System.currentTimeMillis() - lastTime);
+      if (sec > 0) {
+        log.info("receive avg: {}/s  {}kb/s counter: {}", counter / sec, sizeOfByte / sec / 1024, counter);
+      }
+    }
     Topic topic;
     switch (dataType) {
       case KLINE: {
@@ -298,7 +302,7 @@ public class CollectorOpenApiImpl implements CollectorOpenApi, DataReceiver {
     }
 //    VertxUtil.asyncFastCallIgnoreRs(vertx, () -> {
     // 推送k线数据
-    msgBus.publishIgnoreRs(topic, Message.withData(dataType, from.desc(), obj.encode()));
+//    msgBus.publishIgnoreRs(topic, Message.withData(dataType, from.desc(), obj.encode()));
 //    });
   }
 }
