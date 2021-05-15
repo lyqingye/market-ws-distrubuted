@@ -2,6 +2,7 @@ package com.tqxd.jys.collectors.impl;
 
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import com.tqxd.jys.constance.DataType;
+import io.netty.handler.codec.http.websocketx.CorruptedWebSocketFrameException;
 import io.vertx.core.Future;
 import io.vertx.core.*;
 import io.vertx.core.buffer.Buffer;
@@ -15,6 +16,7 @@ import org.slf4j.LoggerFactory;
 
 import java.util.*;
 import java.util.concurrent.*;
+import java.util.concurrent.locks.ReentrantLock;
 
 /**
  * @author yjt
@@ -40,7 +42,11 @@ public abstract class GenericWsCollector extends AbstractVerticle implements Col
   private long checkTime = TimeUnit.SECONDS.toMillis(5);
   private long lastCheckTime = 0;
   private volatile boolean restarting = false;
+  private volatile boolean stopping = false;
   private volatile boolean idleCheckEnable = true;
+  private ReentrantLock startLock = new ReentrantLock();
+  private ReentrantLock stopLock = new ReentrantLock();
+  private ReentrantLock restartLock = new ReentrantLock();
 
   static {
     ThreadFactory threadFactory = new ThreadFactoryBuilder()
@@ -57,60 +63,75 @@ public abstract class GenericWsCollector extends AbstractVerticle implements Col
     if (isRunning()) {
       startPromise.fail("collector is running!");
     } else {
-      idleTime = config().getLong(IDLE_TIME_OUT, TimeUnit.SECONDS.toMillis(5));
-      HttpClientOptions httpClientOptions = null;
-      if (config().containsKey(HTTP_CLIENT_OPTIONS_PARAM)) {
-        httpClientOptions = (HttpClientOptions) config().getValue(HTTP_CLIENT_OPTIONS_PARAM);
-      }
-      String requestPath = config().getString(WS_REQUEST_PATH_PARAM);
-      HttpClient httpClient;
-      if (httpClientOptions != null) {
-        httpClient = vertx.createHttpClient(httpClientOptions);
-      } else {
-        httpClient = vertx.createHttpClient();
-      }
-      httpClient.webSocket(requestPath).onComplete(ar -> {
-        if (ar.succeeded()) {
-          retryCount = 0;
-          isRunning = true;
-          webSocket = ar.result();
-          webSocket.frameHandler(frame -> {
-            try {
-              onFrame(webSocket, frame);
-            } catch (Exception e) {
-              log.error("process message fail! cause by {} collector!", this.name());
-              e.printStackTrace();
-            }
-          });
-          webSocket.closeHandler(none -> {
-            stopIdleChecker();
-            log.warn("[Collectors]: collector {} connection closed try to restart!", this.name());
-            retry();
-          });
-          webSocket.exceptionHandler(throwable -> {
-            stopIdleChecker();
-            log.info("[Collectors]: collector {} catch exception try to restart!", this.name());
-            throwable.printStackTrace();
-            retry();
-          });
-          if (idleCheckEnable) {
-            startIdleChecker();
-          }
-          startPromise.complete();
-        } else {
-          startPromise.fail(ar.cause());
+      startLock.lock();
+      try {
+        idleTime = config().getLong(IDLE_TIME_OUT, TimeUnit.SECONDS.toMillis(5));
+        HttpClientOptions httpClientOptions = null;
+        if (config().containsKey(HTTP_CLIENT_OPTIONS_PARAM)) {
+          httpClientOptions = (HttpClientOptions) config().getValue(HTTP_CLIENT_OPTIONS_PARAM);
         }
-      });
+        String requestPath = config().getString(WS_REQUEST_PATH_PARAM);
+        HttpClient httpClient;
+        if (httpClientOptions != null) {
+          httpClient = vertx.createHttpClient(httpClientOptions);
+        } else {
+          httpClient = vertx.createHttpClient();
+        }
+        httpClient.webSocket(requestPath).onComplete(ar -> {
+          startLock.unlock();
+          if (ar.succeeded()) {
+            retryCount = 0;
+            isRunning = true;
+            webSocket = ar.result();
+            webSocket.frameHandler(frame -> {
+              try {
+                onFrame(webSocket, frame);
+              } catch (Exception e) {
+                log.error("process message fail! cause by {} collector!", this.name());
+                e.printStackTrace();
+              }
+            });
+            webSocket.closeHandler(none -> {
+              log.warn("[Collectors]: collector {} connection closed try to restart!", this.name());
+              stopIdleChecker();
+              retry();
+            });
+            webSocket.exceptionHandler(throwable -> {
+              // 币安bug，会发送一个 错误的 CloseFrame 实际上并没有停止推送
+              if (throwable instanceof CorruptedWebSocketFrameException) {
+                log.info("[Collectors]: collector {} catch exception try to restart!", this.name());
+              } else {
+                stopIdleChecker();
+                retry();
+              }
+              throwable.printStackTrace();
+            });
+            if (idleCheckEnable) {
+              startIdleChecker();
+            }
+            startPromise.complete();
+          } else {
+            startPromise.fail(ar.cause());
+          }
+        });
+      } catch (Exception ex) {
+        startLock.unlock();
+      }
     }
   }
 
   private synchronized void retry() {
+    if (stopping) {
+      return;
+    }
     if (retryCount++ >= RETRY_MAX_COUNT) {
       log.error("[collectors]: collector {} retryCount == 255!", this.name());
     } else {
+      restartLock.lock();
       log.info("[collectors]: collector {} retry: {}", this.name(), retryCount);
       restart()
           .onComplete(v -> {
+            restartLock.unlock();
             if (v.failed()) {
               v.cause().printStackTrace();
             } else {
@@ -123,11 +144,14 @@ public abstract class GenericWsCollector extends AbstractVerticle implements Col
 
   @Override
   public synchronized void stop(Promise<Void> stopPromise) throws Exception {
-    if (!this.isRunning()) {
-      stopPromise.fail("collector running yet!");
+    if (!this.isRunning() && stopping) {
+      stopPromise.fail("collector running yet! or stopping");
     } else {
+      stopLock.lock();
+      stopping = true;
       log.info("[collectors]: collector {} stopping, try to close client!", this.name());
-      webSocket.close((short) 0, "collector call the stop!", ar -> {
+      webSocket.close((short) 66666, "collector call the stop!", ar -> {
+        stopLock.unlock();
         // force set state is close
         this.isRunning = false;
         stopIdleChecker();
@@ -138,6 +162,7 @@ public abstract class GenericWsCollector extends AbstractVerticle implements Col
           log.warn("close the socket fail! ignore this error!");
           ar.cause().printStackTrace();
         }
+        this.stopping = false;
         stopPromise.complete();
       });
     }
