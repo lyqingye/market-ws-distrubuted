@@ -75,7 +75,12 @@ public abstract class GenericWsCollector extends AbstractVerticle implements Col
           isRunning = true;
           webSocket = ar.result();
           webSocket.frameHandler(frame -> {
-            onFrame(webSocket, frame);
+            try {
+              onFrame(webSocket, frame);
+            } catch (Exception e) {
+              log.error("process message fail! cause by {} collector!", this.name());
+              e.printStackTrace();
+            }
           });
           webSocket.closeHandler(none -> {
             stopIdleChecker();
