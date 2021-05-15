@@ -57,7 +57,7 @@ public class CollectorsApplication extends AbstractVerticle {
   }
 
   public static void main(String[] args) {
-    Bootstrap.run(new CollectorsApplication(), new DeploymentOptions().setWorker(true));
+    Bootstrap.run(new CollectorsApplication(), new DeploymentOptions().setWorker(false));
   }
 
   @Override

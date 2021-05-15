@@ -50,6 +50,15 @@ public enum Period {
     return null;
   }
 
+  public static Period valueOfName(String name) {
+    for (Period value : values()) {
+      if (value.name().equalsIgnoreCase(name)) {
+        return value;
+      }
+    }
+    return null;
+  }
+
   public static Period containsSymbol(String symbol) {
     for (Period value : values()) {
       if (value.symbol.contains(symbol)) {

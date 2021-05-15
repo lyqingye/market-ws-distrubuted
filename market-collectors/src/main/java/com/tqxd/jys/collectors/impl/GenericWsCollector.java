@@ -85,19 +85,19 @@ public abstract class GenericWsCollector extends BasicCollector {
             webSocket.closeHandler(none -> {
               log.warn("[Collectors]: collector {} connection closed try to restart!", this.name());
               stopIdleChecker();
-              retry();
+//              retry();
             });
             webSocket.exceptionHandler(throwable -> {
               // 币安bug，会发送一个 错误的 CloseFrame 实际上并没有停止推送
               if (throwable instanceof CorruptedWebSocketFrameException) {
                 log.info("[Collectors]: collector {} catch exception try to restart!", this.name());
               } else {
-                stopIdleChecker();
-                retry();
+//                stopIdleChecker();
+//                retry();
               }
               throwable.printStackTrace();
             });
-            if (idleCheckEnable) {
+            if (idleCheckEnable && idleTime != -1) {
               startIdleChecker();
             }
             startPromise.complete();
@@ -140,22 +140,26 @@ public abstract class GenericWsCollector extends BasicCollector {
     } else {
       stopLock.lock();
       stopping = true;
-      log.info("[collectors]: collector {} stopping, try to close client!", this.name());
-      webSocket.close((short) 66666, "collector call the stop!", ar -> {
+      try {
+        log.info("[collectors]: collector {} stopping, try to close client!", this.name());
+        webSocket.close((short) 66666, "collector call the stop!", ar -> {
+          stopLock.unlock();
+          // force set state is close
+          this.isRunning = false;
+          stopIdleChecker();
+          if (ar.succeeded()) {
+            webSocket = null;
+          } else {
+            log.info("collector: {} stop!", this.name());
+            log.warn("close the socket fail! ignore this error!");
+            ar.cause().printStackTrace();
+          }
+          this.stopping = false;
+          stopPromise.complete();
+        });
+      } catch (Exception ex) {
         stopLock.unlock();
-        // force set state is close
-        this.isRunning = false;
-        stopIdleChecker();
-        if (ar.succeeded()) {
-          webSocket = null;
-        } else {
-          log.info("collector: {} stop!", this.name());
-          log.warn("close the socket fail! ignore this error!");
-          ar.cause().printStackTrace();
-        }
-        this.stopping = false;
-        stopPromise.complete();
-      });
+      }
     }
   }
 
@@ -198,7 +202,7 @@ public abstract class GenericWsCollector extends BasicCollector {
     idleCheckEnable = true;
     lastCheckTime = System.currentTimeMillis();
     idleCheckerExecutor.scheduleWithFixedDelay(() -> {
-      if (!isRunning() || !idleCheckEnable || restarting || (System.currentTimeMillis() - lastCheckTime) < checkTime) {
+      if (!isRunning() || !idleCheckEnable || idleTime == -1 || restarting || (System.currentTimeMillis() - lastCheckTime) < checkTime) {
         return;
       }
       lastCheckTime = System.currentTimeMillis();

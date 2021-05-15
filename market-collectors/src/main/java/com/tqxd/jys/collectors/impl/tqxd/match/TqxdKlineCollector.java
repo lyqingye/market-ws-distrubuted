@@ -29,43 +29,45 @@ public class TqxdKlineCollector extends GenericWsCollector {
     return TqxdKlineCollector.class.getSimpleName();
   }
 
-    @Override
-    public String desc() {
-      return "天启旭达k线收集器";
-    }
+  @Override
+  public String desc() {
+    return "天启旭达k线收集器";
+  }
 
-    @Override
-    public JsonObject config() {
-        return config;
-    }
+  @Override
+  public JsonObject config() {
+    return config;
+  }
 
-    @Override
-    public synchronized void start(Promise<Void> startPromise) throws Exception {
-        Promise<Void> promise = Promise.promise();
-        super.start(startPromise);
-      promise.future()
-          .compose(none -> this.subscribe(DataType.KLINE, config.getString(TqxdCollector.SYMBOL_CONFIG)))
-                .onComplete(startPromise);
-    }
+  @Override
+  public synchronized void start(Promise<Void> startPromise) throws Exception {
+    Promise<Void> promise = Promise.promise();
+    super.start(promise);
+    promise.future()
+        .compose(none -> this.subscribe(DataType.KLINE, config.getString(TqxdCollector.SYMBOL_CONFIG)))
+        .onComplete(startPromise);
+  }
 
-    @Override
-    public void subscribe(DataType dataType, String symbol, Handler<AsyncResult<Void>> handler) {
-        Promise<Void> promise = Promise.promise();
-        super.subscribe(dataType, symbol, handler);
-        promise.future()
-                .onSuccess(none -> {
-                  Period period = (Period) config.getValue(PERIOD_CONFIG);
-                  super.writeText(TqxdRequestUtils.buildSubscribeKLineReq(System.currentTimeMillis() / 1000, TqxdRequestUtils.toTqxdSymbol(symbol), period));
-                  handler.handle(Future.succeededFuture());
-                })
-                .onFailure(throwable -> handler.handle(Future.failedFuture(throwable)));
-    }
+  @Override
+  public void subscribe(DataType dataType, String symbol, Handler<AsyncResult<Void>> handler) {
+    Promise<Void> promise = Promise.promise();
+    super.subscribe(dataType, symbol, promise);
+    promise.future()
+        .onSuccess(none -> {
+          Period period = Period.valueOfName(config.getString(PERIOD_CONFIG));
+          if (period != null) {
+            super.writeText(TqxdRequestUtils.buildSubscribeKLineReq(System.currentTimeMillis() / 1000, TqxdRequestUtils.toTqxdSymbol(symbol), period));
+          }
+          handler.handle(Future.succeededFuture());
+        })
+        .onFailure(throwable -> handler.handle(Future.failedFuture(throwable)));
+  }
 
-    @Override
-    public void onFrame(WebSocket client, WebSocketFrame frame) {
-        if(frame.isText() && frame.isFinal()){
+  @Override
+  public void onFrame(WebSocket client, WebSocketFrame frame) {
+    if (frame.isText() && frame.isFinal()) {
 //            unParkReceives(DataType.KLINE,new JsonObject(frame.textData()));
-            log.info("[Tqxd Kline] subscribe result:{}",frame.textData());
-        }
+      log.info("[Tqxd Kline] subscribe result:{}", frame.textData());
     }
+  }
 }

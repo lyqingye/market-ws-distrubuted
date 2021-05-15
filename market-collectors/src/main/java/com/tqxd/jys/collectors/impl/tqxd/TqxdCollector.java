@@ -29,7 +29,6 @@ import static com.tqxd.jys.collectors.impl.GenericWsCollector.*;
 @SuppressWarnings("Duplicates")
 public class TqxdCollector extends BasicCollector {
   public static final String SYMBOL_CONFIG = "symbol";
-  public static final String INTERVAL_CONFIG = "interval";
   private static final Logger log = LoggerFactory.getLogger(TqxdCollector.class);
   private volatile boolean isRunning = false;
 
@@ -47,7 +46,7 @@ public class TqxdCollector extends BasicCollector {
     HttpClientOptions httpClientOptions = new HttpClientOptions().setDefaultHost(config().getString("host"));
     config().put(HTTP_CLIENT_OPTIONS_PARAM, httpClientOptions);
     config().put(WS_REQUEST_PATH_PARAM, config().getString("path"));
-    config().put(IDLE_TIME_OUT, 5000);
+    config().put(IDLE_TIME_OUT, -1);
 
     List<Future> futures = new ArrayList<>();
     super.listSubscribedInfo().forEach(((collectDataType, symbols) -> {
@@ -176,7 +175,7 @@ public class TqxdCollector extends BasicCollector {
         .put(WS_REQUEST_PATH_PARAM, config().getValue(WS_REQUEST_PATH_PARAM))
         .put(SYMBOL_CONFIG, symbol)
         .put(TqxdKlineCollector.PERIOD_CONFIG, period)
-        .put(IDLE_TIME_OUT, 5000);
+        .put(IDLE_TIME_OUT, config().getValue(IDLE_TIME_OUT));
   }
 
   /**

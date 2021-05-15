@@ -18,56 +18,56 @@ import org.slf4j.LoggerFactory;
 import java.util.Objects;
 
 public class TqxdDepthCollector extends GenericWsCollector {
-    private static final Logger log = LoggerFactory.getLogger(TqxdDepthCollector.class);
-    private JsonObject config;
+  private static final Logger log = LoggerFactory.getLogger(TqxdDepthCollector.class);
+  private JsonObject config;
 
-    public TqxdDepthCollector(JsonObject config) {
-        this.config = Objects.requireNonNull(config);
-    }
+  public TqxdDepthCollector(JsonObject config) {
+    this.config = Objects.requireNonNull(config);
+  }
 
-    @Override
-    public synchronized void start(Promise<Void> startPromise) throws Exception {
-        Promise<Void> promise = Promise.promise();
-        super.start(promise);
-        promise.future()
-            .compose(none -> this.subscribe(DataType.DEPTH, config.getString(TqxdCollector.SYMBOL_CONFIG)))
-                .onComplete(startPromise);
-    }
+  @Override
+  public synchronized void start(Promise<Void> startPromise) throws Exception {
+    Promise<Void> promise = Promise.promise();
+    super.start(promise);
+    promise.future()
+        .compose(none -> this.subscribe(DataType.DEPTH, config.getString(TqxdCollector.SYMBOL_CONFIG)))
+        .onComplete(startPromise);
+  }
 
-    @Override
-    public String name() {
-        return TqxdDepthCollector.class.getSimpleName();
-    }
+  @Override
+  public String name() {
+    return TqxdDepthCollector.class.getSimpleName();
+  }
 
-    @Override
-    public JsonObject config() {
-        return config;
-    }
+  @Override
+  public JsonObject config() {
+    return config;
+  }
 
-    @Override
-    public String desc() {
-        return "天启旭达深度收集器";
-    }
+  @Override
+  public String desc() {
+    return "天启旭达深度收集器";
+  }
 
-    @Override
-    public void subscribe(DataType dataType, String symbol, Handler<AsyncResult<Void>> handler) {
-        Promise<Void> promise = Promise.promise();
-        super.subscribe(dataType, symbol, promise);
-        promise.future()
-            .onSuccess(none -> {
-                super.writeText(TqxdRequestUtils.buildSubscribeDepthReq(System.currentTimeMillis() / 1000, TqxdRequestUtils.toTqxdSymbol(symbol), 20, DepthLevel.step0));
-                handler.handle(Future.succeededFuture());
-            })
-            .onFailure(throwable -> handler.handle(Future.failedFuture(throwable)));
-    }
+  @Override
+  public void subscribe(DataType dataType, String symbol, Handler<AsyncResult<Void>> handler) {
+    Promise<Void> promise = Promise.promise();
+    super.subscribe(dataType, symbol, promise);
+    promise.future()
+        .onSuccess(none -> {
+          super.writeText(TqxdRequestUtils.buildSubscribeDepthReq(System.currentTimeMillis() / 1000, TqxdRequestUtils.toTqxdSymbol(symbol), 20, DepthLevel.step0));
+          handler.handle(Future.succeededFuture());
+        })
+        .onFailure(throwable -> handler.handle(Future.failedFuture(throwable)));
+  }
 
-    @Override
-    public void onFrame(WebSocket client, WebSocketFrame frame) {
-        if (frame.isText() && frame.isFinal()) {
+  @Override
+  public void onFrame(WebSocket client, WebSocketFrame frame) {
+    if (frame.isText() && frame.isFinal()) {
 //            unParkReceives(DataType.DEPTH,new JsonObject(frame.textData()));
-            log.info("[Tqxd Depth] result:{}", frame.textData());
-        }
+      log.info("[Tqxd Depth] result:{}", frame.textData());
     }
+  }
 
 
 }

@@ -81,7 +81,7 @@ public class TqxdRequestUtils {
     JsonObject json = new JsonObject();
     json.put("method", method);
     json.put("id", subscribeId);
-    json.put("parmas", params);
+    json.put("params", params);
     return json.toString();
   }
 }
