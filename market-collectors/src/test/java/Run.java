@@ -3,29 +3,45 @@ import io.vertx.core.VertxOptions;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.http.HttpClientOptions;
 import io.vertx.core.http.WebSocket;
-import io.vertx.core.net.ProxyOptions;
-import io.vertx.core.net.ProxyType;
 
 import java.util.Date;
 
 public class Run {
   public static void main(String[] args) {
+//    Vertx.vertx().createNetServer()
+//        .connectHandler(ar -> {
+//
+//        })
+//        .listen(15701,"0.0.0.0")
+//        .onFailure(Throwable::printStackTrace);
+
+//    Vertx.vertx().createNetClient()
+//        .connect(15701,"192.168.248.128")
+//        .onSuccess(ar -> {
+//          System.out.println();
+//        }).onFailure(Throwable::printStackTrace);
+
+//    Vertx.vertx().createNetClient()
+//        .connect(65497, "192.168.2.94")
+//        .onSuccess(ar -> {
+//          System.out.println();
+//        }).onFailure(Throwable::printStackTrace);
+
 
     VertxOptions vertxOptions = new VertxOptions();
     Vertx vertx = Vertx.vertx(vertxOptions);
-    vertx.createHttpClient(new HttpClientOptions().setDefaultHost("api.huobiasia.vip")
-        .setProxyOptions(new ProxyOptions().setHost("localhost").setPort(1080).setType(ProxyType.HTTP)))
+    vertx.createHttpClient(new HttpClientOptions().setDefaultHost("market-pre.sgpexchange.com"))
 
-        .webSocket("/ws", ar -> {
+        .webSocket("/", ar -> {
           WebSocket websocket = ar.result();
 
           if (ar.failed()) {
             ar.cause().printStackTrace();
           } else {
-            websocket.writeTextMessage("{\"id\":1620696851384,\"method\":\"SUBSCRIBE\",\"params\":[\"btcusdt@kline_1m\",\"btcusdt@kline_5m\",\"btcusdt@kline_15m\",\"btcusdt@kline_30m\",\"btcusdt@kline_60m\",\"btcusdt@kline_4h\",\"btcusdt@kline_1d\",\"btcusdt@kline_1w\"]}");
+            websocket.writeTextMessage("{ \"method\":\"kline.subscribe\", \"id\":1, \"params\":[ \"AITDUSDT\", 60 ] }");
             websocket.frameHandler(frame -> {
               if (frame.isText()) {
-//                System.out.println(frame.textData());
+                System.out.println(frame.textData());
 //                websocket.writePong(Buffer.buffer(String.valueOf(System.currentTimeMillis())));
               } else if (frame.isBinary()) {
                 System.out.println(frame.binaryData().toJson().toString());

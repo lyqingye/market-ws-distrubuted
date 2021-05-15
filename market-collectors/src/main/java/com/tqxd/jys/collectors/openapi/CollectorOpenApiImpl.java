@@ -2,8 +2,9 @@ package com.tqxd.jys.collectors.openapi;
 
 import com.tqxd.jys.collectors.impl.Collector;
 import com.tqxd.jys.collectors.impl.DataReceiver;
-import com.tqxd.jys.collectors.impl.HuoBiKlineCollector;
 import com.tqxd.jys.collectors.impl.binance.BiNanceCollector;
+import com.tqxd.jys.collectors.impl.huobi.HuoBiKlineCollector;
+import com.tqxd.jys.collectors.impl.tqxd.TqxdCollector;
 import com.tqxd.jys.constance.DataType;
 import com.tqxd.jys.messagebus.MessageBus;
 import com.tqxd.jys.messagebus.topic.Topic;
@@ -58,8 +59,8 @@ public class CollectorOpenApiImpl implements CollectorOpenApi, DataReceiver {
     BiNanceCollector biNance = new BiNanceCollector();
     collectorMap.put(biNance.name(), biNance);
     // 注册天启旭达真实收集器
-//    TqxdMatchCollector tqxd = new TqxdMatchCollector();
-//    collectorMap.put(tqxd.name(), tqxd);
+    TqxdCollector tqxd = new TqxdCollector();
+    collectorMap.put(tqxd.name(), tqxd);
   }
 
   /**
