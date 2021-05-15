@@ -64,6 +64,17 @@ public class KafkaMessageBus extends AbstractVerticle implements MessageBus {
   }
 
   @Override
+  public void publish(Topic topic, String key, Message<?> message, Handler<AsyncResult<Void>> handler) {
+    messageIndexCounter.addAndGet(1)
+      .compose(idx -> {
+        message.setIndex(idx);
+        KafkaProducerRecord<String, Object> record = KafkaProducerRecord.create(topic.name(), key, message);
+        return producer.write(record);
+      })
+      .onComplete(handler);
+  }
+
+  @Override
   public void subscribe(Topic topic, Consumer<Message<?>> consumer, Handler<AsyncResult<String>> handler) {
     KafkaConsumer<String, Object> c = KafkaConsumer.create(vertx, consumerConfig);
     String id = UUID.randomUUID().toString();

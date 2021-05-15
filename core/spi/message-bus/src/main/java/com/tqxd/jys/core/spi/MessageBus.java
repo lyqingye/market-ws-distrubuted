@@ -18,6 +18,16 @@ public interface MessageBus extends Verticle {
   void publish(Topic topic, Message<?> message, Handler<AsyncResult<Void>> handler);
 
   /**
+   * 发送消息
+   *
+   * @param topic   主题
+   * @param message 消息
+   * @param key     分区key
+   * @param handler 异步处理器
+   */
+  void publish(Topic topic, String key, Message<?> message, Handler<AsyncResult<Void>> handler);
+
+  /**
    * 发送消息并且忽略返回值
    *
    * @param topic   topic
@@ -41,6 +51,19 @@ public interface MessageBus extends Verticle {
   default Future<Void> publish(Topic topic, Message<?> message) {
     Promise<Void> promise = Promise.promise();
     publish(topic, message, promise);
+    return promise.future();
+  }
+
+  /**
+   * 发送消息
+   *
+   * @param topic   主题
+   * @param message 消息
+   * @return future
+   */
+  default Future<Void> publish(Topic topic, String key, Message<?> message) {
+    Promise<Void> promise = Promise.promise();
+    publish(topic, key, message, promise);
     return promise.future();
   }
 

@@ -16,9 +16,9 @@ hazelcast:
         enabled: false
       tcp-ip:
         enabled: true
-        interface: 127.0.0.1
+        interface: 172.16.1.54
         member-list:
-          - 127.0.0.1
+          - 172.16.1.54
   map:
     default:
       time-to-live-seconds: 0
