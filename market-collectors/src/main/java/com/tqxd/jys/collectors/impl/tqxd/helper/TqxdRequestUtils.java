@@ -28,8 +28,8 @@ public class TqxdRequestUtils {
 
   public static String toTqxdSymbol(String symbol) {
     return symbol.replace("-", "")
-        .replace("/", "")
-        .toUpperCase();
+      .replace("/", "")
+      .toUpperCase();
   }
 
   public static String buildSubscribeKLineReq(long subscribeId, String symbol, Period period) {

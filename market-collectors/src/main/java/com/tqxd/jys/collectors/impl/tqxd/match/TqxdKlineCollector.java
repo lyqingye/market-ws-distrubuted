@@ -44,8 +44,8 @@ public class TqxdKlineCollector extends GenericWsCollector {
     Promise<Void> promise = Promise.promise();
     super.start(promise);
     promise.future()
-        .compose(none -> this.subscribe(DataType.KLINE, config.getString(TqxdCollector.SYMBOL_CONFIG)))
-        .onComplete(startPromise);
+      .compose(none -> this.subscribe(DataType.KLINE, config.getString(TqxdCollector.SYMBOL_CONFIG)))
+      .onComplete(startPromise);
   }
 
   @Override
@@ -53,14 +53,14 @@ public class TqxdKlineCollector extends GenericWsCollector {
     Promise<Void> promise = Promise.promise();
     super.subscribe(dataType, symbol, promise);
     promise.future()
-        .onSuccess(none -> {
-          Period period = Period.valueOfName(config.getString(PERIOD_CONFIG));
-          if (period != null) {
-            super.writeText(TqxdRequestUtils.buildSubscribeKLineReq(System.currentTimeMillis() / 1000, TqxdRequestUtils.toTqxdSymbol(symbol), period));
-          }
-          handler.handle(Future.succeededFuture());
-        })
-        .onFailure(throwable -> handler.handle(Future.failedFuture(throwable)));
+      .onSuccess(none -> {
+        Period period = Period.valueOfName(config.getString(PERIOD_CONFIG));
+        if (period != null) {
+          super.writeText(TqxdRequestUtils.buildSubscribeKLineReq(System.currentTimeMillis() / 1000, TqxdRequestUtils.toTqxdSymbol(symbol), period));
+        }
+        handler.handle(Future.succeededFuture());
+      })
+      .onFailure(throwable -> handler.handle(Future.failedFuture(throwable)));
   }
 
   @Override

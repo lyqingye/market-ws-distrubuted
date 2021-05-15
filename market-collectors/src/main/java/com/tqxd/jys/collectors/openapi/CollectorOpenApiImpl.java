@@ -47,6 +47,9 @@ public class CollectorOpenApiImpl implements CollectorOpenApi, DataReceiver {
    * msg bus
    */
   private MessageBus msgBus;
+  private Long lastTime;
+  private int counter = 0;
+  private long sizeOfByte = 0;
 
   public CollectorOpenApiImpl(Vertx vertx, MessageBus msgBus) {
     this.vertx = Objects.requireNonNull(vertx);
@@ -71,9 +74,9 @@ public class CollectorOpenApiImpl implements CollectorOpenApi, DataReceiver {
   @Override
   public void listCollector(Handler<AsyncResult<List<CollectorStatusDto>>> handler) {
     List<CollectorStatusDto> result = collectorMap.values()
-        .stream()
-        .map(Collector::snapStatus)
-        .collect(Collectors.toList());
+      .stream()
+      .map(Collector::snapStatus)
+      .collect(Collectors.toList());
     handler.handle(Future.succeededFuture(result));
   }
 
@@ -97,15 +100,15 @@ public class CollectorOpenApiImpl implements CollectorOpenApi, DataReceiver {
       return;
     }
     vertx.deployVerticle(collector, new DeploymentOptions().setConfig(configJson))
-        .onComplete(ar -> {
-          if (ar.succeeded()) {
-            deployMap.put(collectorName, collector);
-            collector.addDataReceiver(this);
-            handler.handle(Future.succeededFuture());
-          } else {
-            handler.handle(Future.failedFuture(ar.cause()));
-          }
-        });
+      .onComplete(ar -> {
+        if (ar.succeeded()) {
+          deployMap.put(collectorName, collector);
+          collector.addDataReceiver(this);
+          handler.handle(Future.succeededFuture());
+        } else {
+          handler.handle(Future.failedFuture(ar.cause()));
+        }
+      });
   }
 
   /**
@@ -134,14 +137,14 @@ public class CollectorOpenApiImpl implements CollectorOpenApi, DataReceiver {
       handler.handle(Future.failedFuture("collector not found"));
     } else {
       vertx.undeploy(collector.deploymentID())
-          .onComplete(ar -> {
-            if (ar.succeeded()) {
-              deployMap.remove(collectorName);
-              handler.handle(Future.succeededFuture());
-            } else {
-              handler.handle(Future.failedFuture(ar.cause()));
-            }
-          });
+        .onComplete(ar -> {
+          if (ar.succeeded()) {
+            deployMap.remove(collectorName);
+            handler.handle(Future.succeededFuture());
+          } else {
+            handler.handle(Future.failedFuture(ar.cause()));
+          }
+        });
     }
   }
 
@@ -161,6 +164,11 @@ public class CollectorOpenApiImpl implements CollectorOpenApi, DataReceiver {
     }
     collector.startFuture().onComplete(handler);
   }
+
+
+  //
+  // future api
+  //
 
   /**
    * 停止收集器
@@ -217,11 +225,6 @@ public class CollectorOpenApiImpl implements CollectorOpenApi, DataReceiver {
     collector.unSubscribe(dataType, symbol, handler);
   }
 
-
-  //
-  // future api
-  //
-
   /**
    * 部署一个收集器
    *
@@ -265,11 +268,6 @@ public class CollectorOpenApiImpl implements CollectorOpenApi, DataReceiver {
     subscribe(collectorName, dataType, symbol, promise);
     return promise.future();
   }
-
-
-  private Long lastTime;
-  private int counter = 0;
-  private long sizeOfByte = 0;
 
   @Override
   public void onReceive(Collector from, DataType dataType, JsonObject obj) {

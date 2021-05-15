@@ -50,18 +50,18 @@ public class CollectorOpenApiHttpEndpoint extends AbstractVerticle {
     Router router = Router.router(vertx);
     initRouterHandler(router);
     vertx.createHttpServer()
-        .requestHandler(router)
-        .exceptionHandler(Throwable::printStackTrace)
-        .listen(port, host)
-        .onComplete(ar -> {
-          if (ar.succeeded()) {
-            httpServer = ar.result();
-            log.info("open api http endpoint listen on the http://{}:{}", host, port);
-            startPromise.complete();
-          } else {
-            startPromise.fail(ar.cause());
-          }
-        });
+      .requestHandler(router)
+      .exceptionHandler(Throwable::printStackTrace)
+      .listen(port, host)
+      .onComplete(ar -> {
+        if (ar.succeeded()) {
+          httpServer = ar.result();
+          log.info("open api http endpoint listen on the http://{}:{}", host, port);
+          startPromise.complete();
+        } else {
+          startPromise.fail(ar.cause());
+        }
+      });
   }
 
   @Override
@@ -122,12 +122,12 @@ public class CollectorOpenApiHttpEndpoint extends AbstractVerticle {
 
   <T> void genericHandler(RoutingContext ctx, Function<RoutingContext, Future<T>> handler) {
     handler.apply(ctx)
-        .onSuccess(rs -> ctx.response()
-            .putHeader("Content-type", "application/json;charset=UTF-8").end(R.success(rs)))
-        .onFailure(throwable -> {
-          throwable.printStackTrace();
-          ctx.response()
-              .putHeader("Content-type", "application/json;charset=UTF-8").end(R.fail(throwable));
-        });
+      .onSuccess(rs -> ctx.response()
+        .putHeader("Content-type", "application/json;charset=UTF-8").end(R.success(rs)))
+      .onFailure(throwable -> {
+        throwable.printStackTrace();
+        ctx.response()
+          .putHeader("Content-type", "application/json;charset=UTF-8").end(R.fail(throwable));
+      });
   }
 }
