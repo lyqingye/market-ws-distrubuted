@@ -4,26 +4,19 @@ package com.tqxd.jys.collectors.impl.tqxd;
 import com.tqxd.jys.collectors.impl.Collector;
 import com.tqxd.jys.collectors.impl.DataReceiver;
 import com.tqxd.jys.collectors.impl.GenericWsCollector;
-import com.tqxd.jys.collectors.impl.bian.BiAnDataConvert;
 import com.tqxd.jys.collectors.impl.tqxd.match.TqxdMatchDepthCollector;
 import com.tqxd.jys.collectors.impl.tqxd.match.TqxdMatchKlineCollector;
 import com.tqxd.jys.collectors.impl.tqxd.match.TqxdMatchTradeCollector;
 import com.tqxd.jys.constance.DataType;
 import com.tqxd.jys.constance.DepthLevel;
 import com.tqxd.jys.constance.Period;
-import com.tqxd.jys.utils.*;
+import com.tqxd.jys.utils.HuoBiUtils;
 import io.vertx.core.*;
 import io.vertx.core.http.HttpClientOptions;
-import io.vertx.core.http.WebSocket;
-import io.vertx.core.http.WebSocketFrame;
-import io.vertx.core.json.Json;
 import io.vertx.core.json.JsonObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javax.xml.crypto.Data;
-import java.io.IOException;
-import java.nio.charset.StandardCharsets;
 import java.util.*;
 
 /**
