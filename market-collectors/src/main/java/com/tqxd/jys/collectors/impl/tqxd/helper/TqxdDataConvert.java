@@ -15,6 +15,9 @@ import io.vertx.core.json.JsonObject;
 import java.math.BigDecimal;
 import java.util.Collections;
 
+/**
+ * TODO
+ */
 public class TqxdDataConvert {
 
     public static JsonObject trade(JsonObject obj, String reqSymbol) {
