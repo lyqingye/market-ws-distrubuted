@@ -122,7 +122,7 @@ public class BiNanceCollector extends GenericWsCollector {
    * @return 是否订阅成功
    */
   @Override
-  public void subscribe(DataType dataType, String symbol, Handler<AsyncResult<Void>> handler) {
+  public synchronized void subscribe(DataType dataType, String symbol, Handler<AsyncResult<Void>> handler) {
     Promise<Void> promise = Promise.promise();
     super.subscribe(dataType, symbol, promise);
     promise.future()
@@ -182,7 +182,7 @@ public class BiNanceCollector extends GenericWsCollector {
    * @return 是否取消订阅成功
    */
   @Override
-  public void unSubscribe(DataType dataType, String symbol, Handler<AsyncResult<Void>> handler) {
+  public synchronized void unSubscribe(DataType dataType, String symbol, Handler<AsyncResult<Void>> handler) {
     Promise<Void> promise = Promise.promise();
     super.unSubscribe(dataType, symbol, promise);
     promise.future()

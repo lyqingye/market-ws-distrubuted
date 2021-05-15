@@ -6,7 +6,8 @@ market:
           host: 0.0.0.0
           port: 8088
     enabled:
-      - tqxd
+      - binance
+    #      - tqxd
 
     huobi:
       clazz: com.tqxd.jys.collectors.impl.huobi.HuoBiKlineCollector
