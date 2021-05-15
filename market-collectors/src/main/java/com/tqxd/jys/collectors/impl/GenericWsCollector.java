@@ -1,20 +1,17 @@
 package com.tqxd.jys.collectors.impl;
 
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
-import com.tqxd.jys.constance.DataType;
 import io.netty.handler.codec.http.websocketx.CorruptedWebSocketFrameException;
-import io.vertx.core.Future;
-import io.vertx.core.*;
+import io.vertx.core.Promise;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.http.HttpClient;
 import io.vertx.core.http.HttpClientOptions;
 import io.vertx.core.http.WebSocket;
 import io.vertx.core.http.WebSocketFrame;
-import io.vertx.core.json.JsonObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.*;
+import java.util.Date;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.locks.ReentrantLock;
@@ -23,7 +20,7 @@ import java.util.concurrent.locks.ReentrantLock;
  * @author yjt
  * @since 2020/10/10 上午9:54
  */
-public abstract class GenericWsCollector extends AbstractVerticle implements Collector {
+public abstract class GenericWsCollector extends BasicCollector {
   public static final String HTTP_CLIENT_OPTIONS_PARAM = "http_client_options_param";
   public static final String WS_REQUEST_PATH_PARAM = "ws_request_path_param";
   public static final String IDLE_TIME_OUT = "idle_time_out";
@@ -31,9 +28,6 @@ public abstract class GenericWsCollector extends AbstractVerticle implements Col
   private static final ScheduledExecutorService idleCheckerExecutor;
   private Logger log = LoggerFactory.getLogger(GenericWsCollector.class);
   private static final int RETRY_MAX_COUNT = 255;
-  private Map<DataType, List<String>> subscribed = new HashMap<>(16);
-  private DataReceiver[] receivers = new DataReceiver[16];
-  private int numOfReceives = 0;
   private volatile boolean isRunning;
   private volatile WebSocket webSocket;
   private long lastReceiveTimestamp;
@@ -165,68 +159,6 @@ public abstract class GenericWsCollector extends AbstractVerticle implements Col
     }
   }
 
-  @Override
-  public synchronized void restart(Handler<AsyncResult<Void>> handler) {
-    stopFuture()
-        .compose(none -> startFuture())
-        .onComplete(handler);
-  }
-
-  @Override
-  public void subscribe(DataType dataType, String symbol, Handler<AsyncResult<Void>> handler) {
-    if (!this.isRunning()) {
-      handler.handle(Future.failedFuture("the collector is not running yet!"));
-    } else {
-      List<String> symbols;
-      if ((symbols = subscribed.get(dataType)) != null) {
-        for (String exist : symbols) {
-          if (exist.equals(symbol)) {
-            handler.handle(Future.succeededFuture());
-            return;
-          }
-        }
-      }
-      subscribed.computeIfAbsent(dataType, k -> new ArrayList<>()).add(symbol);
-      handler.handle(Future.succeededFuture());
-    }
-  }
-
-  /**
-   * 取消订阅一个交易对
-   *
-   * @param dataType 数据收集类型
-   * @param symbol   交易对
-   * @return 是否取消订阅成功
-   */
-  @Override
-  public void unSubscribe(DataType dataType, String symbol, Handler<AsyncResult<Void>> handler) {
-    List<String> symbols = subscribed.get(dataType);
-    if (symbols == null) {
-      handler.handle(Future.succeededFuture());
-    } else {
-      Iterator<String> it = symbols.iterator();
-      while (it.hasNext()) {
-        String obj = it.next();
-        if (obj.equals(symbol)) {
-          it.remove();
-          handler.handle(Future.succeededFuture());
-          return;
-        }
-      }
-      handler.handle(Future.failedFuture("not found the subscribed info for: " + dataType + ":" + symbol));
-    }
-  }
-
-  /**
-   * 获取当前正在订阅的交易对
-   *
-   * @return 当前正在订阅的信息, key为数据收集类型, value为交易对列表
-   */
-  @Override
-  public Map<DataType, List<String>> listSubscribedInfo() {
-    return subscribed;
-  }
-
   /**
    * 是否正在收集
    *
@@ -305,22 +237,5 @@ public abstract class GenericWsCollector extends AbstractVerticle implements Col
    */
   public void stopIdleChecker() {
     idleCheckEnable = false;
-  }
-
-  @Override
-  public synchronized void addDataReceiver(DataReceiver receiver) {
-    if (numOfReceives >= receivers.length) {
-      DataReceiver[] newReceives = new DataReceiver[receivers.length << 1];
-      System.arraycopy(receivers, 0, newReceives, 0, numOfReceives);
-      receivers = newReceives;
-    }
-    receivers[numOfReceives++] = receiver;
-  }
-
-  @Override
-  public void unParkReceives(DataType dataType, JsonObject json) {
-    for (int i = 0; i < numOfReceives; i++) {
-      receivers[i].onReceive(this, dataType, json);
-    }
   }
 }

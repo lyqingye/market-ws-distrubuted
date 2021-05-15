@@ -1,4 +1,4 @@
-package com.tqxd.jys.collectors.impl.tqxd;
+package com.tqxd.jys.collectors.impl.tqxd.helper;
 
 import com.tqxd.jys.common.payload.KlineTick;
 import com.tqxd.jys.common.payload.TemplatePayload;
@@ -14,11 +14,8 @@ import io.vertx.core.json.JsonObject;
 
 import java.math.BigDecimal;
 import java.util.Collections;
-import java.util.Map;
 
 public class TqxdDataConvert {
-
-
 
     public static JsonObject trade(JsonObject obj, String reqSymbol) {
         String trade = obj.getString("e");

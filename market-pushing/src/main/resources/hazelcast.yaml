@@ -3,13 +3,19 @@ hazelcast:
   management-center:
     scripting-enabled: false
   network:
+#    interfaces:
+    #      enabled: true
+    #      interfaces:
+    #        - 192.168.2.15
     join:
       multicast:
         enabled: false
       tcp-ip:
         enabled: true
         member-list:
-          - 172.20.48.1:5701
+          - 192.168.2.94:5703
+          - 192.168.2.94:5702
+          - 192.168.2.94:5701
   map:
     default:
       time-to-live-seconds: 0
