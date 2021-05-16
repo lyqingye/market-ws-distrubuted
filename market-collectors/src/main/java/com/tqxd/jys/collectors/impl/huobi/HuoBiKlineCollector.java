@@ -2,12 +2,12 @@ package com.tqxd.jys.collectors.impl.huobi;
 
 
 import com.tqxd.jys.collectors.impl.GenericWsCollector;
+import com.tqxd.jys.collectors.impl.huobi.helper.HuoBiUtils;
 import com.tqxd.jys.constance.DataType;
 import com.tqxd.jys.constance.DepthLevel;
 import com.tqxd.jys.constance.Period;
 import com.tqxd.jys.utils.ChannelUtil;
 import com.tqxd.jys.utils.GZIPUtils;
-import com.tqxd.jys.utils.HuoBiUtils;
 import io.vertx.core.*;
 import io.vertx.core.http.HttpClientOptions;
 import io.vertx.core.http.WebSocket;
@@ -19,7 +19,12 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
+import static com.tqxd.jys.collectors.impl.huobi.helper.HuoBiUtils.*;
 
 /**
  * @author ex
@@ -31,12 +36,7 @@ public class HuoBiKlineCollector extends GenericWsCollector {
    * 用于存储交易对的映射
    * 火币交易对映射 -> 用户自定义交易对映射
    */
-  private Map<String, String> symbolDeMapping = new HashMap<>();
-
-  /**
-   * 订阅ID
-   */
-  private String subIdPrefix;
+  private Map<String, String> channelDeMapping = new HashMap<>();
 
   /**
    * 开启收集数据
@@ -48,7 +48,6 @@ public class HuoBiKlineCollector extends GenericWsCollector {
     config().put(HTTP_CLIENT_OPTIONS_PARAM, httpClientOptions);
     config().put(WS_REQUEST_PATH_PARAM, config().getString("path"));
     config().put(IDLE_TIME_OUT, 5000);
-    subIdPrefix = UUID.randomUUID().toString();
     Promise<Void> promise = Promise.promise();
     super.start(promise);
     promise.future()
@@ -83,37 +82,31 @@ public class HuoBiKlineCollector extends GenericWsCollector {
     super.subscribe(dataType, symbol, promise);
     promise.future()
       .onSuccess(none -> {
-        String id = subIdPrefix + symbol;
-        String sub = null;
-        JsonObject json = new JsonObject();
-        json.put("id", id);
         switch (dataType) {
           case KLINE: {
-            // 只订阅 1min的交易
             for (Period period : Period.values()) {
-              sub = HuoBiUtils.toKlineSub(toGenericSymbol(symbol), period);
-              symbolDeMapping.put(sub, HuoBiUtils.toKlineSub(symbol, period));
-              json.put("sub", sub);
-              super.writeText(json.toString());
-              log.info("[HuoBi]: subscribe: {}", sub);
+              String sourceCh = HuoBiUtils.buildKLIneChannel(symbol, period);
+              String huoBiCh = HuoBiUtils.buildKLIneChannel(toHuoBiSymbol(symbol), period);
+              putChannelDeMapping(sourceCh, huoBiCh);
+              super.writeText(HuoBiUtils.buildKLineSubReq(System.currentTimeMillis(), huoBiCh));
+              log.info("[HuoBi]: subscribe: {}", huoBiCh);
             }
             break;
           }
           case DEPTH: {
-            // 只订阅深度为0的
-            sub = HuoBiUtils.toDepthSub(toGenericSymbol(symbol), DepthLevel.step0);
-            symbolDeMapping.put(sub, HuoBiUtils.toDepthSub(symbol, DepthLevel.step0));
-            json.put("sub", sub);
-            super.writeText(json.toString());
-            log.info("[HuoBi]: subscribe: {}", sub);
+            String sourceCh = buildDepthChannel(symbol, DepthLevel.step0);
+            String huoBiCh = buildDepthChannel(toHuoBiSymbol(symbol), DepthLevel.step0);
+            putChannelDeMapping(sourceCh, huoBiCh);
+            super.writeText(buildDepthSubReq(System.currentTimeMillis(), huoBiCh, 20, 20));
+            log.info("[HuoBi]: subscribe: {}", huoBiCh);
             break;
           }
           case TRADE_DETAIL: {
-            sub = HuoBiUtils.toTradeDetailSub(toGenericSymbol(symbol));
-            symbolDeMapping.put(sub, HuoBiUtils.toTradeDetailSub(symbol));
-            json.put("sub", sub);
-            super.writeText(json.toString());
-            log.info("[HuoBi]: subscribe: {}", sub);
+            String sourceCh = buildTradeDetailChannel(symbol);
+            String huoBiCh = buildTradeDetailChannel(toHuoBiSymbol(symbol));
+            putChannelDeMapping(sourceCh, huoBiCh);
+            super.writeText(buildTradeDetailSubReq(System.currentTimeMillis(), huoBiCh));
+            log.info("[HuoBi]: subscribe: {}", huoBiCh);
             break;
           }
         }
@@ -137,37 +130,26 @@ public class HuoBiKlineCollector extends GenericWsCollector {
     super.unSubscribe(dataType, symbol, promise);
     promise.future()
       .onSuccess(none -> {
-        String id = subIdPrefix + symbol;
-        String unsub = null;
-        JsonObject json = new JsonObject();
-        json.put("id", id);
+        String huoBiSymbol = toHuoBiSymbol(symbol);
         switch (dataType) {
           case KLINE: {
-            // 只订阅 1min的交易
             for (Period period : Period.values()) {
-              unsub = HuoBiUtils.toKlineSub(toGenericSymbol(symbol), period);
-              symbolDeMapping.put(unsub, HuoBiUtils.toKlineSub(symbol, period));
-              json.put("unsub", unsub);
-              log.info("[HuoBi]: unsubscribe: {}", unsub);
-              super.writeText(json.toString());
+              String req = buildKLineUnsubReq(System.currentTimeMillis(), huoBiSymbol, period);
+              super.writeText(req);
+              log.info("[HuoBi]: unsubscribe: {}", req);
             }
             break;
           }
           case DEPTH: {
-            // 只订阅深度为0的
-            unsub = HuoBiUtils.toDepthSub(toGenericSymbol(symbol), DepthLevel.step0);
-            symbolDeMapping.put(unsub, HuoBiUtils.toDepthSub(symbol, DepthLevel.step0));
-            json.put("unsub", unsub);
-            log.info("[HuoBi]: unsubscribe: {}", unsub);
-            super.writeText(json.toString());
+            String req = buildDepthUnsubReq(System.currentTimeMillis(), huoBiSymbol, DepthLevel.step0, 20, 20);
+            super.writeText(req);
+            log.info("[HuoBi]: unsubscribe: {}", req);
             break;
           }
           case TRADE_DETAIL: {
-            unsub = HuoBiUtils.toTradeDetailSub(toGenericSymbol(symbol));
-            symbolDeMapping.put(unsub, HuoBiUtils.toTradeDetailSub(symbol));
-            json.put("unsub", unsub);
-            log.info("[HuoBi]: unsubscribe: {}", unsub);
-            super.writeText(json.toString());
+            String req = buildTradeDetailUnsubReq(System.currentTimeMillis(), huoBiSymbol);
+            super.writeText(req);
+            log.info("[HuoBi]: unsubscribe: {}", req);
             break;
           }
         }
@@ -198,33 +180,26 @@ public class HuoBiKlineCollector extends GenericWsCollector {
     super.onFrame(client, frame);
     if (frame.isBinary() && frame.isFinal()) {
       try {
+        // GZIP解压
         byte[] data = GZIPUtils.fastDecompress(frame.binaryData());
         JsonObject obj = (JsonObject) Json.decodeValue(new String(data, StandardCharsets.UTF_8));
-        // 如果是 ping 消息则需要回复 pong
         if (isPingMsg(obj)) {
           this.pong();
         } else {
-          String ch = obj.getString("ch");
-          // 取消交易对映射
-          obj.put("ch", symbolDeMapping.get(ch));
-          // k线主题
-          if (ChannelUtil.isKLineChannel(ch)) {
+          String huoBiChannel = obj.getString("ch");
+          obj.put("ch", deChannelMapping(huoBiChannel));
+          if (ChannelUtil.isKLineChannel(huoBiChannel)) {
             unParkReceives(DataType.KLINE, obj);
-          } else if (ChannelUtil.isDepthChannel(ch)) {
+          } else if (ChannelUtil.isDepthChannel(huoBiChannel)) {
             unParkReceives(DataType.DEPTH, obj);
-          } else if (ChannelUtil.isTradeDetailChannel(ch)) {
+          } else if (ChannelUtil.isTradeDetailChannel(huoBiChannel)) {
             unParkReceives(DataType.TRADE_DETAIL, obj);
           }
         }
       } catch (IOException e) {
+        log.warn("[HuoBi]: decompress fail! cause by: {}:", e.getMessage());
         e.printStackTrace();
       }
-    } else if (frame.isPing()) {
-      log.info("[HuoBi]: receive ping");
-    } else if (frame.isClose()) {
-      log.info("[HuoBi]: receive close");
-    } else if (frame.isText()) {
-      log.info("[HuoBi]: receive text msg: {}", frame.textData());
     }
   }
 
@@ -245,7 +220,15 @@ public class HuoBiKlineCollector extends GenericWsCollector {
     super.writeText("{\"pong\":" + System.currentTimeMillis() + "}");
   }
 
-  private String toGenericSymbol(String symbol) {
+  private void putChannelDeMapping(String source, String huoBi) {
+    channelDeMapping.put(huoBi, source);
+  }
+
+  private String deChannelMapping(String huoBi) {
+    return channelDeMapping.get(huoBi);
+  }
+
+  private String toHuoBiSymbol(String symbol) {
     return symbol.replace("-", "")
       .replace("/", "")
       .toLowerCase();
