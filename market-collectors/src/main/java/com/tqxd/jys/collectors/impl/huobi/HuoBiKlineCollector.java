@@ -13,6 +13,7 @@ import io.vertx.core.http.HttpClientOptions;
 import io.vertx.core.http.WebSocket;
 import io.vertx.core.http.WebSocketFrame;
 import io.vertx.core.json.Json;
+import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -104,6 +105,7 @@ public class HuoBiKlineCollector extends GenericWsCollector {
             sub = HuoBiUtils.toDepthSub(toGenericSymbol(symbol), DepthLevel.step0);
             symbolDeMapping.put(sub, HuoBiUtils.toDepthSub(symbol, DepthLevel.step0));
             json.put("sub", sub);
+            json.put("pick", new JsonArray().add("bids.20").add("asks.20"));
             super.writeText(json.toString());
             log.info("[HuoBi]: subscribe: {}", sub);
             break;
