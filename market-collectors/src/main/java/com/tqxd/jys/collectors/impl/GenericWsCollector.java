@@ -1,6 +1,5 @@
 package com.tqxd.jys.collectors.impl;
 
-import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import io.netty.handler.codec.http.websocketx.CorruptedWebSocketFrameException;
 import io.vertx.core.Future;
 import io.vertx.core.Promise;
@@ -33,11 +32,16 @@ public abstract class GenericWsCollector extends BasicCollector {
   private static final Logger log = LoggerFactory.getLogger(GenericWsCollector.class);
 
   static {
-    ThreadFactory threadFactory = new ThreadFactoryBuilder()
-      .setNameFormat("collector-idle-check-thread%d")
-      .setUncaughtExceptionHandler(((t, e) -> e.printStackTrace()))
-      .build();
-    idleCheckerExecutor = Executors.newSingleThreadScheduledExecutor(threadFactory);
+    idleCheckerExecutor = Executors.newSingleThreadScheduledExecutor(new ThreadFactory() {
+      @Override
+      public Thread newThread(Runnable r) {
+        Thread thread = new Thread(r);
+        thread.setDaemon(false);
+        thread.setName("collector-idle-check-thread");
+        thread.setUncaughtExceptionHandler(((t, e) -> e.printStackTrace()));
+        return thread;
+      }
+    });
   }
 
   private final long checkTime = TimeUnit.SECONDS.toMillis(5);

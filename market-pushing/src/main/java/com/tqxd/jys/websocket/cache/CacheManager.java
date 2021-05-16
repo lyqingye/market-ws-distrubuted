@@ -21,8 +21,6 @@ import io.vertx.core.Handler;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.json.Json;
 import io.vertx.core.json.JsonObject;
-import org.checkerframework.checker.nullness.qual.NonNull;
-import org.checkerframework.checker.nullness.qual.Nullable;
 
 import java.util.*;
 
@@ -53,19 +51,20 @@ public class CacheManager implements KLineRepositoryListener,MessageListener {
    */
   private KLineRepository kLineRepository;
   private int numOfListener = 0;
-  private static CacheUpdateListener[] LISTENERS = new CacheUpdateListener[255];
+  private static CacheDataWatcher[] WATCHERS = new CacheDataWatcher[255];
 
-  public CacheManager (KLineRepository kLineRepository) {
+  public CacheManager(KLineRepository kLineRepository) {
     this.kLineRepository = Objects.requireNonNull(kLineRepository);
     this.kLineRepository.addListener(this);
   }
-  public synchronized void addListener (CacheUpdateListener listener) {
-    if (numOfListener >= LISTENERS.length) {
-      CacheUpdateListener[] newListeners = new CacheUpdateListener[numOfListener << 1];
-      System.arraycopy(LISTENERS,0,newListeners,0,numOfListener);
-      LISTENERS = newListeners;
+
+  public synchronized void addWatcher(CacheDataWatcher watcher) {
+    if (numOfListener >= WATCHERS.length) {
+      CacheDataWatcher[] newListeners = new CacheDataWatcher[numOfListener << 1];
+      System.arraycopy(WATCHERS, 0, newListeners, 0, numOfListener);
+      WATCHERS = newListeners;
     }
-    LISTENERS[numOfListener++] = Objects.requireNonNull(listener);
+    WATCHERS[numOfListener++] = Objects.requireNonNull(watcher);
   }
 
   /**
@@ -75,7 +74,7 @@ public class CacheManager implements KLineRepositoryListener,MessageListener {
    * @param level  深度等级 {@link DepthLevel}
    * @return null or 深度数据
    */
-  public @Nullable DepthTick reqDepth(@NonNull String symbol, @NonNull DepthLevel level, int size) {
+  public DepthTick reqDepth(String symbol, DepthLevel level, int size) {
     return marketDepthData.get(symbol + ":" + level);
   }
 
@@ -86,13 +85,13 @@ public class CacheManager implements KLineRepositoryListener,MessageListener {
    * @param size   条数，默认30
    * @return null or 成交明细数据
    */
-  public @Nullable List<TradeDetailTickData> reqTradeDetail(@NonNull String symbol, int size) {
+  public List<TradeDetailTickData> reqTradeDetail(String symbol, int size) {
     List<TradeDetailTickData> data = tradeDetailHistory.get(ChannelUtil.buildTradeDetailChannel(symbol));
     if (data != null) {
       List<TradeDetailTickData> subList;
       if (size > data.size()) {
         subList = data;
-      }else {
+      } else {
         subList = data.subList(0, size);
       }
       return subList;
@@ -106,7 +105,7 @@ public class CacheManager implements KLineRepositoryListener,MessageListener {
    * @param symbol 交易对
    * @return null or 市场概要数据
    */
-  public @Nullable KlineTick reqMarketDetail(@NonNull String symbol) {
+  public KlineTick reqMarketDetail(String symbol) {
     return marketDetailCache.get(ChannelUtil.buildMarketDetailChannel(symbol));
   }
 
@@ -118,26 +117,26 @@ public class CacheManager implements KLineRepositoryListener,MessageListener {
    * @param to      结束时间
    * @param handler 异步结果处理器
    */
-  public void reqTimeSharing(@NonNull String symbol, long from, long to,
-                             @NonNull Handler<AsyncResult<Buffer>> handler) {
+  public void reqTimeSharing(String symbol, long from, long to,
+                             Handler<AsyncResult<Buffer>> handler) {
     // TODO 暂不支持
   }
 
   /**
    * 查询k线历史数据
    *
-   * @param symbol    交易对
-   * @param period    {@link Period}
-   * @param from      开始时间
-   * @param to        结束时间
-   * @param handler   异步结果处理器
+   * @param symbol  交易对
+   * @param period  {@link Period}
+   * @param from    开始时间
+   * @param to      结束时间
+   * @param handler 异步结果处理器
    */
-  public void reqKlineHistory(@NonNull String symbol, Period period, long from, long to,
-                              @NonNull Handler<AsyncResult<List<KlineTick>>> handler) {
-    kLineRepository.query(symbol,period,from,to, ar -> {
+  public void reqKlineHistory(String symbol, Period period, long from, long to,
+                              Handler<AsyncResult<List<KlineTick>>> handler) {
+    kLineRepository.query(symbol, period, from, to, ar -> {
       if (ar.succeeded()) {
         handler.handle(Future.succeededFuture(ar.result()));
-      }else {
+      } else {
         handler.handle(Future.failedFuture(ar.cause()));
       }
     });
@@ -196,12 +195,12 @@ public class CacheManager implements KLineRepositoryListener,MessageListener {
   public void onAppendFinished(AppendTickResult rs) {
     KLineMeta meta = rs.getMeta();
     for (int i = 0; i < numOfListener; i++) {
-      LISTENERS[i].onKLineUpdate(meta.getSymbol(),meta.getPeriod(),rs.getTick());
+      WATCHERS[i].onKLineUpdate(meta.getSymbol(), meta.getPeriod(), rs.getTick());
     }
     if (rs.getDetail() != null) {
       updateMarketDetail(meta.getSymbol(), rs.getDetail());
       for (int i = 0; i < numOfListener; i++) {
-        LISTENERS[i].onMarketDetailUpdate(meta.getSymbol(),rs.getDetail());
+        WATCHERS[i].onMarketDetailUpdate(meta.getSymbol(), rs.getDetail());
       }
     }
   }
@@ -211,7 +210,7 @@ public class CacheManager implements KLineRepositoryListener,MessageListener {
     KLineMeta meta = aggregate.getMeta();
     updateMarketDetail(aggregate.getMeta().getSymbol(), aggregate.getTick());
     for (int i = 0; i < numOfListener; i++) {
-      LISTENERS[i].onMarketDetailUpdate(meta.getSymbol(), aggregate.getTick());
+      WATCHERS[i].onMarketDetailUpdate(meta.getSymbol(), aggregate.getTick());
     }
   }
 
@@ -232,14 +231,14 @@ public class CacheManager implements KLineRepositoryListener,MessageListener {
       TradeDetailTick tradeDetail = tick.mapTo(TradeDetailTick.class);
       updateTradeDetail(symbol, tradeDetail.getData());
       for (int i = 0; i < numOfListener; i++) {
-        LISTENERS[i].onTradeDetailUpdate(symbol, tradeDetail);
+        WATCHERS[i].onTradeDetailUpdate(symbol, tradeDetail);
       }
     } else if (DataType.DEPTH.equals(message.getType())) {
       DepthLevel depthLevel = ChannelUtil.getDepthLevel(ch);
       DepthTick depthTick = tick.mapTo(DepthTick.class);
       updateMarketDepth(symbol, depthLevel, depthTick);
       for (int i = 0; i < numOfListener; i++) {
-        LISTENERS[i].onDepthUpdate(symbol, depthLevel, depthTick);
+        WATCHERS[i].onDepthUpdate(symbol, depthLevel, depthTick);
       }
     }
   }
