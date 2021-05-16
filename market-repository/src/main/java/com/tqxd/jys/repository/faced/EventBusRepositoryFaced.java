@@ -49,11 +49,11 @@ public class EventBusRepositoryFaced implements RepositoryOpenApi {
   }
 
   @Override
-  public void getKlineSnapshot(String symbol, Handler<AsyncResult<String>> handler) {
-    repository.loadSnapshot(symbol, Period._1_MIN,ar -> {
+  public void getKlineSnapshot(String symbol, Period period, Handler<AsyncResult<String>> handler) {
+    repository.loadSnapshot(symbol, period, ar -> {
       if (ar.succeeded()) {
         handler.handle(Future.succeededFuture(Json.encode(ar.result())));
-      }else {
+      } else {
         handler.handle(Future.failedFuture(ar.cause()));
       }
     });

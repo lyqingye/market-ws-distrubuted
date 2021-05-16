@@ -104,17 +104,26 @@ public interface KLineRepository {
    *
    * @param handler 结果处理器
    */
-  default void flush (Handler<AsyncResult<Void>> handler) {
+  default void flush(Handler<AsyncResult<Void>> handler) {
     handler.handle(Future.failedFuture("not implementation!"));
+  }
+
+  /**
+   * 刷盘策略，默认为 SYNC
+   *
+   * @return 刷盘策略
+   */
+  default FlushMode getFlushMode() {
+    return FlushMode.SYNC;
   }
 
   /**
    * k线历史查询
    *
-   * @param symbol 交易对
-   * @param period {@link Period}
-   * @param form 开始时间戳
-   * @param to 结束时间戳
+   * @param symbol  交易对
+   * @param period  {@link Period}
+   * @param form    开始时间戳
+   * @param to      结束时间戳
    * @param handler 结果处理器
    */
   default void query(String symbol,Period period,long form,long to,Handler<AsyncResult<List<KlineTick>>> handler) {

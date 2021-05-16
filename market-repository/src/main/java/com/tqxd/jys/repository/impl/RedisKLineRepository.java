@@ -68,15 +68,15 @@ public class RedisKLineRepository implements KLineRepository {
                   snapshot.setMeta(meta);
                   if (size != null && size > 0) {
                     long start = 0;
-                    if (size >= Period._1_MIN.getNumOfPeriod()) {
-                      start = size - Period._1_MIN.getNumOfPeriod();
+                    if (size >= period.getNumOfPeriod()) {
+                      start = size - period.getNumOfPeriod();
                     }
                     return listKlineTicksLimit(symbol, period, start, -1)
-                        .compose(ticks -> {
-                          snapshot.setTickList(ticks);
-                          return Future.succeededFuture(snapshot);
-                        });
-              } else {
+                      .compose(ticks -> {
+                        snapshot.setTickList(ticks);
+                        return Future.succeededFuture(snapshot);
+                      });
+                  } else {
                 return Future.succeededFuture(snapshot);
               }
             })

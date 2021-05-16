@@ -33,10 +33,10 @@ public class KLineRepositoryAdapter implements KLineRepository{
 
   @Override
   public void loadSnapshot(String symbol, Period period, Handler<AsyncResult<KlineSnapshot>> handler) {
-    openApi.getKlineSnapshot(symbol, ar -> {
+    openApi.getKlineSnapshot(symbol, period, ar -> {
       if (ar.succeeded()) {
-        handler.handle(Future.succeededFuture(Json.decodeValue(ar.result(),KlineSnapshot.class)));
-      }else {
+        handler.handle(Future.succeededFuture(Json.decodeValue(ar.result(), KlineSnapshot.class)));
+      } else {
         handler.handle(Future.failedFuture(ar.cause()));
       }
     });
