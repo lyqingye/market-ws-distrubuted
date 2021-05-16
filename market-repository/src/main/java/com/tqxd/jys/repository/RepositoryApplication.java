@@ -9,7 +9,6 @@ import com.tqxd.jys.repository.impl.CacheableKLineRepositoryProxy;
 import com.tqxd.jys.repository.impl.RedisKLineRepository;
 import com.tqxd.jys.timeline.KLineRepository;
 import com.tqxd.jys.timeline.sync.MBKLineRepositoryAppendedSyncer;
-import com.tqxd.jys.utils.HuoBiUtils;
 import io.vertx.core.AbstractVerticle;
 import io.vertx.core.DeploymentOptions;
 import io.vertx.core.Promise;
@@ -51,6 +50,7 @@ public class RepositoryApplication extends AbstractVerticle {
         .compose(none -> MessageBusFactory.bus().subscribe(Topic.KLINE_TICK_TOPIC, syncer))
         // 注册 eventbus open api
         .compose(registryId -> {
+          this.msgBusRegistryId = registryId;
           log.info("[RepositoryApplication]: register message bus success! registryId: {}", msgBusRegistryId);
           ebRepositoryFaced.register(vertx);
           log.info("[RepositoryApplication]: register eventbus faced success!");
@@ -69,7 +69,7 @@ public class RepositoryApplication extends AbstractVerticle {
                 kLineRepository.query(symbol, Period.valueOfSymbol(period), lastDay, now, ar -> {
                   if (ar.succeeded()) {
                     JsonObject result = new JsonObject();
-                    result.put("ch", HuoBiUtils.toKlineSub(symbol, Objects.requireNonNull(Period.valueOfSymbol(period))));
+                    result.put("ch", String.format("market.%s.kline.%s", symbol, Objects.requireNonNull(Period.valueOfSymbol(period))));
                     result.put("status", "ok");
                     result.put("data", ar.result());
                     ctx.response().putHeader("content-type", "application/json")

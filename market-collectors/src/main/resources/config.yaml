@@ -6,8 +6,9 @@ market:
           host: 0.0.0.0
           port: 8088
     enabled:
-      - binance
-    #      - tqxd
+      - huobi
+    #      - binance
+    #          - tqxd
 
     huobi:
       clazz: com.tqxd.jys.collectors.impl.huobi.HuoBiKlineCollector
@@ -16,37 +17,37 @@ market:
         path: /ws
       subscribe:
         depth:
-          - btcusdt
-          - ETH-USDT
-          - XRP-USDT
-          - EOS-USDT
-          - DOGE-USDT
-          - HT-USDT
-          - SHIB-USDT
-          - ETC-USDT
-          - ICP-USDT
+          - BTC-USDT
+        #          - ETH-USDT
+        #          - XRP-USDT
+        #          - EOS-USDT
+        #          - DOGE-USDT
+        #          - HT-USDT
+        #          - SHIB-USDT
+        #          - ETC-USDT
+        #          - ICP-USDT
         kline:
-          - btcusdt
-          - ETH-USDT
-          - XRP-USDT
-          - EOS-USDT
-          - DOGE-USDT
-          - HT-USDT
-          - SHIB-USDT
-          - ETC-USDT
-          - ICP-USDT
+          - BTC-USDT
+        #          - ETH-USDT
+        #          - XRP-USDT
+        #          - EOS-USDT
+        #          - DOGE-USDT
+        #          - HT-USDT
+        #          - SHIB-USDT
+        #          - ETC-USDT
+        #          - ICP-USDT
         trade:
           detail:
             - BTC-USDT
-            - BTC-USDT
-            - ETH-USDT
-            - XRP-USDT
-            - EOS-USDT
-            - DOGE-USDT
-            - HT-USDT
-            - SHIB-USDT
-            - ETC-USDT
-            - ICP-USDT
+    #            - BTC-USDT
+    #            - ETH-USDT
+    #            - XRP-USDT
+    #            - EOS-USDT
+    #            - DOGE-USDT
+    #            - HT-USDT
+    #            - SHIB-USDT
+    #            - ETC-USDT
+    #            - ICP-USDT
 
     binance:
       clazz: com.tqxd.jys.collectors.impl.binance.BiNanceCollector
