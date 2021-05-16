@@ -56,24 +56,17 @@ public class InMemKLineRepository implements KLineRepository {
         List<Future> allFutures = new ArrayList<>();
         // process all symbols
         for (String symbol : symbols) {
-          allFutures.add(from.loadSnapshot(symbol,Period._1_MIN)
-            .compose(snapshot -> {
-              log.info("load {} snapshot! committed index {}, size: {}",symbol,snapshot.getMeta().getCommittedIndex(),snapshot.getTickList().size());
-              List<Future> restoreFutures = new ArrayList<>();
-              // append all period
-              for (Period p : Period.values()) {
-                KlineSnapshot copy = snapshot.copy();
-                copy.setMeta(snapshot.getMeta().copy());
-                copy.getMeta().setPeriod(p);
-                restoreFutures.add(
-                  this.restoreWithSnapshot(copy)
-                    .onSuccess(v -> log.info("restore {} {} snapshot success!",copy.getMeta().getSymbol(),p))
-                );
-              }
-              return CompositeFuture.all(restoreFutures);
-            }));
+          for (Period period : Period.values()) {
+            allFutures.add(from.loadSnapshot(symbol, period)
+              .compose(snapshot -> {
+                log.info("load {} snapshot! committed index {}, size: {}", symbol, snapshot.getMeta().getCommittedIndex(), snapshot.getTickList().size());
+                return this.restoreWithSnapshot(snapshot)
+                  .onSuccess(v -> log.info("restore {} {} snapshot success!", snapshot.getMeta().getSymbol(), period));
+              })
+            );
+          }
         }
-        return CompositeFuture.all(allFutures);
+        return CompositeFuture.any(allFutures);
       })
       .onSuccess(ignored -> {
         handler.handle(Future.succeededFuture());
@@ -224,9 +217,13 @@ public class InMemKLineRepository implements KLineRepository {
     for (int i = 0; i < size; i++) {
       KLine timeLine = timeLines[i];
       if (timeLine != null) {
-        KlineTick statisticsResult = timeLine.tick();
-        if (statisticsResult != null) {
-          outQueue.add(new Auto24HourStatisticsResult(timeLine.meta().snapshot(), statisticsResult));
+        if (timeLine.tick()) {
+          KlineTick statisticsResult = timeLine.get24HourStatistics();
+          if (statisticsResult != null) {
+            outQueue.add(new Auto24HourStatisticsResult(timeLine.meta().snapshot(), statisticsResult));
+          }
+
+          // TODO FLUSH
         }
       }
     }

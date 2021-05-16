@@ -1,5 +1,6 @@
 package com.tqxd.jys.openapi;
 
+import com.tqxd.jys.constance.Period;
 import io.vertx.codegen.annotations.ProxyGen;
 import io.vertx.core.AsyncResult;
 import io.vertx.core.Handler;
@@ -22,5 +23,5 @@ public interface RepositoryOpenApi {
 
   void listKlineKeys(Handler<AsyncResult<Set<String>>> handler);
 
-  void getKlineSnapshot(String symbol, Handler<AsyncResult<String>> handler);
+  void getKlineSnapshot(String symbol, Period period, Handler<AsyncResult<String>> handler);
 }

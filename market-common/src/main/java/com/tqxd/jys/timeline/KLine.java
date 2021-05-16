@@ -153,12 +153,8 @@ public class KLine {
     handler.handle(Future.succeededFuture(new Auto24HourStatisticsResult(this.meta.snapshot(), get24HourStatistics())));
   }
 
-  public KlineTick tick() {
-    KlineTick result = null;
-    if (updateWindow()) {
-      result = get24HourStatistics();
-    }
-    return result;
+  public boolean tick() {
+    return updateWindow();
   }
 
   private KlineTick append(KlineTick source) {
@@ -208,66 +204,12 @@ public class KLine {
     }
   }
 
-//  private void clearAggregate() {
-//    if (!autoAggregate)
-//      return;
-//    low = high = vol = open = close = amount = BigDecimal.ZERO;
-//    count = 0;
-//  }
-
-//  @Deprecated
-//  private void doAggregate(KlineTick tick) {
-//    if (!autoAggregate || tick == null) {
-//      return;
-//    }
-//    count += tick.getCount();
-//    amount = amount.add(tick.getAmount());
-//    vol = vol.add(tick.getVol());
-//    close = tick.getClose();
-//    if (open.compareTo(BigDecimal.ZERO) == 0) {
-//      open = tick.getOpen();
-//    }
-//    close = tick.getClose();
-//    if (tick.getHigh().compareTo(high) > 0) {
-//      high = tick.getHigh();
-//    }
-//    if (tick.getLow().compareTo(low) > 0) {
-//      low = tick.getLow();
-//    }
-//  }
-//
-//  @Deprecated
-//  private void doRollbackAggregate(KlineTick oldTick) {
-//    if (!autoAggregate || oldTick == null) {
-//      return;
-//    }
-//    count -= oldTick.getCount();
-//    amount = amount.subtract(oldTick.getAmount());
-//    vol = vol.subtract(oldTick.getVol());
-//  }
-//
-//  @Deprecated
-//  private MarketDetailTick snapAggregate() {
-//    if (!autoAggregate) {
-//      return null;
-//    }
-//    MarketDetailTick detail = new MarketDetailTick();
-//    detail.setVol(vol);
-//    detail.setAmount(amount);
-//    detail.setClose(close);
-//    detail.setOpen(open);
-//    detail.setCount(count);
-//    detail.setHigh(high);
-//    detail.setLow(low);
-//    return detail;
-//  }
-
   private int calculateIdx(long t) {
     long at = alignWithPeriod(t, period);
     return Math.toIntExact(((at - ht) % totalPeriodSize) / period);
   }
 
-  private KlineTick get24HourStatistics() {
+  public KlineTick get24HourStatistics() {
     if (Period._1_DAY.getMill() != period) {
       return null;
     }
