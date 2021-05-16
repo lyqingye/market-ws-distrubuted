@@ -69,22 +69,22 @@ public class PushingApplication extends AbstractVerticle {
     SessionManager sessionMgr = SessionManager.getInstance();
     // k线主题处理器
     KLineChannelProcessor kLineChannelProcessor = new KLineChannelProcessor(cacheManager, sessionMgr);
-    cacheManager.addListener(kLineChannelProcessor);
+    cacheManager.addWatcher(kLineChannelProcessor);
     dispatcher.addProcessor(kLineChannelProcessor);
 
     // 成交记录主题处理器
     TradeDetailChannelProcessor tradeDetailChannelProcessor = new TradeDetailChannelProcessor(cacheManager, sessionMgr);
-    cacheManager.addListener(tradeDetailChannelProcessor);
+    cacheManager.addWatcher(tradeDetailChannelProcessor);
     dispatcher.addProcessor(tradeDetailChannelProcessor);
 
     // 市场概括主题处理器
     MarketDetailChannelProcessor marketDetailChannelProcessor = new MarketDetailChannelProcessor(cacheManager, sessionMgr);
-    cacheManager.addListener(marketDetailChannelProcessor);
+    cacheManager.addWatcher(marketDetailChannelProcessor);
     dispatcher.addProcessor(marketDetailChannelProcessor);
 
     // 市场深度主题处理器
     MarketDepthChannelProcessor marketDepthChannelProcessor = new MarketDepthChannelProcessor(cacheManager, sessionMgr);
-    cacheManager.addListener(marketDepthChannelProcessor);
+    cacheManager.addWatcher(marketDepthChannelProcessor);
     dispatcher.addProcessor(marketDepthChannelProcessor);
 
     this.serverEndpointVerticle = new ServerEndpointVerticle();

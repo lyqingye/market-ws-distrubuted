@@ -11,16 +11,17 @@ import com.tqxd.jys.messagebus.payload.trade.TradeDetailTick;
  *
  * @author lyqingye
  */
-public interface CacheUpdateListener {
+public interface CacheDataWatcher {
 
   /**
    * k线数据变动事件
    *
    * @param symbol 交易对
    * @param period {@link Period}
-   * @param tick tick
+   * @param tick   tick
    */
-  default void onKLineUpdate (String symbol, Period period, KlineTick tick){}
+  default void onKLineUpdate(String symbol, Period period, KlineTick tick) {
+  }
 
   /**
    * 成交记录变动事件

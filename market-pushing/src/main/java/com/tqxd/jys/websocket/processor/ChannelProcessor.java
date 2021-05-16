@@ -1,13 +1,13 @@
 package com.tqxd.jys.websocket.processor;
 
-import com.tqxd.jys.websocket.cache.CacheUpdateListener;
+import com.tqxd.jys.websocket.cache.CacheDataWatcher;
 import com.tqxd.jys.websocket.session.Session;
 import io.vertx.core.json.JsonObject;
 
 /**
  * 主题处理器
  */
-public interface ChannelProcessor extends CacheUpdateListener {
+public interface ChannelProcessor extends CacheDataWatcher {
 
   /**
    * 如果主题匹配那么直接处理Request请求
