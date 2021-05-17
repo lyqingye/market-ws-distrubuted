@@ -6,8 +6,8 @@ market:
           host: 0.0.0.0
           port: 8088
     enabled:
-      - tqxd
-    #      - huobi
+#      - tqxd
+      - huobi
     #          - binance
 
     huobi:
@@ -17,7 +17,8 @@ market:
         path: /ws
       subscribe:
         depth:
-          - BTC-USDT
+          - btcusdt
+          - ethusdt
         #          - ETH-USDT
         #          - XRP-USDT
         #          - EOS-USDT
@@ -27,7 +28,8 @@ market:
         #          - ETC-USDT
         #          - ICP-USDT
         kline:
-          - BTC-USDT
+          - btcusdt
+          - ethusdt
         #          - ETH-USDT
         #          - XRP-USDT
         #          - EOS-USDT
@@ -38,7 +40,8 @@ market:
         #          - ICP-USDT
         trade:
           detail:
-            - BTC-USDT
+            - btcusdt
+            - ethusdt
     #            - BTC-USDT
     #            - ETH-USDT
     #            - XRP-USDT
@@ -69,8 +72,10 @@ market:
         host: market-pre.sgpexchange.com
         path: /
       subscribe:
-        #        kline:
-        #          - AITD-USDT
+        kline:
+          - AITD-USDT
+        depth:
+          - AITD-USDT
         trade:
           detail:
             - AITD-USDT
