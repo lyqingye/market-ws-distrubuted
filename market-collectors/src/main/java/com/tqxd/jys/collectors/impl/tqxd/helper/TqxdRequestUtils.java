@@ -9,6 +9,12 @@ import java.util.HashMap;
 import java.util.Map;
 
 public class TqxdRequestUtils {
+  public static final String METHOD = "method";
+  public static final String PARAMS = "params";
+  public static final String ID = "id";
+  public static final String KLINE_UPDATE_RESP = "kline.update";
+  public static final String DEPTH_UPDATE_RESP = "depth.update";
+  public static final String TRADE_DETAIL_UPDATE_RESP = "deals.update";
   private static final String KLINE_SUBSCRIBE_METHOD = "kline.subscribe";
   private static final String KLINE_UNSUBSCRIBE_METHOD = "kline.unsubscribe";
   private static final String DEPTH_SUBSCRIBE_METHOD = "depth.subscribe";
@@ -28,8 +34,8 @@ public class TqxdRequestUtils {
 
   public static String toTqxdSymbol(String symbol) {
     return symbol.replace("-", "")
-      .replace("/", "")
-      .toUpperCase();
+        .replace("/", "")
+        .toUpperCase();
   }
 
   public static String buildSubscribeKLineReq(long subscribeId, String symbol, Period period) {
@@ -79,9 +85,9 @@ public class TqxdRequestUtils {
 
   private static String buildRequest(long subscribeId, String method, JsonArray params) {
     JsonObject json = new JsonObject();
-    json.put("method", method);
-    json.put("id", subscribeId);
-    json.put("params", params);
+    json.put(METHOD, method);
+    json.put(ID, subscribeId);
+    json.put(PARAMS, params);
     return json.toString();
   }
 }

@@ -6,9 +6,9 @@ market:
           host: 0.0.0.0
           port: 8088
     enabled:
-      - huobi
-    #      - binance
-    #          - tqxd
+      - tqxd
+    #      - huobi
+    #          - binance
 
     huobi:
       clazz: com.tqxd.jys.collectors.impl.huobi.HuoBiKlineCollector
@@ -69,5 +69,8 @@ market:
         host: market-pre.sgpexchange.com
         path: /
       subscribe:
-        kline:
-          - AITD-USDT
+        #        kline:
+        #          - AITD-USDT
+        trade:
+          detail:
+            - AITD-USDT
