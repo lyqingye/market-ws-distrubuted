@@ -9,5 +9,7 @@ hazelcast:
       tcp-ip:
         enabled: true
         member-list:
-          - localhost:5702
+          - 192.168.2.94:5703
+          - 192.168.2.94:5702
+          - 192.168.2.94:5701
 

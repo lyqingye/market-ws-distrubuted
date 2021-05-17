@@ -58,7 +58,7 @@ public class InMemKLineRepository implements KLineRepository {
               .compose(snapshot -> {
                 log.info("load {} snapshot! committed index {}, size: {}", symbol, snapshot.getMeta().getCommittedIndex(), snapshot.getTickList().size());
                 return this.restoreWithSnapshot(snapshot)
-                  .onSuccess(v -> log.info("restore {} {} snapshot success!", snapshot.getMeta().getSymbol(), period));
+                    .onSuccess(v -> log.info("restore {} {} snapshot success!", snapshot.getMeta().getSymbol(), snapshot.getMeta().getPeriod()));
               })
             );
           }

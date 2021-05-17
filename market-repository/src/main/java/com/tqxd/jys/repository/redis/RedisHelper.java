@@ -249,6 +249,9 @@ public class RedisHelper {
    */
   @SuppressWarnings("unchecked")
   private <T> T responseToObj(Response r) {
+    if (r == null) {
+      return null;
+    }
     switch (r.type()) {
       case NUMBER: {
         return (T) Long.valueOf(r.toNumber().longValue());

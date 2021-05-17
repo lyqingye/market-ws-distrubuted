@@ -4,7 +4,6 @@ package com.tqxd.jys.collectors.impl.tqxd;
 import com.tqxd.jys.collectors.impl.BasicCollector;
 import com.tqxd.jys.collectors.impl.Collector;
 import com.tqxd.jys.collectors.impl.DataReceiver;
-import com.tqxd.jys.collectors.impl.tqxd.helper.TqxdDataConvert;
 import com.tqxd.jys.collectors.impl.tqxd.match.TqxdDepthCollector;
 import com.tqxd.jys.collectors.impl.tqxd.match.TqxdKlineCollector;
 import com.tqxd.jys.collectors.impl.tqxd.match.TqxdTradeDetailCollector;
@@ -57,12 +56,12 @@ public class TqxdCollector extends BasicCollector {
       }
     }));
     CompositeFuture.any(futures)
-      .onSuccess(ar -> {
-        startPromise.complete();
-        log.info("[tqxd]: start success!");
-        isRunning = true;
-      })
-      .onFailure(startPromise::fail);
+        .onSuccess(ar -> {
+          startPromise.complete();
+          log.info("[tqxd]: start success!");
+          isRunning = true;
+        })
+        .onFailure(startPromise::fail);
   }
 
   @Override
@@ -77,16 +76,16 @@ public class TqxdCollector extends BasicCollector {
       }
     }));
     CompositeFuture.any(futures)
-      .onComplete(ar -> {
-        if (ar.succeeded()) {
-          log.info("[tqxd]: stop success");
-          depthCollectorVerticleMap.clear();
-          isRunning = false;
-          stopPromise.complete();
-        } else {
-          stopPromise.fail(ar.cause());
-        }
-      });
+        .onComplete(ar -> {
+          if (ar.succeeded()) {
+            log.info("[tqxd]: stop success");
+            depthCollectorVerticleMap.clear();
+            isRunning = false;
+            stopPromise.complete();
+          } else {
+            stopPromise.fail(ar.cause());
+          }
+        });
   }
 
   /**
@@ -102,37 +101,37 @@ public class TqxdCollector extends BasicCollector {
     Promise<Void> promise = Promise.promise();
     super.subscribe(dataType, symbol, promise);
     promise.future()
-      .onSuccess(none -> {
-        switch (dataType) {
-          case KLINE: {
-            List<Future> futures = new ArrayList<>();
-            for (Period period : Period.values()) {
-              Promise<Void> prom = Promise.promise();
-              deployCollector(dataType, symbol, period, new TqxdKlineCollector(this.createConfig(symbol, period)), prom);
-              futures.add(prom.future());
-            }
-            CompositeFuture.all(futures).onComplete(ar -> {
-              if (ar.succeeded()) {
-                handler.handle(Future.succeededFuture());
-              } else {
-                handler.handle(Future.failedFuture(ar.cause()));
+        .onSuccess(none -> {
+          switch (dataType) {
+            case KLINE: {
+              List<Future> futures = new ArrayList<>();
+              for (Period period : Period.values()) {
+                Promise<Void> prom = Promise.promise();
+                deployCollector(dataType, symbol, period, new TqxdKlineCollector(this.createConfig(symbol, period)), prom);
+                futures.add(prom.future());
               }
-            });
-            break;
+              CompositeFuture.all(futures).onComplete(ar -> {
+                if (ar.succeeded()) {
+                  handler.handle(Future.succeededFuture());
+                } else {
+                  handler.handle(Future.failedFuture(ar.cause()));
+                }
+              });
+              break;
+            }
+            case DEPTH: {
+              deployCollector(dataType, symbol, null, new TqxdDepthCollector(this.createConfig(symbol, null)), handler);
+              break;
+            }
+            case TRADE_DETAIL: {
+              deployCollector(dataType, symbol, null, new TqxdTradeDetailCollector(this.createConfig(symbol, null)), handler);
+              break;
+            }
+            default:
+              handler.handle(Future.failedFuture("[tqxd]: unknown data type for: " + dataType));
           }
-          case DEPTH: {
-            deployCollector(dataType, symbol, null, new TqxdDepthCollector(this.createConfig(symbol, null)), handler);
-            break;
-          }
-          case TRADE_DETAIL: {
-            deployCollector(dataType, symbol, null, new TqxdTradeDetailCollector(this.createConfig(symbol, null)), handler);
-            break;
-          }
-          default:
-            handler.handle(Future.failedFuture("[tqxd]: unknown data type for: " + dataType));
-        }
-      })
-      .onFailure(throwable -> handler.handle(Future.failedFuture(throwable)));
+        })
+        .onFailure(throwable -> handler.handle(Future.failedFuture(throwable)));
   }
 
   private void deployCollector(DataType dataType, String symbol, Period period, Collector collector, Handler<AsyncResult<Void>> handler) {
@@ -140,7 +139,7 @@ public class TqxdCollector extends BasicCollector {
     collector.addDataReceiver(new DataReceiver() {
       @Override
       public void onReceive(Collector from, DataType dataType, JsonObject obj) {
-        that.unParkReceives(dataType, TqxdDataConvert.trade(obj, symbol));
+        that.unParkReceives(dataType, obj);
       }
     });
     vertx.deployVerticle(collector, ar -> {
@@ -172,11 +171,11 @@ public class TqxdCollector extends BasicCollector {
 
   private JsonObject createConfig(String symbol, Period period) {
     return new JsonObject()
-      .put(HTTP_CLIENT_OPTIONS_PARAM, config().getValue(HTTP_CLIENT_OPTIONS_PARAM))
-      .put(WS_REQUEST_PATH_PARAM, config().getValue(WS_REQUEST_PATH_PARAM))
-      .put(SYMBOL_CONFIG, symbol)
-      .put(TqxdKlineCollector.PERIOD_CONFIG, period)
-      .put(IDLE_TIME_OUT, config().getValue(IDLE_TIME_OUT));
+        .put(HTTP_CLIENT_OPTIONS_PARAM, config().getValue(HTTP_CLIENT_OPTIONS_PARAM))
+        .put(WS_REQUEST_PATH_PARAM, config().getValue(WS_REQUEST_PATH_PARAM))
+        .put(SYMBOL_CONFIG, symbol)
+        .put(TqxdKlineCollector.PERIOD_CONFIG, period)
+        .put(IDLE_TIME_OUT, config().getValue(IDLE_TIME_OUT));
   }
 
   /**
@@ -192,35 +191,35 @@ public class TqxdCollector extends BasicCollector {
     Promise<Void> promise = Promise.promise();
     super.unSubscribe(dataType, symbol, promise);
     promise.future()
-      .onSuccess(none -> {
-        switch (dataType) {
-          case KLINE: {
-            List<Future> futures = new ArrayList<>();
-            for (Period period : Period.values()) {
-              Promise<Void> prom = Promise.promise();
-              unDeployCollector(dataType, symbol, period, prom);
-              futures.add(prom.future());
-            }
-            CompositeFuture.all(futures).onComplete(ar -> {
-              if (ar.succeeded()) {
-                handler.handle(Future.succeededFuture());
-              } else {
-                handler.handle(Future.failedFuture(ar.cause()));
+        .onSuccess(none -> {
+          switch (dataType) {
+            case KLINE: {
+              List<Future> futures = new ArrayList<>();
+              for (Period period : Period.values()) {
+                Promise<Void> prom = Promise.promise();
+                unDeployCollector(dataType, symbol, period, prom);
+                futures.add(prom.future());
               }
-            });
-            break;
+              CompositeFuture.all(futures).onComplete(ar -> {
+                if (ar.succeeded()) {
+                  handler.handle(Future.succeededFuture());
+                } else {
+                  handler.handle(Future.failedFuture(ar.cause()));
+                }
+              });
+              break;
+            }
+            case TRADE_DETAIL:
+            case DEPTH: {
+              unDeployCollector(dataType, symbol, null, handler);
+              break;
+            }
           }
-          case TRADE_DETAIL:
-          case DEPTH: {
-            unDeployCollector(dataType, symbol, null, handler);
-            break;
-          }
-        }
-        handler.handle(Future.failedFuture("[tqxd]: unknown data type for: " + dataType));
-      })
-      .onFailure(throwable -> {
-        handler.handle(Future.failedFuture(throwable));
-      });
+          handler.handle(Future.failedFuture("[tqxd]: unknown data type for: " + dataType));
+        })
+        .onFailure(throwable -> {
+          handler.handle(Future.failedFuture(throwable));
+        });
   }
 
   @Override
