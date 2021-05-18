@@ -1,0 +1,69 @@
+{
+  // STANDALONE,SENTINEL,CLUSTER
+  "type": "STANDALONE",
+  "netClientOptions": {
+    "sendBufferSize": -1,
+    "receiveBufferSize": -1,
+    "trafficClass": -1,
+    "reuseAddress": true,
+    "logActivity": false,
+    "reusePort": false,
+    "tcpNoDelay": true,
+    "tcpKeepAlive": true,
+    "soLinger": -1,
+    "idleTimeout": 0,
+    "idleTimeoutUnit": "SECONDS",
+    "ssl": false,
+    "sslHandshakeTimeout": 10,
+    "sslHandshakeTimeoutUnit": "SECONDS",
+    "keyCertOptions": null,
+    "trustOptions": null,
+    "enabledCipherSuites": [],
+    "crlPaths": [],
+    "crlValues": [],
+    "useAlpn": false,
+    "sslEngineOptions": null,
+    "enabledSecureTransportProtocols": [
+      "TLSv1",
+      "TLSv1.1",
+      "TLSv1.2"
+    ],
+    "tcpFastOpen": false,
+    "tcpCork": false,
+    "tcpQuickAck": false,
+    "connectTimeout": 60000,
+    "trustAll": false,
+    "metricsName": "",
+    "proxyOptions": null,
+    "localAddress": null,
+    "reconnectAttempts": 0,
+    "reconnectInterval": 1000,
+    "hostnameVerificationAlgorithm": "",
+    "applicationLayerProtocols": null,
+    "keyStoreOptions": null,
+    "pemKeyCertOptions": null,
+    "pemTrustOptions": null,
+    "pfxKeyCertOptions": null,
+    "jdkSslEngineOptions": null,
+    "pfxTrustOptions": null,
+    "openSslEngineOptions": null,
+    "trustStoreOptions": null
+  },
+  // 密码请使用url encoding 编码特殊字符，http://web.chacuo.net/charseturlencode
+  // redis://[:password@]host[:port][/db-number]
+  "endpoints": [
+    "redis://localhost:6379/7"
+  ],
+  "endpoint": "redis://localhost:6379/7",
+  "maxWaitingHandlers": 2048,
+  "maxNestedArrays": 32,
+  "masterName": "mymaster",
+  // MASTER, REPLICA,SENTINEL
+  "role": "MASTER",
+  "useReplicas": "NEVER",
+  "password": null,
+  "poolCleanerInterval": -1,
+  "maxPoolSize": 6,
+  "maxPoolWaiting": 24,
+  "poolRecycleTimeout": 15000
+}
