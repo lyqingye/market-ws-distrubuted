@@ -5,9 +5,4 @@
   "group.id": "market.pushing.consumer",
   "auto.offset.reset": "latest",
   "enable.auto.commit": "true"
-  //  "max.poll.records": "10",
-  //  "fetch.max.wait.ms": "1",
-  //  "fetch.min.bytes": "10"
-  //  "max.poll.interval.ms": "5"
-  //  "session.timeout.ms": "100"
 }

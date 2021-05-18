@@ -4,6 +4,7 @@ import io.vertx.core.buffer.Buffer;
 import io.vertx.core.http.HttpClientOptions;
 import io.vertx.core.http.WebSocket;
 
+import java.util.BitSet;
 import java.util.Date;
 
 public class Run {
@@ -26,16 +27,19 @@ public class Run {
 //        .onSuccess(ar -> {
 //          System.out.println();
 //        }).onFailure(Throwable::printStackTrace);
+    BitSet bitSet = new BitSet(128);
+    bitSet.set(65);
+    System.out.println();
 
 
     VertxOptions vertxOptions = new VertxOptions();
     Vertx vertx = Vertx.vertx(vertxOptions);
     vertx.createHttpClient(new HttpClientOptions().setDefaultHost("market-pre.sgpexchange.com"))
 
-      .webSocket("/", ar -> {
-        WebSocket websocket = ar.result();
+        .webSocket("/", ar -> {
+          WebSocket websocket = ar.result();
 
-        if (ar.failed()) {
+          if (ar.failed()) {
           ar.cause().printStackTrace();
         } else {
           websocket.writeTextMessage("{ \"method\":\"kline.subscribe\", \"id\":1, \"params\":[ \"AITDUSDT\", 60 ] }");
