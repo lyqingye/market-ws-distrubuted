@@ -3,8 +3,8 @@ import io.vertx.core.Vertx;
 public class Clients5000_ {
   public static void main(String[] args) {
     Vertx vertx = Vertx.vertx();
-    for (int i = 0; i < 5000; i++) {
-      vertx.createHttpClient().webSocket(7776, "localhost", "/")
+    for (int i = 0; i < 4000; i++) {
+      vertx.createHttpClient().webSocket(7776, "192.168.248.128", "/")
           .onSuccess(socket -> {
             socket.writeTextMessage("{\n" +
                 "\t\"id\": \"id1\",\n" +

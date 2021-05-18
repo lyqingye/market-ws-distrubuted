@@ -60,10 +60,10 @@ public class ServerEndpointVerticle extends AbstractVerticle {
     wsServer = vertx.createHttpServer(options).webSocketHandler(client -> {
       if (!path.equals(client.path())) {
         client.reject();
+        return;
       }
       Session session = sessionMgr.allocate();
       if (session == null) {
-        client.writeTextMessage("server online connection over limit: " + sessionMgr.getCapacity());
         client.reject();
         log.error("[KlineWorker]: allocate session fail! ");
         return;

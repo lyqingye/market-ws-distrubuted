@@ -8,51 +8,18 @@ market:
     enabled:
 #      - tqxd
       - huobi
-    #          - binance
-
+#      - binance
     huobi:
       clazz: com.tqxd.jys.collectors.impl.huobi.HuoBiKlineCollector
       config:
         host: api.huobiasia.vip
         path: /ws
         idle-time-out: 10000
+
       subscribe:
-        depth:
-          - btcusdt
-          - ethusdt
-        #          - ETH-USDT
-        #          - XRP-USDT
-        #          - EOS-USDT
-        #          - DOGE-USDT
-        #          - HT-USDT
-        #          - SHIB-USDT
-        #          - ETC-USDT
-        #          - ICP-USDT
         kline:
           - btcusdt
           - ethusdt
-        #          - ETH-USDT
-        #          - XRP-USDT
-        #          - EOS-USDT
-        #          - DOGE-USDT
-        #          - HT-USDT
-        #          - SHIB-USDT
-        #          - ETC-USDT
-        #          - ICP-USDT
-        trade:
-          detail:
-            - btcusdt
-            - ethusdt
-    #            - BTC-USDT
-    #            - ETH-USDT
-    #            - XRP-USDT
-    #            - EOS-USDT
-    #            - DOGE-USDT
-    #            - HT-USDT
-    #            - SHIB-USDT
-    #            - ETC-USDT
-    #            - ICP-USDT
-
     binance:
       clazz: com.tqxd.jys.collectors.impl.binance.BiNanceCollector
       config:
@@ -63,20 +30,8 @@ market:
         host: stream.binance.com
         port: 9443
         path: /ws
-      subscribe:
-        depth:
-          - BTC-USDT
-          - ETH-USDT
     tqxd:
       clazz: com.tqxd.jys.collectors.impl.tqxd.TqxdCollector
       config:
         host: market-pre.sgpexchange.com
         path: /
-      subscribe:
-        kline:
-          - AITD-USDT
-        depth:
-          - AITD-USDT
-        trade:
-          detail:
-            - AITD-USDT
