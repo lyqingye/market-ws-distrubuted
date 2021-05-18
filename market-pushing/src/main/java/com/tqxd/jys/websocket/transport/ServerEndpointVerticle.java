@@ -55,7 +55,7 @@ public class ServerEndpointVerticle extends AbstractVerticle {
     options.setSendBufferSize(4096);
     String host = VertxUtil.jsonGetValue(config(), WEBSOCKET_HOST_CONFIG, String.class, "0.0.0.0");
     Integer port = VertxUtil.jsonGetValue(config(), WEBSOCKET_PORT_CONFIG, Integer.class, 7776);
-    String path = VertxUtil.jsonGetValue(config(), WEBSOCKET_PORT_CONFIG, String.class, "/");
+    String path = VertxUtil.jsonGetValue(config(), WEBSOCKET_PATH_CONFIG, String.class, "/");
     wsServer = vertx.createHttpServer(options).webSocketHandler(client -> {
       if (!path.equals(client.path())) {
         client.reject();
@@ -90,7 +90,6 @@ public class ServerEndpointVerticle extends AbstractVerticle {
       });
       client.closeHandler(ignored -> safeRelease(session));
     });
-
 
     wsServer.listen(port, host)
         .onComplete(h -> {
