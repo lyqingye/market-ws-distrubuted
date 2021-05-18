@@ -15,6 +15,7 @@ market:
       config:
         host: api.huobiasia.vip
         path: /ws
+        idle-time-out: 10000
       subscribe:
         depth:
           - btcusdt

@@ -52,6 +52,7 @@ public abstract class GenericWsCollector extends BasicCollector {
   private volatile long lastCheckTime = 0;
   private volatile boolean restarting = false;
   private volatile boolean stopping = false;
+  private volatile boolean retrying = false;
   private volatile boolean idleCheckEnable = true;
   private AtomicInteger retryCount = new AtomicInteger(0);
 
@@ -63,7 +64,7 @@ public abstract class GenericWsCollector extends BasicCollector {
           lock.release();
           startPromise.fail("collector is running!");
         } else {
-          idleTime = config().getLong(IDLE_TIME_OUT, TimeUnit.SECONDS.toMillis(5));
+          idleTime = config().getLong(IDLE_TIME_OUT, -1L);
           HttpClientOptions httpClientOptions = null;
           if (config().containsKey(HTTP_CLIENT_OPTIONS_PARAM)) {
             httpClientOptions = (HttpClientOptions) config().getValue(HTTP_CLIENT_OPTIONS_PARAM);
@@ -107,7 +108,6 @@ public abstract class GenericWsCollector extends BasicCollector {
     });
     webSocket.closeHandler(none -> {
       log.warn("[Collectors]: collector {} connection closed try to restart!", this.name());
-      stopIdleChecker();
       retry();
     });
     webSocket.exceptionHandler(throwable -> {
@@ -117,8 +117,10 @@ public abstract class GenericWsCollector extends BasicCollector {
       } else if (throwable instanceof VertxException && "Connection was closed".equals(throwable.getMessage())) {
         // do nothing
         // 如果为连接关闭异常，会直接通知到上面的 closeHandler，这边不做处理
+        log.info("[collectors]: collector {} catch connection closed exception!", this.name());
       } else {
-        stopIdleChecker();
+        log.warn("[collectors]: collector {} catch unknown exception: {}", this.name(), throwable.getMessage());
+        throwable.printStackTrace();
         retry();
       }
       throwable.printStackTrace();
@@ -126,27 +128,31 @@ public abstract class GenericWsCollector extends BasicCollector {
   }
 
   private Future<Lock> getStartLock() {
-    return vertx.sharedData().getLocalLock(deploymentID() + this.name());
+    return vertx.sharedData().getLocalLock("startLock:" + deploymentID() + this.name());
   }
 
   private Future<Lock> getStopLock() {
-    return vertx.sharedData().getLocalLock(deploymentID() + this.name());
+    return vertx.sharedData().getLocalLock("stopLock:" + deploymentID() + this.name());
   }
 
   private Future<Lock> getRestartLock() {
-    return vertx.sharedData().getLocalLockWithTimeout(deploymentID() + this.name(), TimeUnit.SECONDS.toMillis(10));
+    return vertx.sharedData().getLocalLockWithTimeout("restartLock:" + deploymentID() + this.name(), TimeUnit.SECONDS.toMillis(10));
   }
 
   private synchronized void retry() {
+    if (retrying) {
+      return;
+    }
     getRestartLock()
-      .onSuccess(lock -> {
-        if (stopping) {
-          lock.release();
-          return;
-        }
-        if (retryCount.getAndIncrement() >= RETRY_MAX_COUNT) {
-          log.error("[collectors]: collector {} retryCount == 255!", this.name());
-        } else {
+        .onSuccess(lock -> {
+          if (retrying) {
+            lock.release();
+            return;
+          }
+          retrying = true;
+          if (retryCount.getAndIncrement() >= RETRY_MAX_COUNT) {
+            log.error("[collectors]: collector {} retryCount == 255!", this.name());
+          } else {
           log.info("[collectors]: collector {} retry: {}", this.name(), retryCount);
           restart()
             .onComplete(v -> {
@@ -158,37 +164,56 @@ public abstract class GenericWsCollector extends BasicCollector {
                 retryCount.set(0);
               }
               lock.release();
+              retrying = false;
+              if (v.failed()) {
+                vertx.setTimer(1000, timer -> {
+                  vertx.executeBlocking(prom -> retry(), false);
+                });
+              }
             });
-        }
-      });
+          }
+        })
+        .onFailure(throwable -> {
+          log.warn("[collectors]: collector {} get Restart lock fail! cause by: {}, retry at next time", this.name(), throwable.getMessage());
+          throwable.printStackTrace();
+          try {
+            Thread.sleep(TimeUnit.SECONDS.toMillis(1));
+          } catch (InterruptedException e) {
+            e.printStackTrace();
+          }
+        });
   }
 
   @Override
   public void stop(Promise<Void> stopPromise) throws Exception {
     getStopLock()
       .onSuccess(lock -> {
-        if (!this.isRunning() || stopping || webSocket == null) {
-          stopPromise.fail("collector running yet! or stopping");
+        if (!this.isRunning()) {
           lock.release();
-        } else {
-          stopping = true;
-          log.info("[collectors]: collector {} stopping, try to close client!", this.name());
-          webSocket.close((short) 66666, "collector call the stop!", ar -> {
-            // force set state is close
-            this.isRunning = false;
-            stopIdleChecker();
-            if (ar.succeeded()) {
-              log.info("[collectors]: collector {} stop success!", this.name());
-              webSocket = null;
-            } else {
-              log.warn("[collectors]: collector close the socket fail! cause by: {}", ar.cause().getMessage());
-              ar.cause().printStackTrace();
-            }
-            this.stopping = false;
-            lock.release();
-            stopPromise.complete();
-          });
+          stopPromise.complete();
+          return;
         }
+        if (stopping || webSocket == null) {
+          lock.release();
+          stopPromise.fail("collector running yet! or stopping");
+          return;
+        }
+        stopping = true;
+        log.info("[collectors]: collector {} stopping, try to close client!", this.name());
+        webSocket.close((short) 66666, "collector call the stop!", ar -> {
+          // force set state is close
+          this.isRunning = false;
+          if (ar.succeeded()) {
+            log.info("[collectors]: collector {} stop success!", this.name());
+            webSocket = null;
+          } else {
+            log.warn("[collectors]: collector close the socket fail! cause by: {}", ar.cause().getMessage());
+            ar.cause().printStackTrace();
+          }
+          this.stopping = false;
+          lock.release();
+          stopPromise.complete();
+        });
       })
       .onFailure(stopPromise::fail);
   }
@@ -232,7 +257,7 @@ public abstract class GenericWsCollector extends BasicCollector {
     idleCheckEnable = true;
     lastCheckTime = System.currentTimeMillis();
     idleCheckerExecutor.scheduleWithFixedDelay(() -> {
-      if (!isRunning() || !idleCheckEnable || idleTime == -1 || restarting || (System.currentTimeMillis() - lastCheckTime) < checkTime) {
+      if (!isRunning() || !idleCheckEnable || idleTime == -1 || restarting || retrying || (System.currentTimeMillis() - lastCheckTime) < checkTime) {
         return;
       }
       lastCheckTime = System.currentTimeMillis();
@@ -266,10 +291,5 @@ public abstract class GenericWsCollector extends BasicCollector {
     lastReceiveTimestamp = System.currentTimeMillis();
   }
 
-  /**
-   * 停止空闲检测
-   */
-  public void stopIdleChecker() {
-    idleCheckEnable = false;
-  }
+
 }

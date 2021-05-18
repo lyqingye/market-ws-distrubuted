@@ -143,6 +143,8 @@ public class RepositoryApplication extends AbstractVerticle {
                 }
               });
         })
+
+        .onFailure(Throwable::printStackTrace)
       .onComplete(startPromise);
 
 

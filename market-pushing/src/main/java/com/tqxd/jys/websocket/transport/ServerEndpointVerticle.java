@@ -1,5 +1,6 @@
 package com.tqxd.jys.websocket.transport;
 
+import com.tqxd.jys.utils.VertxUtil;
 import com.tqxd.jys.websocket.session.Session;
 import com.tqxd.jys.websocket.session.SessionManager;
 import io.vertx.core.AbstractVerticle;
@@ -18,6 +19,9 @@ import java.util.concurrent.TimeUnit;
  * @author lyqingye
  */
 public class ServerEndpointVerticle extends AbstractVerticle {
+  private static final String WEBSOCKET_HOST_CONFIG = "market.pushing.websocket.host";
+  private static final String WEBSOCKET_PORT_CONFIG = "market.pushing.websocket.port";
+  private static final String WEBSOCKET_PATH_CONFIG = "market.pushing.websocket.path";
   private static final Logger log = LoggerFactory.getLogger(ServerEndpointVerticle.class);
 
   /**
@@ -27,7 +31,7 @@ public class ServerEndpointVerticle extends AbstractVerticle {
   /**
    * 会话管理器
    */
-  private SessionManager sessionMgr = SessionManager.getInstance();
+  private SessionManager sessionMgr;
   private TimeUnit timeUnit = TimeUnit.SECONDS;
   private long expire = -1;
   private RequestDispatcher dispatcher;
@@ -46,12 +50,26 @@ public class ServerEndpointVerticle extends AbstractVerticle {
 
   @Override
   public void start(Promise<Void> startPromise) throws Exception {
+    sessionMgr = SessionManager.getInstance(config());
     HttpServerOptions options = new HttpServerOptions();
     options.setTcpNoDelay(true);
     options.setSendBufferSize(4096);
+    String host = VertxUtil.jsonGetValue(config(), WEBSOCKET_HOST_CONFIG, String.class, "0.0.0.0");
+    Integer port = VertxUtil.jsonGetValue(config(), WEBSOCKET_PORT_CONFIG, Integer.class, 7776);
+    String path = VertxUtil.jsonGetValue(config(), WEBSOCKET_PATH_CONFIG, String.class, "/");
     wsServer = vertx.createHttpServer(options).webSocketHandler(client -> {
+      if (!path.equals(client.path())) {
+        client.reject();
+      }
       Session session = sessionMgr.allocate();
-      session.initSession(client, expire, timeUnit);
+      if (session == null) {
+        client.writeTextMessage("server online connection over limit: " + sessionMgr.getCapacity());
+        client.reject();
+        log.error("[KlineWorker]: allocate session fail! ");
+        return;
+      }
+      // 将vertx会话绑定到我们封装的会话中
+      session.bindVertxNativeSession(client, expire, timeUnit);
       client.frameHandler(frame -> {
         sessionMgr.refreshTTL(client, expire, timeUnit);
         if (frame.isText() && frame.isFinal()) {
@@ -74,10 +92,10 @@ public class ServerEndpointVerticle extends AbstractVerticle {
       client.closeHandler(ignored -> safeRelease(session));
     });
 
-    wsServer.listen(7776, "0.0.0.0")
+    wsServer.listen(port, host)
         .onComplete(h -> {
           if (h.succeeded()) {
-            log.info("[ServerEndpoint]: start success!");
+            log.info("[ServerEndpoint]: start success! listen on: ws://{}:{}{}", host, port, path);
             startPromise.complete();
           } else {
             startPromise.fail(h.cause());

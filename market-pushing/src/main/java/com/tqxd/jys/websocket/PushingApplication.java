@@ -66,7 +66,7 @@ public class PushingApplication extends AbstractVerticle {
 
   private Future<Void> initTransport () {
     RequestDispatcher dispatcher = RequestDispatcher.getInstance();
-    SessionManager sessionMgr = SessionManager.getInstance();
+    SessionManager sessionMgr = SessionManager.getInstance(config());
     // k线主题处理器
     KLineChannelProcessor kLineChannelProcessor = new KLineChannelProcessor(cacheManager, sessionMgr);
     cacheManager.addWatcher(kLineChannelProcessor);

@@ -1,8 +1,8 @@
 package com.tqxd.jys.repository.redis;
 
+import com.tqxd.jys.utils.VertxUtil;
 import io.vertx.codegen.annotations.Nullable;
 import io.vertx.core.*;
-import io.vertx.core.net.NetClientOptions;
 import io.vertx.redis.client.*;
 
 import java.nio.charset.StandardCharsets;
@@ -33,23 +33,24 @@ public class RedisHelper {
    * @return future
    */
   public static Future<RedisHelper> create(Vertx vertx, String connectionString) {
-    Promise<RedisHelper> promise = Promise.promise();
-    RedisHelper self = new RedisHelper();
-    NetClientOptions netOptions = new NetClientOptions().setConnectTimeout(5000).setReconnectAttempts(1).setReconnectInterval(1000);
-    RedisOptions redisOptions = new RedisOptions().setConnectionString(connectionString).setNetClientOptions(netOptions).setMaxWaitingHandlers(1 << 16).setMaxPoolWaiting(1 << 16);
-    Redis.createClient(vertx, redisOptions)
-        .connect(onConnect -> {
-          if (onConnect.succeeded()) {
-            self.redisConn = onConnect.result();
-            self.redisApi = RedisAPI.api(self.redisConn);
-            promise.complete(self);
-            // 打印异常堆栈
-            self.redisConn.exceptionHandler(Throwable::printStackTrace);
-          } else {
-            promise.fail(onConnect.cause());
-          }
+    return VertxUtil.readJsonFile(vertx, "redis.json")
+        .compose(config -> {
+          Promise<RedisHelper> promise = Promise.promise();
+          RedisHelper self = new RedisHelper();
+          Redis.createClient(vertx, new RedisOptions(config))
+              .connect(onConnect -> {
+                if (onConnect.succeeded()) {
+                  self.redisConn = onConnect.result();
+                  self.redisApi = RedisAPI.api(self.redisConn);
+                  promise.complete(self);
+                  // 打印异常堆栈
+                  self.redisConn.exceptionHandler(Throwable::printStackTrace);
+                } else {
+                  promise.fail(onConnect.cause());
+                }
+              });
+          return promise.future();
         });
-    return promise.future();
   }
 
   /**

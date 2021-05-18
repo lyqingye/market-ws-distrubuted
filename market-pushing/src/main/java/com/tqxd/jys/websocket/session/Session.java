@@ -91,7 +91,7 @@ public class Session {
     return false;
   }
 
-  public void initSession(ServerWebSocket client, long expire, TimeUnit timeUnit) {
+  public void bindVertxNativeSession(ServerWebSocket client, long expire, TimeUnit timeUnit) {
     this.client = client;
     this.ctx = (ChannelHandlerContext) UNSAFE.getObject(client, CTX_OFFSET_OF_CLIENT);
     refreshTTL(expire, timeUnit);
