@@ -47,7 +47,7 @@ public class HuoBiKlineCollector extends GenericWsCollector {
     HttpClientOptions httpClientOptions = new HttpClientOptions().setDefaultHost(config().getString("host"));
     config().put(HTTP_CLIENT_OPTIONS_PARAM, httpClientOptions);
     config().put(WS_REQUEST_PATH_PARAM, config().getString("path"));
-    config().put(IDLE_TIME_OUT, 5000);
+    config().put(IDLE_TIME_OUT, config().getLong("idle-time-out", 5000L));
     Promise<Void> promise = Promise.promise();
     super.start(promise);
     promise.future()

@@ -92,7 +92,7 @@ public class BiNanceCollector extends GenericWsCollector {
     }
     config().put(HTTP_CLIENT_OPTIONS_PARAM, httpClientOptions);
     config().put(WS_REQUEST_PATH_PARAM, config().getString("path"));
-    config().put(IDLE_TIME_OUT, TimeUnit.SECONDS.toMillis(30));
+    config().put(IDLE_TIME_OUT, config().getLong("idle-time-out", TimeUnit.SECONDS.toMillis(30)));
     Promise<Void> promise = Promise.promise();
     super.start(promise);
     promise.future()
@@ -158,9 +158,9 @@ public class BiNanceCollector extends GenericWsCollector {
       }
     }
     JsonObject cfg = new JsonObject()
-      .put(HTTP_CLIENT_OPTIONS_PARAM, config().getValue(HTTP_CLIENT_OPTIONS_PARAM))
-      .put(WS_REQUEST_PATH_PARAM, "/ws/" + toBiNanceSymbol(symbol) + "@depth20@1000ms")
-      .put(IDLE_TIME_OUT, 5000);
+        .put(HTTP_CLIENT_OPTIONS_PARAM, config().getValue(HTTP_CLIENT_OPTIONS_PARAM))
+        .put(WS_REQUEST_PATH_PARAM, "/ws/" + toBiNanceSymbol(symbol) + "@depth20@1000ms")
+        .put(IDLE_TIME_OUT, config().getLong(IDLE_TIME_OUT));
     BiNanceDepthCollector biNanceDepthCollector = new BiNanceDepthCollector(cfg);
     BiNanceCollector that = this;
     biNanceDepthCollector.addDataReceiver(new DataReceiver() {

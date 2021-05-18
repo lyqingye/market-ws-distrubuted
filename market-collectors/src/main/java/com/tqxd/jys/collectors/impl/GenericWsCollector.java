@@ -64,7 +64,7 @@ public abstract class GenericWsCollector extends BasicCollector {
           lock.release();
           startPromise.fail("collector is running!");
         } else {
-          idleTime = config().getLong(IDLE_TIME_OUT, TimeUnit.SECONDS.toMillis(5));
+          idleTime = config().getLong(IDLE_TIME_OUT, -1L);
           HttpClientOptions httpClientOptions = null;
           if (config().containsKey(HTTP_CLIENT_OPTIONS_PARAM)) {
             httpClientOptions = (HttpClientOptions) config().getValue(HTTP_CLIENT_OPTIONS_PARAM);
@@ -167,9 +167,7 @@ public abstract class GenericWsCollector extends BasicCollector {
               retrying = false;
               if (v.failed()) {
                 vertx.setTimer(1000, timer -> {
-                  vertx.executeBlocking(prom -> {
-                    retry();
-                  }, false);
+                  vertx.executeBlocking(prom -> retry(), false);
                 });
               }
             });
