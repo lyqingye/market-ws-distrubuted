@@ -31,7 +31,7 @@ public class ServerEndpointVerticle extends AbstractVerticle {
   /**
    * 会话管理器
    */
-  private SessionManager sessionMgr = SessionManager.getInstance();
+  private SessionManager sessionMgr;
   private TimeUnit timeUnit = TimeUnit.SECONDS;
   private long expire = -1;
   private RequestDispatcher dispatcher;
@@ -50,6 +50,7 @@ public class ServerEndpointVerticle extends AbstractVerticle {
 
   @Override
   public void start(Promise<Void> startPromise) throws Exception {
+    sessionMgr = SessionManager.getInstance(config());
     HttpServerOptions options = new HttpServerOptions();
     options.setTcpNoDelay(true);
     options.setSendBufferSize(4096);

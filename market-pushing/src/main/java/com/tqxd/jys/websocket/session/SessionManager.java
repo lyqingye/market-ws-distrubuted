@@ -1,8 +1,10 @@
 package com.tqxd.jys.websocket.session;
 
+import com.tqxd.jys.utils.VertxUtil;
 import com.tqxd.jys.websocket.transport.ServerEndpointVerticle;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.http.ServerWebSocket;
+import io.vertx.core.json.JsonObject;
 import org.jctools.queues.MpmcArrayQueue;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -21,9 +23,10 @@ import java.util.function.Predicate;
  * @author lyqingye
  */
 public class SessionManager {
+  private static final String MAX_SESSIONS_LIMIT_CONFIG = "market.pushing.websocket.max-session-limit";
   private static final Logger log = LoggerFactory.getLogger(ServerEndpointVerticle.class);
   private static final long SESSION_CLEAR_TIMER = 1000;
-  private static final SessionManager INSTANCE = new SessionManager(1 << 14);
+  private static volatile SessionManager INSTANCE;
   //
   // bitmap helper
   //
@@ -54,8 +57,17 @@ public class SessionManager {
     startClearExpiredSessionThread();
   }
 
-  public static SessionManager getInstance() {
+  public static SessionManager getInstance(JsonObject config) {
+    synchronized (SessionManager.class) {
+      if (INSTANCE == null) {
+        INSTANCE = new SessionManager(VertxUtil.jsonGetValue(config, MAX_SESSIONS_LIMIT_CONFIG, Integer.class, 4096));
+      }
+    }
     return INSTANCE;
+  }
+
+  public int getCapacity() {
+    return this.capacity;
   }
 
   public Session getById(int id) {
@@ -93,19 +105,16 @@ public class SessionManager {
   }
 
   public Session allocate() {
-    Integer id;
-    for (int i = 0; i < 255; i++) {
-      id = freeQueue.poll();
-      Session session;
-      if (id != null) {
-        session = getById(id);
-        if (session != null && session.tryToUse()) {
-          log.info("[SessionMgr]: allocate session: {}! current number of online session is: {}", session.id(), usedCounter.incrementAndGet());
-          return session;
-        }
+    Integer id = freeQueue.poll();
+    Session session;
+    if (id != null) {
+      session = getById(id);
+      if (session != null && session.tryToUse()) {
+        log.info("[SessionMgr]: allocate session: {}! current number of online session is: {}", session.id(), usedCounter.incrementAndGet());
+        return session;
       }
     }
-    throw new RuntimeException("get session fail!");
+    return null;
   }
 
   public boolean release(Session session) {
@@ -177,12 +186,14 @@ public class SessionManager {
   //
   public void foreachSessionByChannel(String ch, Consumer<Session> consumer) {
     long[] bitmap = selectPartition(ch);
-    int count = capacity >> ADDRESS_BITS_PER_WORD;
-    for (int i = 0; i < count; i++) {
+    for (int i = 0; i < bitmap.length; i++) {
       long word = bitmap[i];
+      // 1Long = 8byte = 64bit
       for (int j = 0; j < 64; j++) {
         boolean isSet = (word & (1L << j)) != 0;
         if (isSet) {
+          // sessionIndex = i * 64 + j
+          // i << 6 = i * 64
           Session session = (Session) objects[(i << ADDRESS_BITS_PER_WORD) + j];
           if (session != null & consumer != null) {
             try {
