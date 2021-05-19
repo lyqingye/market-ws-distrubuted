@@ -2,18 +2,19 @@ package com.tqxd.jys.websocket.session;
 
 import com.tqxd.jys.utils.VertxUtil;
 import com.tqxd.jys.websocket.transport.ServerEndpointVerticle;
+import io.netty.util.internal.shaded.org.jctools.util.UnsafeAccess;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.http.ServerWebSocket;
 import io.vertx.core.json.JsonObject;
 import org.jctools.queues.MpmcArrayQueue;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import sun.misc.Unsafe;
 
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Consumer;
 import java.util.function.Predicate;
 
@@ -38,9 +39,19 @@ public class SessionManager {
   //
   // channel -> bitmap
   //
-  private AtomicLong bitmapVersion = new AtomicLong(0);
+  private static final Unsafe UNSAFE = UnsafeAccess.UNSAFE;
+  private static final long BITMAP_VERSION_ARRAY_BASE;
+  private static final int BITMAP_VERSION_ARRAY_SHIFT;
+
+  static {
+    BITMAP_VERSION_ARRAY_BASE = UNSAFE.arrayBaseOffset(long[].class);
+    BITMAP_VERSION_ARRAY_SHIFT = 31 - Integer.numberOfLeadingZeros(UNSAFE.arrayIndexScale(long[].class));
+  }
+
   private Map<String, long[]> partition = new ConcurrentHashMap<>();
   private MpmcArrayQueue<Integer> freeQueue;
+
+  private volatile long[] bitmapVersions;
 
   public SessionManager(int capacity) {
     if (capacity < 64 || capacity % 8 != 0) {
@@ -48,12 +59,15 @@ public class SessionManager {
     }
     this.capacity = capacity;
     objects = new Object[capacity];
+    bitmapVersions = new long[capacity];
     freeQueue = new MpmcArrayQueue<>(capacity);
     for (int i = 0; i < capacity; i++) {
       Session newSession = new Session(i);
       objects[i] = newSession;
       freeQueue.offer(i);
+      bitmapVersions[i] = 0L;
     }
+
     startClearExpiredSessionThread();
   }
 
@@ -208,43 +222,43 @@ public class SessionManager {
   }
 
   public void removeSessionSubscribedAllChannels(Session session) {
+    if (session == null)
+      return;
     long currentVersion;
     do {
-      currentVersion = bitmapVersion.get();
-      if (session == null)
-        return;
+      currentVersion = getBitmapVersion(session.id());
       int id = session.id();
       for (long[] bitmap : partition.values()) {
         bitmap[id >> ADDRESS_BITS_PER_WORD] &= ~(1L << id);
       }
-    } while (!bitmapVersion.compareAndSet(currentVersion, currentVersion + 1));
+    } while (!compareAndSetBitmapVersion(session.id(), currentVersion, currentVersion + 1));
   }
 
   public boolean subscribeChannel(Session session, String ch) {
     long currentVersion;
     do {
-      currentVersion = bitmapVersion.get();
+      currentVersion = getBitmapVersion(session.id());
       long[] bitmap = partition.get(ch);
       if (bitmap == null) {
         return false;
       }
       int id = session.id();
       bitmap[id >> ADDRESS_BITS_PER_WORD] |= (1L << id);
-    } while (!bitmapVersion.compareAndSet(currentVersion, currentVersion + 1));
+    } while (!compareAndSetBitmapVersion(session.id(), currentVersion, currentVersion + 1));
     return true;
   }
 
   public boolean unSubscribeChannel(Session session, String ch) {
     long currentVersion;
     do {
-      currentVersion = bitmapVersion.get();
+      currentVersion = getBitmapVersion(session.id());
       long[] bitmap = partition.get(ch);
       if (bitmap == null) {
         return false;
       }
       int id = session.id();
       bitmap[id >> ADDRESS_BITS_PER_WORD] &= ~(1L << id);
-    } while (!bitmapVersion.compareAndSet(currentVersion, currentVersion + 1));
+    } while (!compareAndSetBitmapVersion(session.id(), currentVersion, currentVersion + 1));
     return true;
   }
 
@@ -252,5 +266,11 @@ public class SessionManager {
     return partition.computeIfAbsent(ch, k -> new long[capacity >> ADDRESS_BITS_PER_WORD]);
   }
 
+  private long getBitmapVersion(long sessionId) {
+    return (long) UNSAFE.getLongVolatile(bitmapVersions, ((long) sessionId << BITMAP_VERSION_ARRAY_SHIFT) + BITMAP_VERSION_ARRAY_BASE);
+  }
 
+  private boolean compareAndSetBitmapVersion(long sessionId, long except, long update) {
+    return UNSAFE.compareAndSwapLong(bitmapVersions, ((long) sessionId << BITMAP_VERSION_ARRAY_SHIFT) + BITMAP_VERSION_ARRAY_BASE, except, update);
+  }
 }

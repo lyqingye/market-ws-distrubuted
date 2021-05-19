@@ -2,6 +2,6 @@ market:
   pushing:
     websocket:
       host: 0.0.0.0
-      port: 7776
+      port: 7777
       path: /
       max-session-limit: 4096
