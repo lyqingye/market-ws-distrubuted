@@ -7,7 +7,6 @@ import com.tqxd.jys.messagebus.payload.Message;
 import com.tqxd.jys.messagebus.topic.Topic;
 import io.vertx.core.*;
 import io.vertx.core.json.Json;
-import io.vertx.core.shareddata.Counter;
 import io.vertx.kafka.client.consumer.KafkaConsumer;
 import io.vertx.kafka.client.producer.KafkaProducer;
 import io.vertx.kafka.client.producer.KafkaProducerRecord;
@@ -28,7 +27,6 @@ public class KafkaMessageBusImpl extends AbstractVerticle implements MessageBus 
   private static final Logger log = LoggerFactory.getLogger(KafkaMessageBusImpl.class);
   private Map<String, KafkaConsumer<String, Object>> consumerMap = new ConcurrentHashMap<>();
   private KafkaProducer<String, Object> producer;
-  private Counter messageIndexCounter;
   private Map<String, String> consumerConfig, producerConfig;
 
   public KafkaMessageBusImpl(Map<String, String> consumerConfig, Map<String, String> producerConfig) {
@@ -39,13 +37,7 @@ public class KafkaMessageBusImpl extends AbstractVerticle implements MessageBus 
   @Override
   public void start(Promise<Void> startPromise) throws Exception {
     producer = KafkaProducer.create(vertx, producerConfig);
-    vertx.sharedData()
-      .getCounter(MESSAGE_INDEX_COUNTER_NAME)
-      .onSuccess(counter -> {
-        messageIndexCounter = counter;
-        startPromise.complete();
-      })
-      .onFailure(startPromise::fail);
+    startPromise.complete();
   }
 
   @Override

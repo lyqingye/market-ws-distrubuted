@@ -25,7 +25,6 @@ import static com.tqxd.jys.utils.VertxUtil.jsonListValue;
  * @author yjt
  * @since 2020/10/10 下午3:45
  */
-@SuppressWarnings("unchecked")
 public class CollectorsApplication extends AbstractVerticle {
   private static final String ENABLED_COLLECTORS_CONFIG = "market.collectors.enabled";
   private static final String COLLECTOR_FORMAT = "market.collectors.%s";

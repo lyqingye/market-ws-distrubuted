@@ -58,43 +58,40 @@ public abstract class GenericWsCollector extends BasicCollector {
 
   @Override
   public void start(Promise<Void> startPromise) throws Exception {
-    getStartLock()
-      .onSuccess(lock -> {
-        if (isRunning()) {
-          lock.release();
-          startPromise.fail("collector is running!");
+    getStartLock().onSuccess(lock -> {
+      if (isRunning()) {
+        lock.release();
+        startPromise.fail("collector is running!");
+      } else {
+        idleTime = config().getLong(IDLE_TIME_OUT, -1L);
+        HttpClientOptions httpClientOptions = null;
+        if (config().containsKey(HTTP_CLIENT_OPTIONS_PARAM)) {
+          httpClientOptions = (HttpClientOptions) config().getValue(HTTP_CLIENT_OPTIONS_PARAM);
         } else {
-          idleTime = config().getLong(IDLE_TIME_OUT, -1L);
-          HttpClientOptions httpClientOptions = null;
-          if (config().containsKey(HTTP_CLIENT_OPTIONS_PARAM)) {
-            httpClientOptions = (HttpClientOptions) config().getValue(HTTP_CLIENT_OPTIONS_PARAM);
-          } else {
-            httpClientOptions = new HttpClientOptions();
-          }
-          httpClientOptions.setConnectTimeout(Math.toIntExact(TimeUnit.SECONDS.toMillis(5)));
-          String requestPath = config().getString(WS_REQUEST_PATH_PARAM);
-          HttpClient httpClient;
-          httpClient = vertx.createHttpClient(httpClientOptions);
-          httpClient.webSocket(requestPath).onComplete(ar -> {
-            if (ar.succeeded()) {
-              retryCount.set(0);
-              isRunning = true;
-              webSocket = ar.result();
-              registerWebsocketHandler(webSocket);
-              if (idleCheckEnable && idleTime != -1) {
-                startIdleChecker();
-              }
-              log.info("collector: {} start success!", this.name());
-              startPromise.complete();
-            } else {
-              log.error("[collectors]: collector: {} start fail! cause by: {}", this.name(), ar.cause().getMessage());
-              startPromise.fail(ar.cause());
-            }
-            lock.release();
-          });
+          httpClientOptions = new HttpClientOptions();
         }
-      })
-      .onFailure(startPromise::fail);
+        httpClientOptions.setConnectTimeout(Math.toIntExact(TimeUnit.SECONDS.toMillis(5)));
+        String requestPath = config().getString(WS_REQUEST_PATH_PARAM);
+        HttpClient httpClient;
+        httpClient = vertx.createHttpClient(httpClientOptions);
+        httpClient.webSocket(requestPath).onComplete(ar -> {
+          if (ar.succeeded()) {
+            isRunning = true;
+            webSocket = ar.result();
+            registerWebsocketHandler(webSocket);
+            if (idleCheckEnable && idleTime != -1) {
+              startIdleChecker();
+            }
+            log.info("collector: {} start success!", this.name());
+            startPromise.complete();
+          } else {
+            log.error("[collectors]: collector: {} start fail! cause by: {}", this.name(), ar.cause().getMessage());
+            startPromise.fail(ar.cause());
+          }
+          lock.release();
+        });
+      }
+    }).onFailure(startPromise::fail);
   }
 
   private void registerWebsocketHandler(WebSocket websocket) {
@@ -108,7 +105,7 @@ public abstract class GenericWsCollector extends BasicCollector {
     });
     webSocket.closeHandler(none -> {
       log.warn("[Collectors]: collector {} connection closed try to restart!", this.name());
-      retry();
+      tryRestart();
     });
     webSocket.exceptionHandler(throwable -> {
       // 币安bug，会发送一个 错误的 CloseFrame 实际上并没有停止推送
@@ -121,7 +118,7 @@ public abstract class GenericWsCollector extends BasicCollector {
       } else {
         log.warn("[collectors]: collector {} catch unknown exception: {}", this.name(), throwable.getMessage());
         throwable.printStackTrace();
-        retry();
+        tryRestart();
       }
       throwable.printStackTrace();
     });
@@ -136,86 +133,83 @@ public abstract class GenericWsCollector extends BasicCollector {
   }
 
   private Future<Lock> getRestartLock() {
-    return vertx.sharedData().getLocalLockWithTimeout("restartLock:" + deploymentID() + this.name(), TimeUnit.SECONDS.toMillis(10));
+    return vertx.sharedData().getLocalLockWithTimeout("restartLock:" + deploymentID() + this.name(),
+        TimeUnit.SECONDS.toMillis(10));
   }
 
-  private synchronized void retry() {
+  private synchronized void tryRestart() {
     if (retrying) {
       return;
     }
-    getRestartLock()
-        .onSuccess(lock -> {
-          if (retrying) {
-            lock.release();
-            return;
-          }
-          retrying = true;
-          if (retryCount.getAndIncrement() >= RETRY_MAX_COUNT) {
-            log.error("[collectors]: collector {} retryCount == 255!", this.name());
+    getRestartLock().onSuccess(lock -> {
+      if (retrying) {
+        lock.release();
+        return;
+      }
+      retrying = true;
+      if (retryCount.getAndIncrement() >= RETRY_MAX_COUNT) {
+        log.error("[collectors]: collector {} retryCount == 255!", this.name());
+      } else {
+        log.info("[collectors]: collector {} retry: {}", this.name(), retryCount);
+        restart().onComplete(v -> {
+          if (v.failed()) {
+            log.info("[collectors]: collector {} restart fail! cause by: {}", this.name(), v.cause().getMessage());
+            v.cause().printStackTrace();
           } else {
-          log.info("[collectors]: collector {} retry: {}", this.name(), retryCount);
-          restart()
-            .onComplete(v -> {
-              if (v.failed()) {
-                log.info("[collectors]: collector {} restart fail! cause by: {}", this.name(), v.cause().getMessage());
-                v.cause().printStackTrace();
-              } else {
-                log.info("[collectors]: collector {} retry success!", this.name());
-                retryCount.set(0);
-              }
-              lock.release();
-              retrying = false;
-              if (v.failed()) {
-                vertx.setTimer(1000, timer -> {
-                  vertx.executeBlocking(prom -> retry(), false);
-                });
-              }
+            log.info("[collectors]: collector {} retry success!", this.name());
+            retryCount.set(0);
+          }
+          lock.release();
+          retrying = false;
+          if (v.failed()) {
+            vertx.setTimer(1000, timer -> {
+              vertx.executeBlocking(prom -> tryRestart(), false);
             });
           }
-        })
-        .onFailure(throwable -> {
-          log.warn("[collectors]: collector {} get Restart lock fail! cause by: {}, retry at next time", this.name(), throwable.getMessage());
-          throwable.printStackTrace();
-          try {
-            Thread.sleep(TimeUnit.SECONDS.toMillis(1));
-          } catch (InterruptedException e) {
-            e.printStackTrace();
-          }
         });
+      }
+    }).onFailure(throwable -> {
+      log.warn("[collectors]: collector {} get Restart lock fail! cause by: {}, retry at next time", this.name(),
+          throwable.getMessage());
+      throwable.printStackTrace();
+      try {
+        Thread.sleep(TimeUnit.SECONDS.toMillis(1));
+      } catch (InterruptedException e) {
+        e.printStackTrace();
+      }
+    });
   }
 
   @Override
   public void stop(Promise<Void> stopPromise) throws Exception {
-    getStopLock()
-      .onSuccess(lock -> {
-        if (!this.isRunning()) {
-          lock.release();
-          stopPromise.complete();
-          return;
+    getStopLock().onSuccess(lock -> {
+      if (!this.isRunning()) {
+        lock.release();
+        stopPromise.complete();
+        return;
+      }
+      if (stopping || webSocket == null) {
+        lock.release();
+        stopPromise.fail("collector running yet! or stopping");
+        return;
+      }
+      stopping = true;
+      log.info("[collectors]: collector {} stopping, try to close client!", this.name());
+      webSocket.close((short) 66666, "collector call the stop!", ar -> {
+        // force set state is close
+        this.isRunning = false;
+        if (ar.succeeded()) {
+          log.info("[collectors]: collector {} stop success!", this.name());
+          webSocket = null;
+        } else {
+          log.warn("[collectors]: collector close the socket fail! cause by: {}", ar.cause().getMessage());
+          ar.cause().printStackTrace();
         }
-        if (stopping || webSocket == null) {
-          lock.release();
-          stopPromise.fail("collector running yet! or stopping");
-          return;
-        }
-        stopping = true;
-        log.info("[collectors]: collector {} stopping, try to close client!", this.name());
-        webSocket.close((short) 66666, "collector call the stop!", ar -> {
-          // force set state is close
-          this.isRunning = false;
-          if (ar.succeeded()) {
-            log.info("[collectors]: collector {} stop success!", this.name());
-            webSocket = null;
-          } else {
-            log.warn("[collectors]: collector close the socket fail! cause by: {}", ar.cause().getMessage());
-            ar.cause().printStackTrace();
-          }
-          this.stopping = false;
-          lock.release();
-          stopPromise.complete();
-        });
-      })
-      .onFailure(stopPromise::fail);
+        this.stopping = false;
+        lock.release();
+        stopPromise.complete();
+      });
+    }).onFailure(stopPromise::fail);
   }
 
   /**
@@ -257,14 +251,16 @@ public abstract class GenericWsCollector extends BasicCollector {
     idleCheckEnable = true;
     lastCheckTime = System.currentTimeMillis();
     idleCheckerExecutor.scheduleWithFixedDelay(() -> {
-      if (!isRunning() || !idleCheckEnable || idleTime == -1 || restarting || retrying || (System.currentTimeMillis() - lastCheckTime) < checkTime) {
+      if (!isRunning() || !idleCheckEnable || idleTime == -1 || restarting || retrying
+          || (System.currentTimeMillis() - lastCheckTime) < checkTime) {
         return;
       }
       lastCheckTime = System.currentTimeMillis();
       if ((System.currentTimeMillis() - lastReceiveTimestamp) >= idleTime) {
         restarting = true;
         CompletableFuture<Void> cf = new CompletableFuture<>();
-        log.info("[Collectors]: collector {} idle detected, try to restart! lastReceiveTime: {} now: {}", this.name(), new Date(lastReceiveTimestamp), new Date());
+        log.info("[Collectors]: collector {} idle detected, try to restart! lastReceiveTime: {} now: {}", this.name(),
+            new Date(lastReceiveTimestamp), new Date());
         restart(ar -> {
           if (ar.succeeded()) {
             cf.complete(null);
@@ -290,6 +286,4 @@ public abstract class GenericWsCollector extends BasicCollector {
   public void refreshLastReceiveTime() {
     lastReceiveTimestamp = System.currentTimeMillis();
   }
-
-
 }

@@ -3,8 +3,6 @@ package com.tqxd.jys.messagebus;
 import com.tqxd.jys.messagebus.impl.kafka.KafkaMessageBusImpl;
 import io.vertx.core.Future;
 import io.vertx.core.Vertx;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.util.Map;
 
@@ -12,7 +10,6 @@ import java.util.Map;
  * 消息总线工厂
  */
 public final class MessageBusFactory {
-  private static final Logger log = LoggerFactory.getLogger(MessageBusFactory.class);
   public static final String KAFKA_MESSAGE_BUS = "kafka_message_bus";
   /**
    * instance
@@ -31,8 +28,8 @@ public final class MessageBusFactory {
    * @param consumerConfig 消费者配置
    * @param producerConfig 生产者配置
    */
-  public static Future<Void> init(String implName, Vertx vertx,
-                                  Map<String, String> consumerConfig, Map<String, String> producerConfig) {
+  public static Future<Void> init(String implName, Vertx vertx, Map<String, String> consumerConfig,
+                                  Map<String, String> producerConfig) {
     if (KAFKA_MESSAGE_BUS.equals(implName)) {
       INSTANCE = new KafkaMessageBusImpl(consumerConfig, producerConfig);
       return vertx.deployVerticle(INSTANCE).map(toVoid -> null);

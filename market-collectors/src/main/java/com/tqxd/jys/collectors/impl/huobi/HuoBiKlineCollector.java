@@ -1,6 +1,5 @@
 package com.tqxd.jys.collectors.impl.huobi;
 
-
 import com.tqxd.jys.collectors.impl.GenericWsCollector;
 import com.tqxd.jys.collectors.impl.huobi.helper.HuoBiUtils;
 import com.tqxd.jys.constance.DataType;
@@ -33,8 +32,7 @@ import static com.tqxd.jys.collectors.impl.huobi.helper.HuoBiUtils.*;
 public class HuoBiKlineCollector extends GenericWsCollector {
   private static final Logger log = LoggerFactory.getLogger(HuoBiKlineCollector.class);
   /**
-   * 用于存储交易对的映射
-   * 火币交易对映射 -> 用户自定义交易对映射
+   * 用于存储交易对的映射 火币交易对映射 -> 用户自定义交易对映射
    */
   private Map<String, String> channelDeMapping = new HashMap<>();
 
@@ -50,23 +48,20 @@ public class HuoBiKlineCollector extends GenericWsCollector {
     config().put(IDLE_TIME_OUT, config().getLong("idle-time-out", 5000L));
     Promise<Void> promise = Promise.promise();
     super.start(promise);
-    promise.future()
-      .compose(none -> {
-        List<Future> futures = new ArrayList<>();
-        super.listSubscribedInfo().forEach(((collectDataType, symbols) -> {
-          if (symbols != null) {
-            for (String symbol : symbols) {
-              futures.add(this.subscribe(collectDataType, symbol));
-            }
+    promise.future().compose(none -> {
+      List<Future> futures = new ArrayList<>();
+      super.listSubscribedInfo().forEach(((collectDataType, symbols) -> {
+        if (symbols != null) {
+          for (String symbol : symbols) {
+            futures.add(this.subscribe(collectDataType, symbol));
           }
-        }));
-        return CompositeFuture.any(futures);
-      })
-      .onSuccess(ar -> {
-        log.info("[HuoBi]: start success!");
-        startPromise.complete();
-      })
-      .onFailure(startPromise::fail);
+        }
+      }));
+      return CompositeFuture.any(futures);
+    }).onSuccess(ar -> {
+      log.info("[HuoBi]: start success!");
+      startPromise.complete();
+    }).onFailure(startPromise::fail);
   }
 
   /**
@@ -80,41 +75,43 @@ public class HuoBiKlineCollector extends GenericWsCollector {
   public void subscribe(DataType dataType, String symbol, Handler<AsyncResult<Void>> handler) {
     Promise<Void> promise = Promise.promise();
     super.subscribe(dataType, symbol, promise);
-    promise.future()
-      .onSuccess(none -> {
-        switch (dataType) {
-          case KLINE: {
-            for (Period period : Period.values()) {
-              String sourceCh = HuoBiUtils.buildKLIneChannel(symbol, period);
-              String huoBiCh = HuoBiUtils.buildKLIneChannel(toHuoBiSymbol(symbol), period);
-              putChannelDeMapping(sourceCh, huoBiCh);
-              super.writeText(HuoBiUtils.buildKLineSubReq(System.currentTimeMillis(), huoBiCh));
-              log.info("[HuoBi]: subscribe: {}", huoBiCh);
-            }
-            break;
-          }
-          case DEPTH: {
-            String sourceCh = buildDepthChannel(symbol, DepthLevel.step0);
-            String huoBiCh = buildDepthChannel(toHuoBiSymbol(symbol), DepthLevel.step0);
+    promise.future().onSuccess(none -> {
+      switch (dataType) {
+        case KLINE: {
+          for (Period period : Period.values()) {
+            String sourceCh = HuoBiUtils.buildKLIneChannel(symbol, period);
+            String huoBiCh = HuoBiUtils.buildKLIneChannel(toHuoBiSymbol(symbol), period);
             putChannelDeMapping(sourceCh, huoBiCh);
-            super.writeText(buildDepthSubReq(System.currentTimeMillis(), huoBiCh, 20, 20));
+            super.writeText(HuoBiUtils.buildKLineSubReq(System.currentTimeMillis(), huoBiCh));
             log.info("[HuoBi]: subscribe: {}", huoBiCh);
-            break;
           }
-          case TRADE_DETAIL: {
-            String sourceCh = buildTradeDetailChannel(symbol);
-            String huoBiCh = buildTradeDetailChannel(toHuoBiSymbol(symbol));
-            putChannelDeMapping(sourceCh, huoBiCh);
-            super.writeText(buildTradeDetailSubReq(System.currentTimeMillis(), huoBiCh));
-            log.info("[HuoBi]: subscribe: {}", huoBiCh);
-            break;
-          }
+          break;
         }
-        handler.handle(Future.succeededFuture());
-      })
-      .onFailure(throwable -> {
-        handler.handle(Future.failedFuture(throwable));
-      });
+        case DEPTH: {
+          String sourceCh = buildDepthChannel(symbol, DepthLevel.step0);
+          String huoBiCh = buildDepthChannel(toHuoBiSymbol(symbol), DepthLevel.step0);
+          putChannelDeMapping(sourceCh, huoBiCh);
+          super.writeText(buildDepthSubReq(System.currentTimeMillis(), huoBiCh, 20, 20));
+          log.info("[HuoBi]: subscribe: {}", huoBiCh);
+          break;
+        }
+        case TRADE_DETAIL: {
+          String sourceCh = buildTradeDetailChannel(symbol);
+          String huoBiCh = buildTradeDetailChannel(toHuoBiSymbol(symbol));
+          putChannelDeMapping(sourceCh, huoBiCh);
+          super.writeText(buildTradeDetailSubReq(System.currentTimeMillis(), huoBiCh));
+          log.info("[HuoBi]: subscribe: {}", huoBiCh);
+          break;
+        }
+        default: {
+          handler.handle(Future.failedFuture("unknown data type for: " + dataType));
+          break;
+        }
+      }
+      handler.handle(Future.succeededFuture());
+    }).onFailure(throwable -> {
+      handler.handle(Future.failedFuture(throwable));
+    });
   }
 
   /**
@@ -128,36 +125,38 @@ public class HuoBiKlineCollector extends GenericWsCollector {
   public void unSubscribe(DataType dataType, String symbol, Handler<AsyncResult<Void>> handler) {
     Promise<Void> promise = Promise.promise();
     super.unSubscribe(dataType, symbol, promise);
-    promise.future()
-      .onSuccess(none -> {
-        String huoBiSymbol = toHuoBiSymbol(symbol);
-        switch (dataType) {
-          case KLINE: {
-            for (Period period : Period.values()) {
-              String req = buildKLineUnsubReq(System.currentTimeMillis(), huoBiSymbol, period);
-              super.writeText(req);
-              log.info("[HuoBi]: unsubscribe: {}", req);
-            }
-            break;
-          }
-          case DEPTH: {
-            String req = buildDepthUnsubReq(System.currentTimeMillis(), huoBiSymbol, DepthLevel.step0, 20, 20);
+    promise.future().onSuccess(none -> {
+      String huoBiSymbol = toHuoBiSymbol(symbol);
+      switch (dataType) {
+        case KLINE: {
+          for (Period period : Period.values()) {
+            String req = buildKLineUnsubReq(System.currentTimeMillis(), huoBiSymbol, period);
             super.writeText(req);
             log.info("[HuoBi]: unsubscribe: {}", req);
-            break;
           }
-          case TRADE_DETAIL: {
-            String req = buildTradeDetailUnsubReq(System.currentTimeMillis(), huoBiSymbol);
-            super.writeText(req);
-            log.info("[HuoBi]: unsubscribe: {}", req);
-            break;
-          }
+          break;
         }
-        handler.handle(Future.succeededFuture());
-      })
-      .onFailure(throwable -> {
-        handler.handle(Future.failedFuture(throwable));
-      });
+        case DEPTH: {
+          String req = buildDepthUnsubReq(System.currentTimeMillis(), huoBiSymbol, DepthLevel.step0, 20, 20);
+          super.writeText(req);
+          log.info("[HuoBi]: unsubscribe: {}", req);
+          break;
+        }
+        case TRADE_DETAIL: {
+          String req = buildTradeDetailUnsubReq(System.currentTimeMillis(), huoBiSymbol);
+          super.writeText(req);
+          log.info("[HuoBi]: unsubscribe: {}", req);
+          break;
+        }
+        default: {
+          handler.handle(Future.failedFuture("unknown data type for: " + dataType));
+          break;
+        }
+      }
+      handler.handle(Future.succeededFuture());
+    }).onFailure(throwable -> {
+      handler.handle(Future.failedFuture(throwable));
+    });
   }
 
   @Override
@@ -229,8 +228,6 @@ public class HuoBiKlineCollector extends GenericWsCollector {
   }
 
   private String toHuoBiSymbol(String symbol) {
-    return symbol.replace("-", "")
-      .replace("/", "")
-      .toLowerCase();
+    return symbol.replace("-", "").replace("/", "").toLowerCase();
   }
 }

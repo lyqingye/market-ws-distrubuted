@@ -11,8 +11,6 @@ import io.vertx.core.Future;
 import io.vertx.core.Handler;
 import io.vertx.core.Vertx;
 import io.vertx.core.json.JsonObject;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.util.List;
 import java.util.Objects;
@@ -24,32 +22,29 @@ import java.util.Set;
  * @author lyqingye
  */
 public class CacheableKLineRepositoryProxy implements KLineRepository {
-  private static final Logger log = LoggerFactory.getLogger(CacheableKLineRepositoryProxy.class);
   private KLineRepository cacheRepository;
   private KLineRepository persistRepository;
 
-  public CacheableKLineRepositoryProxy (KLineRepository persistRepository) {
+  public CacheableKLineRepositoryProxy(KLineRepository persistRepository) {
     this.cacheRepository = new InMemKLineRepository();
     this.persistRepository = Objects.requireNonNull(persistRepository);
   }
 
-  @SuppressWarnings("rawtypes")
   @Override
   public void open(Vertx vertx, JsonObject config, Handler<AsyncResult<Void>> handler) {
-    persistRepository.open(vertx,config, persist -> {
+    persistRepository.open(vertx, config, persist -> {
       if (persist.succeeded()) {
-        cacheRepository.open(vertx,config, cache -> {
+        cacheRepository.open(vertx, config, cache -> {
           if (cache.succeeded()) {
             // cache从持久化库导入数据
             cacheRepository.importFrom(persistRepository)
-              // 持久化仓库同步日志
-              .compose(none -> persistRepository.syncAppendedFrom(cacheRepository))
-              .onComplete(handler);
-          }else {
+                // 持久化仓库同步日志
+                .compose(none -> persistRepository.syncAppendedFrom(cacheRepository)).onComplete(handler);
+          } else {
             handler.handle(Future.failedFuture(cache.cause()));
           }
         });
-      }else {
+      } else {
         handler.handle(Future.failedFuture(persist.cause()));
       }
     });
@@ -67,19 +62,18 @@ public class CacheableKLineRepositoryProxy implements KLineRepository {
 
   @Override
   public void restoreWithSnapshot(KlineSnapshot snapshot, Handler<AsyncResult<Void>> handler) {
-    cacheRepository.restoreWithSnapshot(snapshot,handler);
+    cacheRepository.restoreWithSnapshot(snapshot, handler);
   }
 
   @Override
-  public void append(long commitIndex, String symbol, Period period, KlineTick tick, Handler<AsyncResult<Long>> handler) {
+  public void append(long commitIndex, String symbol, Period period, KlineTick tick,
+                     Handler<AsyncResult<Long>> handler) {
     cacheRepository.append(commitIndex, symbol, period, tick, handler);
   }
 
   @Override
   public void close(Handler<AsyncResult<Void>> handler) {
-    cacheRepository.close()
-      .compose(v -> persistRepository.close())
-      .onComplete(handler);
+    cacheRepository.close().compose(v -> persistRepository.close()).onComplete(handler);
   }
 
   @Override

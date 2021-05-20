@@ -11,11 +11,6 @@ import java.util.stream.Collectors;
 
 public class RedisHelper {
   /**
-   * vertx 实例
-   */
-  private Vertx vertx;
-
-  /**
    * redis 连接
    */
   private RedisConnection redisConn;
@@ -33,24 +28,22 @@ public class RedisHelper {
    * @return future
    */
   public static Future<RedisHelper> create(Vertx vertx, String connectionString) {
-    return VertxUtil.readJsonFile(vertx, "redis.json")
-        .compose(config -> {
-          Promise<RedisHelper> promise = Promise.promise();
-          RedisHelper self = new RedisHelper();
-          Redis.createClient(vertx, new RedisOptions(config))
-              .connect(onConnect -> {
-                if (onConnect.succeeded()) {
-                  self.redisConn = onConnect.result();
-                  self.redisApi = RedisAPI.api(self.redisConn);
-                  promise.complete(self);
-                  // 打印异常堆栈
-                  self.redisConn.exceptionHandler(Throwable::printStackTrace);
-                } else {
-                  promise.fail(onConnect.cause());
-                }
-              });
-          return promise.future();
-        });
+    return VertxUtil.readJsonFile(vertx, "redis.json").compose(config -> {
+      Promise<RedisHelper> promise = Promise.promise();
+      RedisHelper self = new RedisHelper();
+      Redis.createClient(vertx, new RedisOptions(config)).connect(onConnect -> {
+        if (onConnect.succeeded()) {
+          self.redisConn = onConnect.result();
+          self.redisApi = RedisAPI.api(self.redisConn);
+          promise.complete(self);
+          // 打印异常堆栈
+          self.redisConn.exceptionHandler(Throwable::printStackTrace);
+        } else {
+          promise.fail(onConnect.cause());
+        }
+      });
+      return promise.future();
+    });
   }
 
   /**
@@ -104,8 +97,7 @@ public class RedisHelper {
    * @param value   value
    * @param handler handler
    */
-  public void hSet(String key, String hashKey, String value,
-                   Handler<AsyncResult<Void>> handler) {
+  public void hSet(String key, String hashKey, String value, Handler<AsyncResult<Void>> handler) {
     redisApi.hset(Arrays.asList(key, hashKey, value), ar -> {
       if (ar.succeeded()) {
         handler.handle(Future.succeededFuture());
@@ -121,8 +113,7 @@ public class RedisHelper {
    * @param key     key
    * @param handler handler
    */
-  public void zCard(String key,
-                    Handler<AsyncResult<Long>> handler) {
+  public void zCard(String key, Handler<AsyncResult<Long>> handler) {
     redisApi.zcard(key, ar -> {
       if (ar.succeeded()) {
         handler.handle(Future.succeededFuture(this.responseToObj(ar.result())));
@@ -140,14 +131,12 @@ public class RedisHelper {
    * @param stop    stop
    * @param handler handler
    */
-  public void zRange(String key, long start, long stop,
-                     Handler<AsyncResult<List<String>>> handler) {
+  public void zRange(String key, long start, long stop, Handler<AsyncResult<List<String>>> handler) {
     final List<String> cmd = Arrays.asList(key, String.valueOf(start), String.valueOf(stop));
     redisApi.zrange(cmd, ar -> {
       if (ar.succeeded()) {
         final Response response = ar.result();
-        final List<String> objects = response.stream()
-            .map(obj -> (String) this.responseToObj(obj))
+        final List<String> objects = response.stream().map(obj -> (String) this.responseToObj(obj))
             .collect(Collectors.toList());
         handler.handle(Future.succeededFuture(objects));
       } else {
@@ -156,15 +145,13 @@ public class RedisHelper {
     });
   }
 
-  public void zRangeByScore (String key,double start, double stop,
-                             Handler<AsyncResult<List<String>>> handler) {
+  public void zRangeByScore(String key, double start, double stop, Handler<AsyncResult<List<String>>> handler) {
     final List<String> cmd = Arrays.asList(key, String.valueOf(start), String.valueOf(stop));
     redisApi.zrangebyscore(cmd, ar -> {
       if (ar.succeeded()) {
         final Response response = ar.result();
-        final List<String> objects = response.stream()
-          .map(obj -> (String) this.responseToObj(obj))
-          .collect(Collectors.toList());
+        final List<String> objects = response.stream().map(obj -> (String) this.responseToObj(obj))
+            .collect(Collectors.toList());
         handler.handle(Future.succeededFuture(objects));
       } else {
         handler.handle(Future.failedFuture(ar.cause()));
@@ -182,8 +169,7 @@ public class RedisHelper {
     redisApi.smembers(key, ar -> {
       if (ar.succeeded()) {
         final Response response = ar.result();
-        final Set<String> objects = response.stream()
-            .map(obj -> (String) this.responseToObj(obj))
+        final Set<String> objects = response.stream().map(obj -> (String) this.responseToObj(obj))
             .collect(Collectors.toSet());
         handler.handle(Future.succeededFuture(objects));
       } else {
@@ -210,8 +196,7 @@ public class RedisHelper {
    * @param commands 命令
    * @param onSend   结果
    */
-  public void batch(List<Request> commands,
-                    Handler<AsyncResult<List<@Nullable Response>>> onSend) {
+  public void batch(List<Request> commands, Handler<AsyncResult<List<@Nullable Response>>> onSend) {
     redisConn.batch(commands, onSend);
   }
 
@@ -268,7 +253,9 @@ public class RedisHelper {
       case ERROR: {
         System.out.println("redis error response, error msg: " + r.toString());
       }
+      default: {
+        return null;
+      }
     }
-    return null;
   }
 }
