@@ -1,13 +1,8 @@
 package com.tqxd.jys.timeline.cmd;
 
-import com.tqxd.jys.common.payload.KlineTick;
-import com.tqxd.jys.constance.Period;
 import com.tqxd.jys.openapi.payload.KlineSnapshot;
 import io.vertx.core.AsyncResult;
 import io.vertx.core.Handler;
-
-import java.util.Collections;
-import java.util.List;
 
 public class RestoreSnapshotCmd {
   private KlineSnapshot snapshot;

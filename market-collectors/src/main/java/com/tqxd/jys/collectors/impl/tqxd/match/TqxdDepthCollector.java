@@ -39,8 +39,7 @@ public class TqxdDepthCollector extends GenericWsCollector {
   public synchronized void start(Promise<Void> startPromise) throws Exception {
     Promise<Void> promise = Promise.promise();
     super.start(promise);
-    promise.future()
-        .compose(none -> this.subscribe(DataType.DEPTH, config.getString(TqxdCollector.SYMBOL_CONFIG)))
+    promise.future().compose(none -> this.subscribe(DataType.DEPTH, config.getString(TqxdCollector.SYMBOL_CONFIG)))
         .onComplete(startPromise);
   }
 
@@ -63,16 +62,15 @@ public class TqxdDepthCollector extends GenericWsCollector {
   public void subscribe(DataType dataType, String symbol, Handler<AsyncResult<Void>> handler) {
     Promise<Void> promise = Promise.promise();
     super.subscribe(dataType, symbol, promise);
-    promise.future()
-        .onSuccess(none -> {
-          super.writeText(TqxdRequestUtils.buildSubscribeDepthReq(System.currentTimeMillis() / 1000, TqxdRequestUtils.toTqxdSymbol(symbol), 20, DepthLevel.step0));
-          handler.handle(Future.succeededFuture());
-        })
-        .onFailure(throwable -> handler.handle(Future.failedFuture(throwable)));
+    promise.future().onSuccess(none -> {
+      super.writeText(TqxdRequestUtils.buildSubscribeDepthReq(System.currentTimeMillis() / 1000,
+          TqxdRequestUtils.toTqxdSymbol(symbol), 20, DepthLevel.step0));
+      handler.handle(Future.succeededFuture());
+    }).onFailure(throwable -> handler.handle(Future.failedFuture(throwable)));
   }
 
   @Override
-  @SuppressWarnings({"rawtypes", "unchecked"})
+  @SuppressWarnings({"unchecked"})
   public void onFrame(WebSocket client, WebSocketFrame frame) {
     if (frame.isText() && frame.isFinal()) {
       JsonObject obj = (JsonObject) Json.decodeValue(frame.textData());
@@ -89,13 +87,15 @@ public class TqxdDepthCollector extends GenericWsCollector {
             tick.setTs(System.currentTimeMillis());
             tick.setAsks(flatAsksOrBids(asks));
             tick.setBids(flatAsksOrBids(bids));
-            String ch = ChannelUtil.buildMarketDepthChannel(config.getString(TqxdCollector.SYMBOL_CONFIG), DepthLevel.step0);
+            String ch = ChannelUtil.buildMarketDepthChannel(config.getString(TqxdCollector.SYMBOL_CONFIG),
+                DepthLevel.step0);
             TemplatePayload<DepthTick> payload = TemplatePayload.of(ch, tick);
             unParkReceives(DataType.DEPTH, JsonObject.mapFrom(payload));
           }
         }
       } else {
-        log.warn("[TqxdDepth]-{}: receive ignored data is: {}", config.getString(TqxdCollector.SYMBOL_CONFIG), frame.textData());
+        log.warn("[TqxdDepth]-{}: receive ignored data is: {}", config.getString(TqxdCollector.SYMBOL_CONFIG),
+            frame.textData());
       }
     }
   }

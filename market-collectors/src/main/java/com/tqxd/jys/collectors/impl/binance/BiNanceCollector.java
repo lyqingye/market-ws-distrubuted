@@ -146,7 +146,12 @@ public class BiNanceCollector extends GenericWsCollector {
             this.subscribeDepth(symbol, handler);
             break;
           }
+          default: {
+            handler.handle(Future.failedFuture("unknown data type for: " + dataType));
+            break;
+          }
         }
+        handler.handle(Future.succeededFuture());
       })
       .onFailure(throwable -> handler.handle(Future.failedFuture(throwable)));
   }
@@ -219,7 +224,12 @@ public class BiNanceCollector extends GenericWsCollector {
             }
             break;
           }
+          default: {
+            handler.handle(Future.failedFuture("unknown data type for: " + dataType));
+            break;
+          }
         }
+        handler.handle(Future.succeededFuture());
       })
       .onFailure(throwable -> {
         handler.handle(Future.failedFuture(throwable));

@@ -6,13 +6,10 @@ import io.vertx.core.AsyncResult;
 import io.vertx.core.Future;
 import io.vertx.core.Handler;
 import io.vertx.core.json.JsonObject;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.util.*;
 
 public abstract class BasicCollector extends AbstractVerticle implements Collector {
-  private Logger log = LoggerFactory.getLogger(BasicCollector.class);
   private Map<DataType, List<String>> subscribed = new HashMap<>(16);
   private DataReceiver[] receivers = new DataReceiver[16];
   private int numOfReceives = 0;

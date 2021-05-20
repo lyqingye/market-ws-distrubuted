@@ -18,12 +18,11 @@ import com.tqxd.jys.websocket.transport.ServerEndpointVerticle;
 import io.vertx.core.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-@SuppressWarnings("unchecked")
 public class PushingApplication extends AbstractVerticle {
   private static final Logger log = LoggerFactory.getLogger(PushingApplication.class);
   private KLineRepository kLineRepository;
   private CacheManager cacheManager;
-  private ServerEndpointVerticle serverEndpointVerticle;
+  private String serverEndpointDeployId;
 
   public static void main(String[] args) {
     Bootstrap.run(new PushingApplication(), new DeploymentOptions().setWorker(true));
@@ -87,12 +86,15 @@ public class PushingApplication extends AbstractVerticle {
     cacheManager.addWatcher(marketDepthChannelProcessor);
     dispatcher.addProcessor(marketDepthChannelProcessor);
 
-    this.serverEndpointVerticle = new ServerEndpointVerticle();
     return vertx.deployVerticle(ServerEndpointVerticle.class, new DeploymentOptions().setWorker(true).setConfig(config()).setInstances(Runtime.getRuntime().availableProcessors()))
+        .onSuccess(deploymentId -> {
+          this.serverEndpointDeployId = deploymentId;
+        })
         .map(toVoid -> null);
   }
 
   @Override
   public void stop(Promise<Void> stopPromise) throws Exception {
+    vertx.undeploy(this.serverEndpointDeployId, stopPromise);
   }
 }

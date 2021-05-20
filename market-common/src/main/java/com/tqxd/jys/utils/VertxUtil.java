@@ -243,6 +243,7 @@ public final class VertxUtil {
    * @param files json文件路径
    * @return future
    */
+  @SuppressWarnings("rawtypes")
   public static Future<JsonObject[]> readJsonFiles(Vertx vertx, String[] files) {
     Promise<JsonObject[]> promise = Promise.promise();
     JsonObject[] result = new JsonObject[files.length];

@@ -104,7 +104,8 @@ public class SessionManager {
           Session session = (Session) obj;
           if (session.tryToExpired()) {
             freeQueue.offer(session.id());
-            log.info("[SessionMgr]: clear expired session at id: {}! current number of online session is: {}", session.id(), usedCounter.decrementAndGet());
+            log.info("[SessionMgr]: clear expired session at id: {}! current number of online session is: {}",
+                session.id(), usedCounter.decrementAndGet());
           }
         }
         try {
@@ -124,7 +125,8 @@ public class SessionManager {
     if (id != null) {
       session = getById(id);
       if (session != null && session.tryToUse()) {
-        log.info("[SessionMgr]: allocate session: {}! current number of online session is: {}", session.id(), usedCounter.incrementAndGet());
+        log.info("[SessionMgr]: allocate session: {}! current number of online session is: {}", session.id(),
+            usedCounter.incrementAndGet());
         return session;
       }
     }
@@ -134,12 +136,12 @@ public class SessionManager {
   public boolean release(Session session) {
     if (session.tryToFree()) {
       freeQueue.offer(session.id());
-      log.info("[SessionMgr]: release session: {}! current number of online session is: {}", session.id(), usedCounter.decrementAndGet());
+      log.info("[SessionMgr]: release session: {}! current number of online session is: {}", session.id(),
+          usedCounter.decrementAndGet());
       return true;
     }
     return false;
   }
-
 
   public void broadcast(Buffer buffer) {
     broadcast(buffer, null);
@@ -267,10 +269,12 @@ public class SessionManager {
   }
 
   private long getBitmapVersion(long sessionId) {
-    return (long) UNSAFE.getLongVolatile(bitmapVersions, ((long) sessionId << BITMAP_VERSION_ARRAY_SHIFT) + BITMAP_VERSION_ARRAY_BASE);
+    return (long) UNSAFE.getLongVolatile(bitmapVersions,
+        ((long) sessionId << BITMAP_VERSION_ARRAY_SHIFT) + BITMAP_VERSION_ARRAY_BASE);
   }
 
   private boolean compareAndSetBitmapVersion(long sessionId, long except, long update) {
-    return UNSAFE.compareAndSwapLong(bitmapVersions, ((long) sessionId << BITMAP_VERSION_ARRAY_SHIFT) + BITMAP_VERSION_ARRAY_BASE, except, update);
+    return UNSAFE.compareAndSwapLong(bitmapVersions,
+        ((long) sessionId << BITMAP_VERSION_ARRAY_SHIFT) + BITMAP_VERSION_ARRAY_BASE, except, update);
   }
 }
